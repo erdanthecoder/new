@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KidWorld 🌍</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.stars-bg{position:fixed;inset:0;pointer-events:none}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,2s) ease-in-out infinite alternate}
+@keyframes twinkle{0%{opacity:.1;transform:scale(1)}100%{opacity:.9;transform:scale(1.3)}}
+.container{text-align:center;z-index:10;padding:40px 20px}
+.logo{font-size:5rem;margin-bottom:10px;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+h1{font-size:3.5rem;font-weight:900;color:#fff;margin-bottom:8px;text-shadow:0 0 30px rgba(255,255,255,0.3)}
+h1 span{background:linear-gradient(90deg,#f093fb,#f5576c,#4facfe,#00f2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:1.2rem;color:rgba(255,255,255,0.7);margin-bottom:50px;font-weight:600}
+.cards{display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+.card{background:rgba(255,255,255,0.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.15);border-radius:28px;padding:40px 48px;cursor:pointer;transition:all .3s;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:220px}
+.card:hover{transform:translateY(-8px) scale(1.02);background:rgba(255,255,255,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.card-icon{font-size:4rem}
+.card-title{font-size:1.4rem;font-weight:800;color:#fff}
+.card-sub{font-size:.9rem;color:rgba(255,255,255,.6);font-weight:600}
+.card.student{border-color:rgba(79,172,254,0.5)}
+.card.student:hover{box-shadow:0 20px 60px rgba(79,172,254,0.3)}
+.card.teacher{border-color:rgba(240,147,251,0.5)}
+.card.teacher:hover{box-shadow:0 20px 60px rgba(240,147,251,0.3)}
+.card.summary{border-color:rgba(0,242,254,0.5)}
+.card.summary:hover{box-shadow:0 20px 60px rgba(0,242,254,0.3)}
+.floating{position:fixed;pointer-events:none;font-size:2rem;animation:float var(--d,8s) ease-in-out infinite;opacity:0.15}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-30px) rotate(10deg)}}
+</style>
+</head>
+<body>
+<div class="stars-bg" id="stars"></div>
+<div class="container">
+  <div class="logo">🌍</div>
+  <h1>Kid<span>World</span></h1>
+  <p class="subtitle">The most fun way to learn — Maths · English · Russian 🚀</p>
+  <div class="cards">
+    <a href="student.html" class="card student">
+      <div class="card-icon">🎮</div>
+      <div class="card-title">I'm a Student</div>
+      <div class="card-sub">Play, learn & earn stars!</div>
+    </a>
+    <a href="teacher.html" class="card teacher">
+      <div class="card-icon">👩‍🏫</div>
+      <div class="card-title">I'm a Teacher</div>
+      <div class="card-sub">Manage your classroom</div>
+    </a>
+
+  </div>
+</div>
+<script>
+const sb=document.getElementById('stars');
+for(let i=0;i<120;i++){
+  const s=document.createElement('div');
+  s.className='star';
+  const size=Math.random()*3+1;
+  s.style.cssText=`width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${1+Math.random()*3}s;animation-delay:${Math.random()*3}s`;
+  sb.appendChild(s);
+}
+const emojis=['⭐','🎮','📚','🔢','🌟','🎯','🏆','✨','🎨','🚀'];
+emojis.forEach((e,i)=>{
+  const d=document.createElement('div');
+  d.className='floating';
+  d.textContent=e;
+  d.style.cssText=`left:${Math.random()*90}%;top:${Math.random()*90}%;--d:${6+Math.random()*6}s;animation-delay:${i*0.8}s`;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

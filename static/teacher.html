@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KidWorld — Teacher Dashboard 👩‍🏫</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1a73e8;--blue2:#1557b0;--green:#0f9d58;--orange:#f4b400;--red:#db4437;--purple:#9334e6;--bg:#f0f4ff;--card:#fff;--text:#1a1a2e;--sub:#5f6368;--border:#e0e0e0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text)}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)}
+.login-card{background:rgba(255,255,255,.08);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,.15);border-radius:28px;padding:48px 40px;width:100%;max-width:420px;text-align:center}
+.login-logo{font-size:3.5rem;margin-bottom:12px}
+.login-title{font-size:1.8rem;font-weight:900;color:#fff;margin-bottom:6px}
+.login-sub{color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:32px;font-weight:600}
+.login-input{width:100%;padding:14px 18px;border-radius:14px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:1rem;font-family:inherit;font-weight:700;outline:none;margin-bottom:12px;text-align:center}
+.login-input:focus{border-color:rgba(255,255,255,.5)}
+.login-btn{width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;font-size:1rem;font-weight:900;cursor:pointer;font-family:inherit;transition:.2s}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(79,172,254,.4)}
+.login-err{color:#ff6b6b;font-size:.85rem;font-weight:700;margin-top:8px;display:none}
+
+/* APP */
+#app{display:none}
+
+/* TOPBAR */
+.topbar{height:64px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.topbar-logo{font-size:1.4rem;font-weight:900;color:var(--blue)}
+.topbar-logo span{color:var(--orange)}
+.teacher-badge{background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border-radius:20px;padding:6px 16px;font-size:.85rem;font-weight:800}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.icon-btn{width:40px;height:40px;border-radius:50%;background:#f0f4ff;border:none;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:.2s}
+.icon-btn:hover{background:#e8f0fe}
+
+/* LAYOUT */
+.layout{display:flex}
+.sidebar{width:220px;background:#fff;border-right:1px solid var(--border);height:calc(100vh - 64px);position:sticky;top:64px;overflow-y:auto;padding:12px 0;flex-shrink:0}
+.sidebar-section{padding:8px 16px 4px;font-size:.7rem;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;border-radius:0 24px 24px 0;margin:2px 12px 2px 0;cursor:pointer;color:var(--sub);font-weight:700;font-size:.9rem;transition:.15s}
+.nav-item:hover{background:#f0f4ff;color:var(--blue)}
+.nav-item.active{background:#e8f0fe;color:var(--blue)}
+.ni{font-size:1.1rem;width:22px;text-align:center}
+.nav-live{background:#e6f4ea;color:var(--green);border-radius:8px;padding:2px 7px;font-size:.68rem;font-weight:800;margin-left:auto}
+
+/* MAIN */
+.main{flex:1;min-width:0}
+
+/* BANNER */
+.class-banner{height:200px;background:linear-gradient(135deg,#1a73e8,#4facfe);display:flex;align-items:flex-end;padding:28px 36px;position:relative;overflow:hidden}
+.banner-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,0,0,.2),rgba(0,0,0,0))}
+.banner-content{position:relative;z-index:1}
+.banner-title{font-size:2.2rem;font-weight:900;color:#fff}
+.banner-sub{font-size:1rem;color:rgba(255,255,255,.8);font-weight:600;margin-top:4px}
+.banner-emoji{position:absolute;right:36px;bottom:20px;font-size:5rem;opacity:.2}
+
+/* CONTENT */
+.content{max-width:1000px;margin:0 auto;padding:28px}
+
+/* STAT ROW */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:16px;border:1px solid var(--border);padding:20px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.stat-icon-box{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.stat-num{font-size:1.6rem;font-weight:900;color:var(--text)}
+.stat-label{font-size:.78rem;color:var(--sub);font-weight:700;margin-top:2px}
+
+/* CARDS */
+.card{background:#fff;border-radius:16px;border:1px solid var(--border);overflow:hidden;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:1rem;font-weight:800;color:var(--text)}
+.card-body{padding:20px}
+
+/* FORM */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:.8rem;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.05em}
+.form-input{padding:12px 14px;border-radius:10px;border:1px solid var(--border);font-family:inherit;font-size:.9rem;font-weight:700;color:var(--text);outline:none;transition:.2s;background:#f8f9ff}
+.form-input:focus{border-color:var(--blue);background:#fff}
+.form-textarea{resize:vertical;min-height:80px}
+.btn-primary{padding:11px 22px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary:hover{background:var(--blue2);transform:translateY(-1px)}
+.btn-green{background:var(--green)}.btn-green:hover{background:#0d8950}
+.btn-red{background:var(--red)}.btn-red:hover{background:#c13027}
+.btn-purple{background:var(--purple)}.btn-purple:hover{background:#7b22d4}
+.btn-orange{background:var(--orange);color:#000}.btn-orange:hover{background:#e6a800}
+
+/* STUDENT LIST */
+.student-list{display:flex;flex-direction:column;gap:10px}
+.student-row{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:.15s}
+.student-row:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(26,115,232,.1)}
+.student-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:900;color:#fff;flex-shrink:0}
+.student-name{font-size:.95rem;font-weight:800;color:var(--text)}
+.student-meta{font-size:.78rem;color:var(--sub);font-weight:700;margin-top:2px}
+.online-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
+.online-dot.on{background:var(--green)}
+.student-stars{margin-left:auto;display:flex;align-items:center;gap:6px}
+.stars-num{font-size:.85rem;font-weight:800;color:var(--orange)}
+.reward-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--green);background:#e6f4ea;color:var(--green);font-size:.78rem;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s}
+.reward-btn:hover{background:var(--green);color:#fff}
+
+/* HW LIST */
+.hw-list{display:flex;flex-direction:column;gap:10px}
+.hw-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;align-items:stretch}
+.hw-stripe{width:6px;flex-shrink:0}
+.hw-body{padding:14px 16px;flex:1}
+.hw-subject{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.hw-title{font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:4px}
+.hw-desc{font-size:.82rem;color:var(--sub);font-weight:600}
+.hw-meta{font-size:.75rem;color:#aaa;margin-top:6px;display:flex;gap:10px;align-items:center}
+.hw-del{padding:8px;border:none;background:#fce8e6;border-radius:8px;color:var(--red);cursor:pointer;font-size:.85rem;margin:auto 12px auto auto}
+
+/* LIVE ACTIONS */
+.action-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.action-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;cursor:pointer;transition:.2s}
+.action-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.action-card .ac-icon{font-size:2.5rem;margin-bottom:10px}
+.action-card .ac-name{font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:4px}
+.action-card .ac-desc{font-size:.78rem;color:var(--sub);font-weight:600}
+
+/* ANNOUNCE LIST */
+.ann-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;border-left:4px solid var(--blue)}
+.ann-card.urgent{border-left-color:var(--red)}
+.ann-card.fun{border-left-color:var(--green)}
+.ann-title{font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:4px}
+.ann-body{font-size:.85rem;color:var(--sub);font-weight:600;line-height:1.5}
+.ann-meta{font-size:.72rem;color:#bbb;margin-top:6px}
+.ann-del{float:right;padding:5px 11px;border:none;background:#fce8e6;border-radius:7px;color:var(--red);cursor:pointer;font-size:.78rem;font-weight:800;font-family:inherit}
+
+/* SECTION TITLE */
+.section-title{font-size:1.1rem;font-weight:900;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title .count{background:#e8f0fe;color:var(--blue);border-radius:12px;padding:2px 8px;font-size:.78rem}
+
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
+.modal-box{position:relative;background:#fff;border-radius:24px;padding:36px;width:100%;max-width:520px;z-index:1;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:1.3rem;font-weight:900;margin-bottom:20px}
+.modal-close{position:absolute;top:16px;right:16px;background:#f1f3f4;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem}
+
+/* TABS */
+.page-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:28px;overflow-x:auto}
+.page-tab{padding:12px 20px;font-size:.9rem;font-weight:800;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:.15s}
+.page-tab:hover{color:var(--blue)}
+.page-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* SPINNER */
+
+/* ══ SPIN WHEEL ══ */
+.wheel-wrap{display:flex;flex-direction:column;align-items:center;gap:20px}
+.wheel-canvas-wrap{position:relative;display:flex;justify-content:center}
+#spin-wheel{border-radius:50%;box-shadow:0 8px 40px rgba(0,0,0,.25);display:block}
+.wheel-pointer{text-align:center;font-size:2rem;margin-bottom:-8px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.spin-btn{padding:14px 44px;border-radius:14px;border:none;background:linear-gradient(135deg,#f4b400,#ff6d00);color:#fff;font-size:1.1rem;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(244,180,0,.4);transition:.2s}
+.spin-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(244,180,0,.5)}
+.spin-btn:disabled{opacity:.5;cursor:not-allowed}
+.spin-result{text-align:center;padding:20px 24px;background:#fff;border-radius:16px;border:2px solid var(--border);width:100%;max-width:380px}
+.spin-result-emoji{font-size:3rem;margin-bottom:8px}
+.spin-result-name{font-size:1.3rem;font-weight:900;color:var(--text);margin-bottom:5px}
+.spin-result-desc{font-size:.88rem;color:var(--sub);font-weight:700;margin-bottom:14px}
+
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid #e0e0e0;border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">👩‍🏫</div>
+    <div class="login-title">Teacher Dashboard</div>
+    <div class="login-sub">KidWorld · Secure Teacher Access</div>
+    <input type="password" class="login-input" id="pw-input" placeholder="Enter teacher password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-err" id="login-err">Wrong password. Try again!</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <a href="index.html" style="text-decoration:none"><div class="topbar-logo">🌍 Kid<span>World</span></div></a>
+    <div class="teacher-badge" id="t-av-badge" onclick="editTeacherAvatar()" style="cursor:pointer" title="Click to change avatar">👩‍🏫 Teacher</div>
+    <div class="topbar-right">
+      <div style="font-size:.85rem;font-weight:700;color:var(--sub)">
+        <span class="online-dot on" style="display:inline-block;margin-right:4px"></span>
+        <span id="online-count">0</span> online
+      </div>
+      <button class="icon-btn" onclick="refreshAll()" title="Refresh">🔄</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-section">Dashboard</div>
+      <div class="nav-item active" onclick="nav('stream')"><span class="ni">📊</span> Stream</div>
+      <div class="nav-item" onclick="nav('students')"><span class="ni">👥</span> Students</div>
+      <div class="sidebar-section">Teaching</div>
+      <div class="nav-item" onclick="nav('announce')"><span class="ni">📢</span> Announcements</div>
+      <div class="nav-item" onclick="nav('homework')"><span class="ni">📋</span> Homework</div>
+      <div class="sidebar-section">Tools</div>
+      <div class="nav-item" onclick="nav('live')"><span class="ni">⚡</span> Live Actions <span class="nav-live">LIVE</span></div>
+      <div class="nav-item" onclick="nav('reports')"><span class="ni">📈</span> Reports</div>
+    </div>
+    <div class="main">
+      <div id="page-stream" class="page"></div>
+      <div id="page-students" class="page" style="display:none"></div>
+      <div id="page-announce" class="page" style="display:none"></div>
+      <div id="page-homework" class="page" style="display:none"></div>
+      <div id="page-live" class="page" style="display:none"></div>
+      <div id="page-reports" class="page" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="hw-modal">
+  <div class="modal-bg" onclick="closeModal('hw-modal')"></div>
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('hw-modal')">✕</button>
+    <div class="modal-title">📋 Create Homework</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="hw-title" placeholder="e.g. Counting to 20">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-input" id="hw-subject">
+          <option>Maths</option><option>English</option><option>Russian</option><option>Science</option><option>Art</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Year Group</label>
+        <select class="form-input" id="hw-year">
+          <option value="all">All Years</option><option value="1">Year 1</option><option value="2">Year 2</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Instructions</label>
+      <textarea class="form-input form-textarea" id="hw-desc" placeholder="What should students do?"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input class="form-input" type="date" id="hw-due">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Points</label>
+        <input class="form-input" type="number" id="hw-points" value="10" min="1" max="100">
+      </div>
+    </div>
+    <button class="btn-primary" onclick="submitHW()" style="width:100%;justify-content:center;padding:13px">Post Homework ✓</button>
+  </div>
+</div>
+
+<div class="modal" id="announce-modal">
+  <div class="modal-bg" onclick="closeModal('announce-modal')"></div>
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('announce-modal')">✕</button>
+    <div class="modal-title">📢 New Announcement</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Title (optional)</label>
+      <input class="form-input" id="ann-title" placeholder="e.g. Tomorrow's Activities">
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Message</label>
+      <textarea class="form-input form-textarea" id="ann-body" placeholder="Write your announcement..."></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="ann-type">
+        <option value="normal">📣 Normal</option>
+        <option value="urgent">🚨 Urgent</option>
+        <option value="fun">🎉 Fun Event</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="submitAnn()" style="width:100%;justify-content:center;padding:13px">Post Announcement 📢</button>
+  </div>
+</div>
+
+<script>
+let TOKEN = '';
+let STATS = {};
+
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  if(pw==='teach2024') {
+    TOKEN='local';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    startApp();
+  } else {
+    document.getElementById('login-err').style.display='block';
+  }
+}
+
+function ah() { return {'X-Teacher-Token':TOKEN,'Content-Type':'application/json'}; }
+
+async function startApp() {
+  await loadStats();
+  renderStream();
+  setInterval(loadStats, 10000);
+}
+
+async function loadStats() {
+  const students = JSON.parse(localStorage.getItem('kw_students')||'[]');
+  STATS = {
+    total_students: students.length,
+    online: students.filter(s=>(Date.now()/1000 - (s.last_seen||0)) < 120).length,
+    quizzes_played: parseInt(localStorage.getItem('kw_quizzes')||'0'),
+    total_stars: students.reduce((t,s)=>t+(s.stars||0),0)
+  };
+  const el = document.getElementById('online-count');
+  if(el) el.textContent = students.length;
+}
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).style.display='block';
+  event.currentTarget&&event.currentTarget.classList.add('active');
+  const renders={stream:renderStream,students:renderStudents,announce:renderAnnounce,homework:renderHW,live:renderLive,reports:renderReports,forms:tRenderForms,world:tRenderWorld};
+  if(renders[page])renders[page]();
+}
+
+// ── STREAM ──────────────────────────────────────────
+async function renderStream() {
+  await loadStats();
+  let ann=[];
+  try{ ann=JSON.parse(localStorage.getItem('kw_announcements')||'[]'); }catch(e){}
+  let hw=[];
+  try{ hw=JSON.parse(localStorage.getItem('kw_homework')||'[]'); }catch(e){}
+  
+  document.getElementById('page-stream').innerHTML=`
+    <div class="class-banner">
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <div class="banner-title">👩‍🏫 Teacher Dashboard</div>
+        <div class="banner-sub">KidWorld — Modern Classroom</div>
+      </div>
+      <div class="banner-emoji">🏫</div>
+    </div>
+    <div class="content">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-icon-box" style="background:#e8f0fe">👥</div>
+          <div><div class="stat-num">${STATS.total_students||0}</div><div class="stat-label">Total Students</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box" style="background:#e6f4ea">🟢</div>
+          <div><div class="stat-num">${STATS.online||0}</div><div class="stat-label">Online Now</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box" style="background:#fef7e0">🧠</div>
+          <div><div class="stat-num">${STATS.quizzes_played||0}</div><div class="stat-label">Quizzes Played</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box" style="background:#fce8e6">⭐</div>
+          <div><div class="stat-num">${STATS.total_stars||0}</div><div class="stat-label">Stars Earned</div></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div class="section-title">📢 Recent Announcements <span class="count">${ann.length}</span></div>
+          ${ann.slice(0,3).map(a=>`
+            <div class="ann-card ${a.type}">
+              <button class="ann-del" onclick="delAnn(${a.id})">✕</button>
+              ${a.title?`<div class="ann-title">${a.title}</div>`:''}
+              <div class="ann-body">${a.body}</div>
+              <div class="ann-meta">${timeAgo(a.created_at)}</div>
+            </div>`).join('')||'<div style="color:var(--sub);font-size:.9rem;font-weight:600">No announcements yet</div>'}
+          <button class="btn-primary btn-green" onclick="openModal('announce-modal')" style="margin-top:12px">+ New Announcement</button>
+        </div>
+        <div>
+          <div class="section-title">📋 Recent Homework <span class="count">${hw.length}</span></div>
+          ${hw.slice(0,3).map(h=>`
+            <div class="hw-card">
+              <div class="hw-stripe" style="background:#1a73e8"></div>
+              <div class="hw-body">
+                <div class="hw-subject" style="color:#1a73e8">${h.subject}</div>
+                <div class="hw-title">${h.title}</div>
+                <div class="hw-meta">Year ${h.year} · ⭐ ${h.points} pts</div>
+              </div>
+            </div>`).join('')||'<div style="color:var(--sub);font-size:.9rem;font-weight:600">No homework set yet</div>'}
+          <button class="btn-primary" onclick="openModal('hw-modal')" style="margin-top:12px">+ Set Homework</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── STUDENTS ────────────────────────────────────────
+async function renderStudents() {
+  const students = JSON.parse(localStorage.getItem('kw_students')||'[]').sort((a,b)=>(b.stars||0)-(a.stars||0));
+  const colors=['#1a73e8','#0f9d58','#db4437','#9334e6','#f4b400','#00bcd4'];
+  document.getElementById('page-students').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#0f9d58,#34a853)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content"><div class="banner-title">👥 Students</div><div class="banner-sub">${students.length} students registered</div></div>
+      <div class="banner-emoji">🧑‍🎓</div>
+    </div>
+    <div class="content">
+      <div class="section-title">All Students <span class="count">${students.length}</span></div>
+      <div class="student-list">
+        ${students.length ? students.map((s,i)=>`
+          <div class="student-row">
+            <div class="student-avatar" style="background:${colors[i%colors.length]}">${s.name.charAt(0).toUpperCase()}</div>
+            <div class="online-dot on"></div>
+            <div>
+              <div class="student-name">${s.av||'🐶'} ${s.name}</div>
+              <div class="student-meta">Year ${s.year} · ${s.lang==='russian'?'🇷🇺 Russian':'🇬🇧 English'} · 🏠 ${s.hp||0} HP</div>
+            </div>
+            <div class="student-stars">
+              <span class="stars-num">⭐ ${s.stars||0}</span>
+              <button class="reward-btn" onclick="rewardStudent('${s.name}')">⭐ +5</button>
+              <button class="reward-btn" style="background:#e8f0fe;color:var(--blue);border-color:var(--blue)" onclick="giveHP('${s.name}')">🏠 HP</button>
+            </div>
+          </div>`).join('') : '<div style="text-align:center;padding:40px;color:var(--sub);font-weight:700">No students yet! Students appear here when they register on student.html</div>'}
+      </div>
+    </div>`;
+}
+
+async function giveHP(name) {
+  var amount = parseInt(prompt('Give House Points to ' + name + '\nEnter amount:', '10'));
+  if(isNaN(amount) || amount <= 0) return;
+  var students = JSON.parse(localStorage.getItem('kw_students')||'[]');
+  var i = students.findIndex(function(s){ return s.name===name; });
+  if(i>=0){
+    students[i].hp = (students[i].hp||0) + amount;
+    // Auto-convert stars: every 30 stars = 1 HP
+    var starsToConvert = Math.floor((students[i].stars||0) / 30);
+    if(starsToConvert > 0){
+      students[i].hp = (students[i].hp||0) + starsToConvert;
+      students[i].stars = (students[i].stars||0) - (starsToConvert * 30);
+    }
+    localStorage.setItem('kw_students', JSON.stringify(students));
+  }
+  alert('🏠 Gave ' + amount + ' House Points to ' + name + '!');
+  renderStudents();
+}
+
+async function rewardStudent(name) {
+  var students = JSON.parse(localStorage.getItem('kw_students')||'[]');
+  var i = students.findIndex(function(s){ return s.name===name; });
+  if(i>=0){ students[i].stars=(students[i].stars||0)+5; localStorage.setItem('kw_students',JSON.stringify(students)); }
+  alert('✅ Gave 5 bonus stars to ' + name + '!');
+  renderStudents();
+}
+
+
+// ── ANNOUNCEMENTS ────────────────────────────────────
+async function renderAnnounce() {
+  const ann = JSON.parse(localStorage.getItem('kw_announcements')||'[]');
+  document.getElementById('page-announce').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#db4437,#e57373)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content"><div class="banner-title">📢 Announcements</div><div class="banner-sub">Send messages to all students</div></div>
+      <div class="banner-emoji">📣</div>
+    </div>
+    <div class="content">
+      <div style="margin-bottom:20px">
+        <button class="btn-primary" onclick="openModal('announce-modal')">+ New Announcement 📢</button>
+      </div>
+      <div class="section-title">All Announcements <span class="count">${ann.length}</span></div>
+      ${ann.map(a=>`
+        <div class="ann-card ${a.type}">
+          <button class="ann-del" onclick="delAnn(${a.id})">✕ Delete</button>
+          <div style="font-size:.72rem;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${a.type==='urgent'?'🚨 Urgent':a.type==='fun'?'🎉 Fun':'📣 Normal'}</div>
+          ${a.title?`<div class="ann-title">${a.title}</div>`:''}
+          <div class="ann-body">${a.body}</div>
+          <div class="ann-meta">Posted ${timeAgo(a.created_at)}</div>
+        </div>`).join('')||'<div style="color:var(--sub);font-weight:700;padding:20px 0">No announcements yet</div>'}
+    </div>`;
+}
+
+async function submitAnn() {
+  const body = document.getElementById('ann-body').value.trim();
+  if(!body){ alert('Please write a message!'); return; }
+  const ann = JSON.parse(localStorage.getItem('kw_announcements')||'[]');
+  ann.unshift({id:Date.now(), title:document.getElementById('ann-title').value, body, type:document.getElementById('ann-type').value, author:'Teacher', created_at:Date.now()/1000});
+  localStorage.setItem('kw_announcements', JSON.stringify(ann));
+  closeModal('announce-modal');
+  document.getElementById('ann-title').value='';
+  document.getElementById('ann-body').value='';
+  renderAnnounce();
+}
+
+async function delAnn(id) {
+  if(!confirm('Delete?'))return;
+  const _ann=JSON.parse(localStorage.getItem('kw_announcements')||'[]').filter(a=>a.id!==id);
+  localStorage.setItem('kw_announcements',JSON.stringify(_ann));
+  renderAnnounce();
+}
+
+// ── HOMEWORK ────────────────────────────────────────
+async function renderHW() {
+  const hw = JSON.parse(localStorage.getItem('kw_homework')||'[]');
+  const colors={Maths:'#1a73e8',English:'#0f9d58',Russian:'#db4437',Science:'#9334e6',Art:'#f4b400'};
+  document.getElementById('page-homework').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#9334e6,#c084fc)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content"><div class="banner-title">📋 Homework</div><div class="banner-sub">Set tasks for your students</div></div>
+      <div class="banner-emoji">✏️</div>
+    </div>
+    <div class="content">
+      <div style="margin-bottom:20px">
+        <button class="btn-primary btn-purple" onclick="openModal('hw-modal')">+ Set New Homework 📋</button>
+      </div>
+      <div class="section-title">Active Homework <span class="count">${hw.length}</span></div>
+      <div class="hw-list">
+        ${hw.map(h=>`
+          <div class="hw-card">
+            <div class="hw-stripe" style="background:${colors[h.subject]||'#1a73e8'}"></div>
+            <div class="hw-body">
+              <div class="hw-subject" style="color:${colors[h.subject]||'#1a73e8'}">${h.subject}</div>
+              <div class="hw-title">${h.title}</div>
+              <div class="hw-desc">${h.description}</div>
+              <div class="hw-meta">Year ${h.year} · ⭐ ${h.points} pts ${h.due_date?`· Due: ${h.due_date}`:''}</div>
+            </div>
+            <button class="hw-del" onclick="delHW(${h.id})">🗑️</button>
+          </div>`).join('')||'<div style="color:var(--sub);font-weight:700;padding:20px 0">No homework set yet</div>'}
+      </div>
+    </div>`;
+}
+
+async function submitHW() {
+  const title = document.getElementById('hw-title').value.trim();
+  const desc = document.getElementById('hw-desc').value.trim();
+  if(!title||!desc){ alert('Please fill in title and instructions!'); return; }
+  const hw = JSON.parse(localStorage.getItem('kw_homework')||'[]');
+  hw.unshift({id:Date.now(), title, subject:document.getElementById('hw-subject').value, description:desc, due_date:document.getElementById('hw-due').value, year:document.getElementById('hw-year').value, points:parseInt(document.getElementById('hw-points').value)||10});
+  localStorage.setItem('kw_homework', JSON.stringify(hw));
+  closeModal('hw-modal');
+  document.getElementById('hw-title').value='';
+  document.getElementById('hw-desc').value='';
+  renderHW();
+}
+
+async function delHW(id) {
+  if(!confirm('Delete?'))return;
+  const _hw=JSON.parse(localStorage.getItem('kw_homework')||'[]').filter(h=>h.id!==id);
+  localStorage.setItem('kw_homework',JSON.stringify(_hw));
+  renderHW();
+}
+
+// ── LIVE ACTIONS ────────────────────────────────────
+function renderLive() {
+  document.getElementById('page-live').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#f4b400,#ff6d00)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content"><div class="banner-title">⚡ Live Actions</div><div class="banner-sub">Control your classroom in real-time!</div></div>
+      <div class="banner-emoji">🎉</div>
+    </div>
+    <div class="content">
+
+      <div class="section-title">🎡 Spin the Wheel — Pick an Activity!</div>
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px">
+          <div class="wheel-wrap" style="width:100%">
+            <div class="wheel-pointer">▼</div>
+            <div class="wheel-canvas-wrap">
+              <canvas id="spin-wheel" width="300" height="300"></canvas>
+            </div>
+            <button class="spin-btn" id="spin-btn" onclick="spinWheel()">🎡 SPIN THE WHEEL!</button>
+            <div id="spin-result-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">🎉 Fun Events</div>
+      <div class="action-grid">
+        <div class="action-card" onclick="sendLive('disco')" style="background:linear-gradient(135deg,#ff0080,#7928ca);border:none">
+          <div class="ac-icon">🪩</div><div class="ac-name" style="color:#fff">Disco Time!</div><div class="ac-desc" style="color:rgba(255,255,255,.8)">Colour flash on all screens</div>
+        </div>
+        <div class="action-card" onclick="sendLive('party')">
+          <div class="ac-icon">🎊</div><div class="ac-name">Party!</div><div class="ac-desc">Send a celebration alert</div>
+        </div>
+        <div class="action-card" onclick="sendLive('stars')">
+          <div class="ac-icon">⭐</div><div class="ac-name">Star Rain!</div><div class="ac-desc">Stars fall on student screens</div>
+        </div>
+        <div class="action-card" onclick="sendLive('wellDone')">
+          <div class="ac-icon">🏆</div><div class="ac-name">Well Done!</div><div class="ac-desc">Send class-wide praise</div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:24px">📢 Quick Announcement</div>
+      <div class="card">
+        <div class="card-body">
+          <input class="form-input" id="quick-msg" placeholder="e.g. Please tidy up now! 🧹" style="margin-bottom:11px">
+          <button class="t-btn" onclick="sendQuickMsg()">📢 Send to All Students</button>
+        </div>
+      </div>
+
+    </div>`;
+  setTimeout(drawWheel, 60);
+}
+
+// ── SPIN WHEEL ENGINE ──
+const WHEEL_ITEMS = [
+  {name:'Dodgeball',       emoji:'🏀', color:'#db4437', desc:'Everyone plays dodgeball outside!'},
+  {name:'Hide & Seek',     emoji:'🙈', color:'#0f9d58', desc:'Classic hide and seek — ready or not!'},
+  {name:'Mushroom Tag',    emoji:'🍄', color:'#9334e6', desc:'Mushroom tag — last one standing wins!'},
+  {name:'Football',        emoji:'⚽', color:'#1a73e8', desc:'Time for a football match!'},
+  {name:'Duck Duck Goose', emoji:'🐥', color:'#f4b400', desc:'Duck duck goose — sit in a circle!'},
+  {name:'Simon Says',      emoji:'👆', color:'#00bcd4', desc:'Simon says... listen carefully!'},
+  {name:'Freeze Dance',    emoji:'🕺', color:'#e91e63', desc:'Dance until the music stops — freeze!'},
+  {name:'Relay Race',      emoji:'🏃', color:'#ff6d00', desc:'Teams race to the finish line!'},
+  {name:'Capture the Flag',emoji:'🚩', color:'#4caf50', desc:'Protect your flag and capture theirs!'},
+  {name:'Musical Chairs',  emoji:'🪑', color:'#607d8b', desc:'Music stops — find a chair fast!'},
+  {name:'Tug of War',      emoji:'💪', color:'#795548', desc:'Two teams pull the rope — who wins?'},
+  {name:'Free Choice',     emoji:'🎉', color:'#9334e6', desc:'Students choose what to play!'},
+];
+
+let _wheelAngle = 0;
+let _wheelSpinning = false;
+let _wheelResult = null;
+
+function drawWheel(highlightIdx) {
+  const canvas = document.getElementById('spin-wheel');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 150, cy = 150, r = 145;
+  const n = WHEEL_ITEMS.length;
+  const arc = (Math.PI * 2) / n;
+
+  ctx.clearRect(0, 0, 300, 300);
+
+  WHEEL_ITEMS.forEach(function(item, i) {
+    const start = _wheelAngle + i * arc - Math.PI/2;
+    const end = start + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = (i === highlightIdx) ? '#fffde7' : item.color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + arc/2);
+
+    // emoji
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(item.emoji, r * 0.65, 0);
+
+    // label
+    ctx.font = '600 9.5px Nunito, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = 'rgba(0,0,0,.6)';
+    ctx.shadowBlur = 3;
+    const label = item.name.length > 11 ? item.name.slice(0,11)+'…' : item.name;
+    ctx.fillText(label, r * 0.35, 0);
+    ctx.restore();
+  });
+
+  // Centre
+  ctx.beginPath();
+  ctx.arc(cx, cy, 20, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = '13px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  ctx.fillText('🎡', cx, cy);
+}
+
+function spinWheel() {
+  if(_wheelSpinning) return;
+  _wheelSpinning = true;
+  _wheelResult = null;
+  const btn = document.getElementById('spin-btn');
+  if(btn) btn.disabled = true;
+  const box = document.getElementById('spin-result-box');
+  if(box) box.innerHTML = '';
+
+  const n = WHEEL_ITEMS.length;
+  const arc = (Math.PI * 2) / n;
+  const winIdx = Math.floor(Math.random() * n);
+
+  // Calculate final angle so winner is at top (pointer)
+  const totalSpin = Math.PI * 2 * (5 + Math.random() * 3);
+  const winnerMidAngle = winIdx * arc + arc / 2;
+  const target = Math.PI * 2 - winnerMidAngle;
+  const extra = ((target - _wheelAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  const finalAngle = _wheelAngle + totalSpin + extra;
+
+  const dur = 4200;
+  const t0 = performance.now();
+  const a0 = _wheelAngle;
+
+  function ease(t) { return 1 - Math.pow(1 - t, 4); }
+
+  (function frame(now) {
+    const p = Math.min((now - t0) / dur, 1);
+    _wheelAngle = a0 + (finalAngle - a0) * ease(p);
+    drawWheel();
+    if(p < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      _wheelAngle = finalAngle;
+      _wheelSpinning = false;
+      _wheelResult = WHEEL_ITEMS[winIdx];
+      drawWheel(winIdx);
+      showWheelResult(winIdx);
+      if(btn) btn.disabled = false;
+    }
+  })(performance.now());
+}
+
+function showWheelResult(idx) {
+  const item = WHEEL_ITEMS[idx];
+  const box = document.getElementById('spin-result-box');
+  if(!box) return;
+  box.innerHTML = `
+    <div class="spin-result">
+      <div class="spin-result-emoji">${item.emoji}</div>
+      <div class="spin-result-name">${item.name}</div>
+      <div class="spin-result-desc">${item.desc}</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="t-btn green" onclick="announceActivity()">📢 Announce to Students!</button>
+        <button class="t-btn" style="background:#e0e0e0;color:var(--text)" onclick="spinWheel()">🎡 Spin Again</button>
+      </div>
+    </div>`;
+}
+
+function announceActivity() {
+  if(!_wheelResult) return;
+  const ann = JSON.parse(localStorage.getItem('kw_announcements')||'[]');
+  ann.unshift({
+    id: Date.now(),
+    title: _wheelResult.emoji + ' ' + _wheelResult.name + '!',
+    body: _wheelResult.desc + ' 🎉 Get ready to play!',
+    type: 'fun',
+    author: 'Teacher',
+    created_at: Date.now()/1000
+  });
+  localStorage.setItem('kw_announcements', JSON.stringify(ann));
+  alert('🎉 Announced! Students will see "' + _wheelResult.name + '" in their Announcements!');
+}
+
+
+// ── REPORTS ────────────────────────────────────────
+async function renderReports() {
+  const students = JSON.parse(localStorage.getItem('kw_students')||'[]').sort((a,b)=>(b.stars||0)-(a.stars||0));
+  const totalStars=students.reduce((s,x)=>s+(x.stars||0),0);
+  const avgStars=students.length?Math.round(totalStars/students.length):0;
+  const top=students[0];
+  document.getElementById('page-reports').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#607d8b,#90a4ae)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content"><div class="banner-title">📈 Reports</div><div class="banner-sub">Class performance overview</div></div>
+      <div class="banner-emoji">📊</div>
+    </div>
+    <div class="content">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-icon-box" style="background:#e8f0fe">👥</div><div><div class="stat-num">${students.length}</div><div class="stat-label">Students</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:#fef7e0">⭐</div><div><div class="stat-num">${totalStars}</div><div class="stat-label">Total Stars</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:#e6f4ea">📊</div><div><div class="stat-num">${avgStars}</div><div class="stat-label">Avg Stars/Student</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box" style="background:#fce8e6">🏆</div><div><div class="stat-num">${top?top.name:'-'}</div><div class="stat-label">Top Student</div></div></div>
+      </div>
+      <div class="section-title">🏆 Leaderboard</div>
+      <div class="student-list">
+        ${students.slice(0,10).map((s,i)=>`
+          <div class="student-row">
+            <div style="font-size:1.3rem;width:32px;text-align:center">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
+            <div class="student-avatar" style="background:${['#1a73e8','#0f9d58','#db4437','#9334e6','#f4b400'][i%5]}">${s.name.charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="student-name">${s.name}</div>
+              <div class="student-meta">Year ${s.year} · ${s.language==='russian'?'🇷🇺':'🇬🇧'}</div>
+            </div>
+            <div class="student-stars"><span class="stars-num">⭐ ${s.stars}</span></div>
+          </div>`).join('')||'<div style="color:var(--sub);font-weight:700;padding:20px">No students yet</div>'}
+      </div>
+    </div>`;
+}
+
+
+// ══ TEACHER FORMS / QUIZ BUILDER ══
+
+let currentForm = { title:'', description:'', year:'all', questions:[] };
+let editingQIdx = null;
+
+function tRenderForms() {
+  const forms = JSON.parse(localStorage.getItem('kw_forms')||'[]');
+  document.getElementById('t-page-forms').innerHTML = `
+    <div class="class-banner" style="background:linear-gradient(135deg,#9334e6,#c084fc)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <div class="banner-title">📝 Forms & Quizzes</div>
+        <div class="banner-sub">Build Google Form-style forms for your students</div>
+      </div>
+      <div class="banner-emoji">📋</div>
+    </div>
+    <div class="t-content">
+      <div style="display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap">
+        <button class="t-btn purple" onclick="openFormBuilder()">+ Create New Form</button>
+        <button class="t-btn" style="background:#e91e63" onclick="openQuizBuilder()">+ Create Quiz</button>
+      </div>
+
+      <div class="section-title">Active Forms & Quizzes <span class="count">${forms.length}</span></div>
+      ${forms.length ? forms.map(f => `
+        <div class="t-card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:14px;padding:16px 18px">
+            <div style="font-size:1.8rem">${f.type==='quiz'?'🧠':'📝'}</div>
+            <div style="flex:1">
+              <div style="font-size:.95rem;font-weight:800;color:var(--text)">${f.title}</div>
+              <div style="font-size:.78rem;color:var(--sub);font-weight:700;margin-top:3px">
+                ${f.type==='quiz'?'Quiz':'Form'} · Year ${f.year} · ${f.questions.length} questions
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="viewFormResults('${f.id}')" style="padding:6px 13px;border-radius:8px;border:1px solid var(--blue);background:#e8f0fe;color:var(--blue);font-size:.78rem;font-weight:800;cursor:pointer;font-family:inherit">📊 Results</button>
+              <button onclick="deleteForm('${f.id}')" style="padding:6px 13px;border-radius:8px;border:none;background:#fce8e6;color:var(--red);font-size:.78rem;font-weight:800;cursor:pointer;font-family:inherit">🗑️</button>
+            </div>
+          </div>
+        </div>`).join('') : '<div style="color:var(--sub);font-weight:700;padding:20px 0">No forms yet — create one above!</div>'}
+    </div>`;
+}
+
+function openFormBuilder(type='form') {
+  currentForm = { title:'', description:'', year:'all', type, questions:[] };
+  renderFormBuilder();
+  document.getElementById('form-builder-modal').classList.add('open');
+}
+function openQuizBuilder() { openFormBuilder('quiz'); }
+
+function renderFormBuilder() {
+  const isQuiz = currentForm.type === 'quiz';
+  document.getElementById('form-builder-content').innerHTML = `
+    <div style="margin-bottom:18px">
+      <label class="form-label">${isQuiz?'Quiz':'Form'} Title</label>
+      <input class="form-input" id="fb-title" value="${currentForm.title}" placeholder="${isQuiz?'e.g. Week 3 Maths Quiz':'e.g. How are you feeling?'}" oninput="currentForm.title=this.value" style="margin-top:5px">
+    </div>
+    <div style="margin-bottom:18px">
+      <label class="form-label">Description (optional)</label>
+      <input class="form-input" id="fb-desc" value="${currentForm.description}" placeholder="Instructions for students..." oninput="currentForm.description=this.value" style="margin-top:5px">
+    </div>
+    <div class="form-row" style="margin-bottom:18px">
+      <div class="form-group">
+        <label class="form-label">Year Group</label>
+        <select class="form-input" id="fb-year" onchange="currentForm.year=this.value">
+          <option value="all" ${currentForm.year==='all'?'selected':''}>All Years</option>
+          <option value="1" ${currentForm.year==='1'?'selected':''}>Year 1</option>
+          <option value="2" ${currentForm.year==='2'?'selected':''}>Year 2</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" onchange="currentForm.type=this.value;renderFormBuilder()">
+          <option value="form" ${currentForm.type==='form'?'selected':''}>📝 Form (responses)</option>
+          <option value="quiz" ${currentForm.type==='quiz'?'selected':''}>🧠 Quiz (with answers)</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:14px">
+      <div style="font-size:.95rem;font-weight:900;color:var(--text);margin-bottom:14px">
+        Questions <span style="background:#e8f0fe;color:var(--blue);border-radius:10px;padding:2px 8px;font-size:.78rem">${currentForm.questions.length}</span>
+      </div>
+      ${currentForm.questions.map((q,i) => `
+        <div style="background:#f8f9ff;border-radius:12px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+          <div style="background:var(--purple);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:900;flex-shrink:0">${i+1}</div>
+          <div style="flex:1">
+            <div style="font-size:.88rem;font-weight:800;color:var(--text)">${q.question}</div>
+            <div style="font-size:.74rem;color:var(--sub);margin-top:3px;font-weight:700">${q.type==='multiple'?'Multiple choice':q.type==='text'?'Text answer':q.type==='rating'?'Rating (1-5⭐)':'Yes / No'}${q.type==='multiple'&&isQuiz?' · Correct: '+q.options[q.correct]:''}</div>
+          </div>
+          <button onclick="removeFormQ(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem">✕</button>
+        </div>`).join('')}
+      <div style="background:#fff;border:2px dashed var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:.85rem;font-weight:800;color:var(--sub);margin-bottom:12px">Add a question:</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="addQ('multiple')" class="t-btn" style="font-size:.78rem;padding:7px 13px">☑️ Multiple Choice</button>
+          <button onclick="addQ('text')" class="t-btn green" style="font-size:.78rem;padding:7px 13px">✍️ Text Answer</button>
+          <button onclick="addQ('rating')" class="t-btn" style="background:#f4b400;font-size:.78rem;padding:7px 13px">⭐ Rating 1–5</button>
+          <button onclick="addQ('yesno')" class="t-btn" style="background:#e91e63;font-size:.78rem;padding:7px 13px">✅ Yes / No</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="t-btn purple" onclick="saveForm()" style="flex:1;justify-content:center;padding:13px">
+        ${isQuiz?'🧠 Publish Quiz':'📝 Publish Form'}
+      </button>
+      <button onclick="closeTModal('form-builder-modal')" class="t-btn" style="background:#e0e0e0;color:var(--text)">Cancel</button>
+    </div>`;
+}
+
+function addQ(type) {
+  // Show mini-modal to add question
+  const isQuiz = currentForm.type === 'quiz';
+  document.getElementById('add-q-modal').classList.add('open');
+  document.getElementById('add-q-content').innerHTML = `
+    <div class="modal-title">Add ${type==='multiple'?'Multiple Choice':type==='text'?'Text Answer':type==='rating'?'Rating':'Yes/No'} Question</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Question</label>
+      <input class="form-input" id="aq-question" placeholder="Type your question..." style="margin-top:5px">
+    </div>
+    ${type==='multiple' ? `
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">Options (one per line)</label>
+        <textarea class="form-input form-textarea" id="aq-options" placeholder="Option A&#10;Option B&#10;Option C&#10;Option D" style="margin-top:5px;min-height:90px"></textarea>
+      </div>
+      ${isQuiz ? `<div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Correct Answer (number: 0=first, 1=second...)</label>
+        <input class="form-input" id="aq-correct" type="number" value="0" min="0" style="margin-top:5px">
+      </div>` : ''}` : ''}
+    <div style="display:flex;gap:10px">
+      <button class="t-btn purple" onclick="confirmAddQ('${type}',${isQuiz})" style="flex:1;justify-content:center">Add Question ✓</button>
+      <button onclick="document.getElementById('add-q-modal').classList.remove('open')" class="t-btn" style="background:#e0e0e0;color:var(--text)">Cancel</button>
+    </div>`;
+}
+
+function confirmAddQ(type, isQuiz) {
+  const question = document.getElementById('aq-question').value.trim();
+  if(!question) { alert('Please enter a question!'); return; }
+  const q = { type, question };
+  if(type === 'multiple') {
+    const raw = document.getElementById('aq-options').value;
+    q.options = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(q.options.length < 2) { alert('Please add at least 2 options!'); return; }
+    if(isQuiz) q.correct = parseInt(document.getElementById('aq-correct').value)||0;
+  }
+  currentForm.questions.push(q);
+  document.getElementById('add-q-modal').classList.remove('open');
+  renderFormBuilder();
+}
+
+function removeFormQ(i) {
+  currentForm.questions.splice(i, 1);
+  renderFormBuilder();
+}
+
+function saveForm() {
+  if(!currentForm.title.trim()) { alert('Please add a title!'); return; }
+  if(currentForm.questions.length === 0) { alert('Please add at least one question!'); return; }
+  const forms = JSON.parse(localStorage.getItem('kw_forms')||'[]');
+  const form = {
+    ...currentForm,
+    id: Date.now(),
+    createdAt: Date.now()/1000
+  };
+  forms.unshift(form);
+  localStorage.setItem('kw_forms', JSON.stringify(forms));
+  closeTModal('form-builder-modal');
+  tRenderForms();
+  alert((currentForm.type==='quiz'?'🧠 Quiz':'📝 Form') + ' published! Students can now see and answer it.');
+}
+
+function deleteForm(id) {
+  if(!confirm('Delete this form? All student responses will also be lost.')) return;
+  const forms = JSON.parse(localStorage.getItem('kw_forms')||'[]').filter(f=>f.id!=id);
+  localStorage.setItem('kw_forms', JSON.stringify(forms));
+  tRenderForms();
+}
+
+function viewFormResults(formId) {
+  const forms = JSON.parse(localStorage.getItem('kw_forms')||'[]');
+  const form = forms.find(f=>f.id==formId);
+  if(!form) return;
+
+  const students = JSON.parse(localStorage.getItem('kw_students')||'[]');
+  const colors = ['#1a73e8','#0f9d58','#db4437','#9334e6','#f4b400'];
+
+  // Gather all responses
+  const responses = [];
+  students.forEach(s => {
+    try {
+      const ans = JSON.parse(localStorage.getItem('kw_form_answers_'+s.name)||'{}');
+      if(ans[formId]) responses.push({name:s.name, answers:ans[formId].answers, submittedAt:ans[formId].submittedAt});
+    } catch(e){}
+  });
+
+  document.getElementById('form-results-content').innerHTML = `
+    <div class="modal-title">📊 Results: ${form.title}</div>
+    <div style="font-size:.82rem;color:var(--sub);font-weight:700;margin-bottom:18px">${responses.length} response${responses.length!==1?'s':''} of ${students.length} students</div>
+
+    ${form.questions.map((q,qi) => {
+      const qResps = responses.map(r=>r.answers[qi]).filter(a=>a!==undefined);
+      return `<div style="background:#f8f9ff;border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:12px">
+        <div style="font-size:.88rem;font-weight:800;color:var(--text);margin-bottom:10px">${qi+1}. ${q.question}</div>
+        ${q.type==='multiple'||q.type==='yesno' ? (() => {
+          const counts = {};
+          qResps.forEach(a=>{counts[a]=(counts[a]||0)+1;});
+          const opts = q.type==='yesno'?['Yes','No','Да','Нет']:q.options;
+          const allOpts = [...new Set([...opts,...Object.keys(counts)])];
+          return allOpts.map(o=>{
+            const cnt = counts[o]||0;
+            const pct = qResps.length ? Math.round(cnt/qResps.length*100) : 0;
+            const isCorrect = form.type==='quiz' && q.options && q.options[q.correct]===o;
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:.8rem;font-weight:700;color:${isCorrect?'var(--green)':' var(--text)'};margin-bottom:4px">
+                <span>${isCorrect?'✓ ':''}${o}</span><span>${cnt} (${pct}%)</span>
+              </div>
+              <div style="background:#e0e0e0;border-radius:999px;height:8px">
+                <div style="background:${isCorrect?'var(--green)':colors[allOpts.indexOf(o)%5]};height:100%;border-radius:999px;width:${pct}%;transition:.4s"></div>
+              </div>
+            </div>`;}).join('');
+        })() : q.type==='rating' ? (() => {
+          const avg = qResps.length ? (qResps.reduce((s,a)=>s+Number(a),0)/qResps.length).toFixed(1) : '–';
+          return `<div style="font-size:1.4rem;font-weight:900;color:var(--orange)">${avg} ⭐ average</div>
+            <div style="font-size:.78rem;color:var(--sub);font-weight:700;margin-top:4px">from ${qResps.length} responses</div>`;
+        })() : `<div style="display:flex;flex-direction:column;gap:6px">${responses.map(r=>{
+            const ans = r.answers[qi];
+            return ans ? `<div style="background:#fff;border-radius:8px;border:1px solid var(--border);padding:8px 12px;font-size:.82rem;font-weight:700"><span style="color:var(--blue);font-weight:800">${r.name}:</span> ${ans}</div>` : '';
+          }).filter(Boolean).join('')||'<div style="color:var(--sub);font-size:.82rem">No text responses yet</div>'}</div>`}
+      </div>`;
+    }).join('')}
+
+    ${responses.length > 0 ? `
+      <div style="margin-top:18px">
+        <div style="font-size:.9rem;font-weight:900;color:var(--text);margin-bottom:12px">👥 Who has responded:</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${responses.map((r,i)=>`<span style="background:${colors[i%5]};color:#fff;border-radius:10px;padding:4px 12px;font-size:.78rem;font-weight:800">${r.name}</span>`).join('')}
+        </div>
+        ${students.filter(s=>!responses.find(r=>r.name===s.name)).length>0?`
+        <div style="font-size:.82rem;font-weight:700;color:var(--sub);margin-top:10px">Still waiting: ${students.filter(s=>!responses.find(r=>r.name===s.name)).map(s=>s.name).join(', ')}</div>`:''}
+      </div>` : ''}`;
+  document.getElementById('form-results-modal').classList.add('open');
+}
+
+
+function editTeacherAvatar() {
+  var AVATS = ['👩‍🏫','👨‍🏫','🦊','🐼','🦁','🤖','🧙','👩‍💼','👨‍💼','🦸','🦄','🐉'];
+  var current = localStorage.getItem('kw_teacher_av')||'👩‍🏫';
+  var h = '<div class="modal-title">🎨 Choose Your Avatar</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">';
+  AVATS.forEach(function(av){
+    h += '<div onclick="setTeacherAv(\''+av+'\',this)" style="font-size:2rem;border-radius:10px;border:3px solid '+(av===current?'var(--blue)':'transparent')+';padding:6px;cursor:pointer;text-align:center;background:#f8f9ff;transition:.15s" class="tav-opt">'+av+'</div>';
+  });
+  h += '</div><button class="btn-primary" onclick="closeModal(\'t-av-modal\')">Done ✓</button>';
+  document.getElementById('t-av-content').innerHTML = h;
+  openModal('t-av-modal');
+}
+function setTeacherAv(av, el) {
+  localStorage.setItem('kw_teacher_av', av);
+  document.querySelectorAll('.tav-opt').forEach(function(d){d.style.borderColor='transparent';});
+  if(el) el.style.borderColor='var(--blue)';
+  var badge = document.getElementById('t-av-badge');
+  if(badge) badge.textContent = av + ' Teacher';
+}
+
+
+// ── TEACHER WORLD ISLANDS ────────────────────────────────
+var T_ISLANDS=[
+  {id:'minecraft', name:'Minecraft Island', icon:'⛏️', col:'#5a8a4a'},
+  {id:'amongus',   name:'Among Us',         icon:'🚀', col:'#c51111'},
+  {id:'dodgeball', name:'Dodgeball Arena',  icon:'🏀', col:'#e65100'},
+  {id:'mathquest', name:'Maths Quest',      icon:'🔢', col:'#1a73e8'},
+  {id:'spelling',  name:'Spell Castle',     icon:'🏰', col:'#9334e6'},
+  {id:'russiancity',name:'Russian City',    icon:'🇷🇺',col:'#db4437'}
+];
+
+var teacherAv = localStorage.getItem('kw_teacher_av')||'👩‍🏫';
+var teacherName = 'Teacher';
+
+function tGetPlayers(){
+  var all=[]; try{all=JSON.parse(localStorage.getItem('kw_world_players')||'[]');}catch(e){}
+  var now=Date.now();
+  all=all.filter(function(p){return now-p.ts<15000;});
+  localStorage.setItem('kw_world_players',JSON.stringify(all));
+  return all;
+}
+function tPushPos(islandId,extra){
+  var all=tGetPlayers();
+  all=all.filter(function(p){return p.name!==teacherName;});
+  var me={name:teacherName,av:teacherAv,island:islandId,ts:Date.now(),isTeacher:true,x:240,y:150};
+  if(extra) Object.keys(extra).forEach(function(k){me[k]=extra[k];});
+  all.push(me);
+  localStorage.setItem('kw_world_players',JSON.stringify(all));
+}
+function tLeaveWorld(){
+  var all=tGetPlayers().filter(function(p){return p.name!==teacherName;});
+  localStorage.setItem('kw_world_players',JSON.stringify(all));
+}
+
+var worldPollTimer=null;
+
+function tRenderWorld(){
+  teacherAv=localStorage.getItem('kw_teacher_av')||'👩‍🏫';
+  var players=tGetPlayers();
+  document.getElementById('t-page-world').innerHTML=`
+    <div class="class-banner" style="background:linear-gradient(135deg,#0f0c29,#302b63)">
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <div class="banner-title">🌍 World Islands</div>
+        <div class="banner-sub">Join your students in real time — you appear with a 👑 crown</div>
+      </div>
+      <div class="banner-emoji">🌍</div>
+    </div>
+    <div class="content">
+      <div class="section-title">Your Avatar: ${teacherAv} Teacher
+        <button onclick="editTeacherAvatar()" style="margin-left:10px;padding:4px 12px;border-radius:7px;border:1px solid var(--blue);background:#e8f0fe;color:var(--blue);font-size:.75rem;font-weight:800;cursor:pointer;font-family:inherit">Change Avatar</button>
+      </div>
+      <div style="background:#e8f0fe;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.83rem;font-weight:700;color:var(--blue)">
+        👑 You join as <strong>Teacher</strong> — students will see your avatar with a crown. You can see everyone in real time. Leave any island at any time.
+      </div>
+      <div class="section-title">Choose an Island to Join</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px" id="t-world-grid"></div>
+    </div>`;
+  renderTeacherWorldGrid();
+
+  if(worldPollTimer) clearInterval(worldPollTimer);
+  worldPollTimer=setInterval(function(){
+    if(document.getElementById('t-page-world').style.display!=='none'){
+      renderTeacherWorldGrid();
+    }
+  },2000);
+}
+
+function renderTeacherWorldGrid(){
+  var players=tGetPlayers();
+  var grid=document.getElementById('t-world-grid');
+  if(!grid) return;
+  var teacherIsland=null;
+  var tMe=players.filter(function(p){return p.name===teacherName;})[0];
+  if(tMe) teacherIsland=tMe.island;
+
+  grid.innerHTML=T_ISLANDS.map(function(isl){
+    var here=players.filter(function(p){return p.island===isl.id;});
+    var iAmHere=teacherIsland===isl.id;
+    return '<div style="background:#fff;border-radius:14px;border:2px solid '+(iAmHere?isl.col:'#e0e0e0')+';overflow:hidden;transition:.2s">'
+      +'<div style="background:'+isl.col+';height:7px"></div>'
+      +'<div style="padding:14px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">'
+      +'<span style="font-size:1.8rem">'+isl.icon+'</span>'
+      +'<div><div style="font-size:.92rem;font-weight:900">'+isl.name+'</div>'
+      +'<div style="font-size:.72rem;color:var(--sub);font-weight:700">'+here.length+' '+(here.length===1?'player':'players')+' online</div></div>'
+      +(iAmHere?'<span style="margin-left:auto;background:'+isl.col+';color:#fff;border-radius:8px;padding:2px 9px;font-size:.7rem;font-weight:800">You are here</span>':'')
+      +'</div>'
+      +(here.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px">'+here.map(function(p){return '<span style="background:'+(p.isTeacher?'#fef7e0':'#f0f4ff')+';border:1px solid '+(p.isTeacher?'#f4b400':'#c5d8fb')+';border-radius:20px;padding:2px 8px;font-size:.71rem;font-weight:800">'+p.av+' '+p.name+(p.isTeacher?' 👩‍🏫':'')+'</span>';}).join('')+'</div>':'')
+      +'<div style="display:flex;gap:8px">'
+      +(iAmHere
+        ?'<button onclick="tLeaveIsland()" style="flex:1;padding:8px;border-radius:8px;border:none;background:#fce8e6;color:#db4437;font-size:.82rem;font-weight:800;cursor:pointer;font-family:inherit">✕ Leave Island</button>'
+        :'<button data-jid="'+isl.id+'" onclick="tJoinIsland(this.dataset.jid)" style="flex:1;padding:8px;border-radius:8px;border:none;background:'+isl.col+';color:#fff;font-size:.82rem;font-weight:800;cursor:pointer;font-family:inherit">👑 Join Island</button>'
+      )
+      +'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function tJoinIsland(id){
+  tPushPos(id);
+  renderTeacherWorldGrid();
+  // Keep position alive
+  if(worldPollTimer) clearInterval(worldPollTimer);
+  worldPollTimer=setInterval(function(){
+    var tMe=tGetPlayers().filter(function(p){return p.name===teacherName;})[0];
+    if(tMe) tPushPos(tMe.island);
+    renderTeacherWorldGrid();
+  },3000);
+  alert('✅ Joined! Students on '+id+' will now see your 👑 avatar. Leave any time by clicking "Leave Island".');
+}
+function tLeaveIsland(){
+  tLeaveWorld();
+  renderTeacherWorldGrid();
+}
+
+// ── UTILS ──────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function timeAgo(ts){const d=Date.now()/1000-ts;if(d<60)return'just now';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago';}
+function refreshAll(){loadStats();const page=document.querySelector('.nav-item.active');if(page)page.click();}
+</script>
+
+<!-- Form Builder Modal -->
+<div class="modal" id="form-builder-modal">
+  <div class="modal-bg" onclick="closeTModal('form-builder-modal')"></div>
+  <div class="modal-box" style="max-width:640px">
+    <button class="modal-close" onclick="closeTModal('form-builder-modal')">✕</button>
+    <div id="form-builder-content"></div>
+  </div>
+</div>
+
+<!-- Add Question Modal -->
+<div class="modal" id="add-q-modal">
+  <div class="modal-bg" onclick="document.getElementById('add-q-modal').classList.remove('open')"></div>
+  <div class="modal-box" style="max-width:500px">
+    <button class="modal-close" onclick="document.getElementById('add-q-modal').classList.remove('open')">✕</button>
+    <div id="add-q-content"></div>
+  </div>
+</div>
+
+<!-- Form Results Modal -->
+<div class="modal" id="form-results-modal">
+  <div class="modal-bg" onclick="document.getElementById('form-results-modal').classList.remove('open')"></div>
+  <div class="modal-box" style="max-width:620px">
+    <button class="modal-close" onclick="document.getElementById('form-results-modal').classList.remove('open')">✕</button>
+    <div id="form-results-content"></div>
+  </div>
+</div>
+
+<div class="modal" id="t-av-modal">
+  <div class="modal-bg" onclick="closeModal('t-av-modal')"></div>
+  <div class="modal-box" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('t-av-modal')">✕</button>
+    <div id="t-av-content"></div>
+  </div>
+</div>
+</body>
+</html>
