@@ -1,0 +1,15 @@
+# One-click deploy on Render: New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: quiznova
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --threads 128 --worker-class gthread --timeout 120 --keep-alive 70 --bind 0.0.0.0:$PORT server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # Optional: set this in the dashboard to switch the AI co-pilot from its
+      # built-in question bank to live Claude. Leave unset and everything still works.
+      - key: ANTHROPIC_API_KEY
+        sync: false

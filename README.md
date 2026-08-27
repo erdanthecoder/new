@@ -19,7 +19,7 @@ chmod +x start.sh && ./start.sh
 
 ### Manual start (any OS)
 ```bash
-pip install flask
+pip install -r requirements.txt
 python server.py
 ```
 
@@ -102,15 +102,51 @@ The host board shows both HP bars, every fighter’s health, and a live kill fee
 
 ---
 
-## ☁️ Deploy (Railway, Render, Fly…)
+## ☁️ Put it on the internet (get a real web address)
 
-1. Push this folder to GitHub
-2. New Project → Deploy from GitHub → pick the repo (Python is auto-detected via `Procfile`)
-3. Add the `ANTHROPIC_API_KEY` variable if you want live Claude
-4. Generate a domain and share it
+The app is a Python web server, so it needs a host. Both options below are free,
+take about three minutes, and give you an `https://…` link you can paste into
+Google Classroom.
 
-Realtime uses Server-Sent Events with an automatic polling fallback, so it works behind
-proxies that buffer streams — no websockets, no build step, no extra dependencies.
+### Option A — Render (one click, uses `render.yaml`)
+1. Push this repo to GitHub (already done if you are reading this on GitHub)
+2. Go to [render.com](https://render.com) → sign in with GitHub
+3. **New → Blueprint** → pick this repository → **Apply**
+4. Wait for the first build, then open the URL Render shows you
+   (something like `https://quiznova.onrender.com`)
+5. Share `your-url/quiz` with yourself and `your-url/play` with students
+
+> On Render's free plan the site sleeps after 15 minutes idle and takes ~30
+> seconds to wake. Open it a minute before your lesson starts.
+
+### Option B — Railway
+1. [railway.app](https://railway.app) → **New Project → Deploy from GitHub repo**
+2. Pick this repo — the `Procfile` is detected automatically
+3. **Settings → Networking → Generate Domain**
+4. Open the domain and go to `/quiz`
+
+### Turning on live Claude (optional)
+In either dashboard add an environment variable:
+
+| Key | Value |
+|-----|-------|
+| `ANTHROPIC_API_KEY` | your key from [console.anthropic.com](https://console.anthropic.com) |
+
+Without it the co-pilot still works from its built-in question bank.
+
+### Two things to know about hosting
+
+**One worker, many threads.** Live games and realtime streams are held in the
+server's memory, so the `Procfile` deliberately runs a *single* gunicorn worker
+with 128 threads. Adding workers would put half your class in a different copy
+of the game. Each open realtime connection uses one thread, so 128 covers a
+large class comfortably.
+
+**Quizzes are stored in `data/store.json`.** That file lives on the server's
+disk, which free hosts wipe on every redeploy. Quizzes and results survive
+restarts but not redeploys — attach a persistent disk (Render) or a volume
+(Railway) mounted at `data/`, or move the store to a database, if you need them
+to last a whole year.
 
 ---
 
@@ -121,7 +157,8 @@ proxies that buffer streams — no websockets, no build step, no extra dependenc
 ├── quizapi.py         ← QuizNova API: quizzes, realtime, AI, live games
 ├── data/store.json    ← quizzes & responses (created on first run)
 ├── requirements.txt
-├── Procfile
+├── Procfile           ← production start command (1 worker, 128 threads)
+├── render.yaml        ← one-click Render blueprint
 ├── start.bat / start.sh
 └── static/
     ├── index.html     ← landing page
