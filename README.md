@@ -1,29 +1,27 @@
-# 🌍 KidWorld
+# 🌍 KidWorld + ⚡ QuizNova
 
-A fun learning platform for Year 1 & 2 students — Maths, English and Russian.
+A fun learning platform for Year 1 & 2 students — **and** QuizNova, a realtime quiz
+studio with an AI co-pilot, homework links for Google Classroom, and two live game modes.
 
 ---
 
 ## 🚀 How to Run (Local)
 
 ### Windows
-1. Make sure [Python](https://www.python.org/downloads/) is installed  
-   *(tick "Add Python to PATH" during install)*
+1. Install [Python](https://www.python.org/downloads/) *(tick “Add Python to PATH”)*
 2. Double-click **`start.bat`**
-3. KidWorld opens at **http://localhost:5000** automatically
+3. It opens at **http://localhost:5000**
 
 ### Mac / Linux
-1. Make sure Python 3 is installed
-2. Open Terminal in this folder
-3. Run: `chmod +x start.sh && ./start.sh`
-4. KidWorld opens at **http://localhost:5000** automatically
+```bash
+chmod +x start.sh && ./start.sh
+```
 
 ### Manual start (any OS)
 ```bash
 pip install flask
 python server.py
 ```
-Then open **http://localhost:5000**
 
 ---
 
@@ -32,66 +30,111 @@ Then open **http://localhost:5000**
 | URL | Who | What |
 |-----|-----|------|
 | `/` | Everyone | Landing page |
-| `/student.html` | Students | Full learning app |
-| `/teacher.html` | Teacher | Dashboard (password: `teach2024`) |
+| `/quiz` | Teacher | **QuizNova hub** — all quizzes, create, host, share |
+| `/studio?id=…` | Teacher | **Realtime builder** + AI co-pilot + responses |
+| `/take?id=…` | Student | Take a quiz / homework (the Google Classroom link) |
+| `/host?pin=…` | Teacher | Live game board for the projector |
+| `/play?pin=…` | Student | Join a live game on a phone or laptop |
+| `/student.html` | Students | KidWorld learning app |
+| `/teacher.html` | Teacher | KidWorld dashboard (password: `teach2024`) |
 
 ---
 
-## 🎮 What's Inside
+## ⚡ QuizNova
 
-### Student App
-- 5-step onboarding (name, language 🇬🇧/🇷🇺, year, background)
-- Full Year 1 & 2 curriculum: Maths, English, Russian
-- **Maths → Summary tab**: Number bonds, times tables, fractions, shapes (Year-specific)
-- Language Lab: EN ↔ RU flashcards + translation quiz
-- 12 playable games
-- 6 subject quizzes (auto-advance, no Next button)
-- Teacher forms & quizzes (students answer in-app)
-- Full Russian UI when Russian is selected
+### Realtime builder (`/studio`)
+Google-Forms-style cards — multiple choice, multi-select, true/false and short answer —
+with points and a per-question timer. Everything saves automatically and **streams to
+every other person who has the quiz open**, with presence avatars in the header so you can
+see who is editing beside you. Drag the outline on the left to reorder.
 
-### Teacher Dashboard (password: `teach2024`)
-- Post announcements (Normal / Urgent / Fun)
-- Set homework (subject, year group, due date, points)
-- **Google Form-style form builder**: Multiple choice, Text, Rating (1–5⭐), Yes/No
-- **Quiz builder**: Same as forms but with correct answers marked
-- Results dashboard with bar charts and per-student responses
-- Live actions: 🪩 Disco, 🎊 Party, ⭐ Star Rain
-- Student leaderboard & star rewards
+### The AI co-pilot — only edits when you allow it
+The panel on the right can add, rewrite, reorder and delete questions. You choose how much
+rope it gets, and the setting is remembered:
+
+| Mode | What happens |
+|------|--------------|
+| **Ask me** *(default)* | The AI returns a list of exact operations — `ADD`, `EDIT`, `DELETE`, `REORDER` — and nothing changes until you press **Approve**. |
+| **Auto-edit** | Changes are applied immediately and the edited cards flash green. |
+| **Read-only** | The AI answers but is blocked from touching the quiz at all. |
+
+Every applied change is logged in the chat and broadcast to other editors in realtime.
+
+**Live Claude:** set an API key and restart — the co-pilot writes original questions for
+any topic, reading level or curriculum.
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-…      # Windows: set ANTHROPIC_API_KEY=sk-ant-…
+export QUIZNOVA_MODEL=claude-sonnet-5  # optional
+python server.py
+```
+
+Without a key it still works: a built-in question bank (maths, science, English,
+geography, history) handles “add 5 questions”, “make it harder”, “delete the last
+question”, “rename the quiz” and so on, so the panel is never dead.
+
+### Homework & Google Classroom
+Press **🔗 Share** in the studio. You get a student link plus a
+**📚 Send to Google Classroom** button that opens Classroom’s share dialog with the
+link and title filled in — assign it as homework in two clicks. Students type their
+name, answer, and get instant marking with explanations. Results appear live in the
+studio’s **Responses** tab: average, top score, a per-question success bar, and every
+student’s paper.
+
+### Live games (`/host` + `/play`)
+Press **▶ Play live**, pick a mode, and the board shows a six-digit PIN. Students join at
+`yoursite/play`. Scoring is done on the server, so nobody can fake a score.
+
+**🎯 Normal mode** — answer fast for more points, streaks add up to a ×1.5 multiplier,
+and the leaderboard reshuffles after every question. Ends on a podium.
+
+**🔫 Laser Tag mode** — two auto-balanced teams (Crimson vs Cobalt), each with a shield
+pool and every player on 100 HP:
+
+* A correct answer **fires at the strongest opponent still standing** — faster answers hit harder.
+* **Three correct in a row = ⚡ OVERCHARGE**, 1.8× damage.
+* A wrong answer costs you 10 shield.
+* At 0 HP you are **down** — but not out: your correct answers now **revive and heal teammates**.
+* No single shot can knock a player out, so nobody sits idle.
+* The team with shields left when the questions run out wins.
+
+The host board shows both HP bars, every fighter’s health, and a live kill feed.
 
 ---
 
-## ☁️ Deploy to Railway (free hosting)
+## ☁️ Deploy (Railway, Render, Fly…)
 
-1. Push this folder to a GitHub repo (files at root level)
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Pick your repo — Railway auto-detects Python
-4. Settings → Networking → Generate Domain
-5. Share `yourdomain.railway.app` with students and parents!
+1. Push this folder to GitHub
+2. New Project → Deploy from GitHub → pick the repo (Python is auto-detected via `Procfile`)
+3. Add the `ANTHROPIC_API_KEY` variable if you want live Claude
+4. Generate a domain and share it
+
+Realtime uses Server-Sent Events with an automatic polling fallback, so it works behind
+proxies that buffer streams — no websockets, no build step, no extra dependencies.
 
 ---
 
-## 📁 File Structure
+## 📁 File structure
 
 ```
-KidWorld/
-├── server.py          ← Python web server (Flask)
-├── requirements.txt   ← Python packages needed
-├── Procfile           ← For Railway deployment
-├── start.bat          ← Windows launcher (double-click!)
-├── start.sh           ← Mac/Linux launcher
-├── README.md          ← This file
+├── server.py          ← Flask app + friendly routes
+├── quizapi.py         ← QuizNova API: quizzes, realtime, AI, live games
+├── data/store.json    ← quizzes & responses (created on first run)
+├── requirements.txt
+├── Procfile
+├── start.bat / start.sh
 └── static/
-    ├── index.html     ← Landing page
-    ├── student.html   ← Student app
-    └── teacher.html   ← Teacher dashboard
+    ├── index.html     ← landing page
+    ├── nova.css       ← QuizNova design system
+    ├── nova.js        ← shared helpers, API + realtime client
+    ├── quiznova.html  ← quiz hub
+    ├── studio.html    ← realtime builder + AI co-pilot
+    ├── take.html      ← student / homework view
+    ├── host.html      ← live game board
+    ├── play.html      ← live player view
+    ├── student.html   ← KidWorld student app
+    └── teacher.html   ← KidWorld teacher dashboard
 ```
 
----
-
-## 🔑 Teacher Password
-Default: **`teach2024`**  
-To change it, edit line 7 in `server.py`:
-```python
-# No password in server.py - it's checked in teacher.html
-```
-Search for `teach2024` in `teacher.html` and change it.
+## 🔑 KidWorld teacher password
+Default **`teach2024`** — search for `teach2024` in `static/teacher.html` to change it.

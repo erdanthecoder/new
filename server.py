@@ -1,35 +1,83 @@
 #!/usr/bin/env python3
 """
-KidWorld Server
-Run: python server.py
-Then open http://localhost:5000 in your browser
+KidWorld + QuizNova server
+Run: python server.py   →   http://localhost:5000
 """
-from flask import Flask, send_from_directory
-import os, sys
+from flask import Flask, send_from_directory, redirect
+import os
 
-app = Flask(__name__)
-PORT = int(os.environ.get('PORT', 5000))
+from quizapi import api
 
-@app.route('/')
+app = Flask(__name__, static_folder=None)
+app.register_blueprint(api, url_prefix="/api")
+
+PORT = int(os.environ.get("PORT", 5000))
+STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+
+@app.route("/")
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory(STATIC, "index.html")
 
-@app.route('/<path:filename>')
+
+# Friendly URLs for QuizNova — the ones teachers paste into Google Classroom.
+@app.route("/quiz")
+def quiz_home():
+    return send_from_directory(STATIC, "quiznova.html")
+
+
+@app.route("/studio")
+def studio():
+    return send_from_directory(STATIC, "studio.html")
+
+
+@app.route("/take")
+def take():
+    return send_from_directory(STATIC, "take.html")
+
+
+@app.route("/host")
+def host():
+    return send_from_directory(STATIC, "host.html")
+
+
+@app.route("/play")
+def play():
+    return send_from_directory(STATIC, "play.html")
+
+
+@app.route("/join")
+def join():
+    return redirect("/play")
+
+
+@app.route("/<path:filename>")
 def static_files(filename):
-    return send_from_directory('static', filename)
+    return send_from_directory(STATIC, filename)
 
-if __name__ == '__main__':
+
+@app.after_request
+def no_cache(resp):
+    if resp.mimetype in ("text/html", "application/javascript", "text/css"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+if __name__ == "__main__":
     print()
-    print("╔══════════════════════════════════════════╗")
-    print("║           🌍  KidWorld  🌍               ║")
-    print("╠══════════════════════════════════════════╣")
-    print(f"║  Open this in your browser:              ║")
-    print(f"║  http://localhost:{PORT}                   ║")
-    print(f"║                                          ║")
-    print(f"║  Students:  /index.html                  ║")
-    print(f"║  Teacher:   /teacher.html  (teach2024)   ║")
-    print(f"║                                          ║")
-    print(f"║  Press CTRL+C to stop                    ║")
-    print("╚══════════════════════════════════════════╝")
+    print("  ╔══════════════════════════════════════════════╗")
+    print("  ║        🌍 KidWorld  ·  ⚡ QuizNova           ║")
+    print("  ╠══════════════════════════════════════════════╣")
+    print(f"  ║  http://localhost:{PORT}".ljust(48) + "║")
+    print("  ║                                              ║")
+    print("  ║  Quiz hub     /quiz                          ║")
+    print("  ║  Builder      /studio                        ║")
+    print("  ║  Live host    /host                          ║")
+    print("  ║  Play / join  /play                          ║")
+    print("  ║  KidWorld     /student.html  /teacher.html   ║")
+    print("  ║                                              ║")
+    print("  ║  Set ANTHROPIC_API_KEY for the live AI       ║")
+    print("  ║  Press CTRL+C to stop                        ║")
+    print("  ╚══════════════════════════════════════════════╝")
     print()
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+    app.run(host="0.0.0.0", port=PORT, threaded=True, debug=False)

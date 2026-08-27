@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizNova Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/nova.css">
+<style>
+.studio{display:grid;grid-template-columns:250px minmax(0,1fr) 372px;gap:22px;max-width:1560px;margin:0 auto;padding:22px;align-items:start}
+.col{position:sticky;top:88px;max-height:calc(100vh - 108px);overflow:auto}
+
+/* ── outline rail ─────────────────────────────── */
+.outline{padding:14px}
+.outline h4{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:10px;padding:0 4px}
+.o-item{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:12px;cursor:pointer;transition:.16s;border:1px solid transparent}
+.o-item:hover{background:rgba(255,255,255,.06)}
+.o-item.on{background:rgba(124,92,255,.16);border-color:rgba(124,92,255,.4)}
+.o-num{width:23px;height:23px;flex:none;border-radius:7px;background:rgba(255,255,255,.09);display:grid;place-items:center;font-size:.74rem;font-weight:700;color:var(--muted)}
+.o-item.on .o-num{background:var(--violet);color:#fff}
+.o-text{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.o-item.ghost{opacity:.45;font-style:italic}
+.o-drag{cursor:grab;color:var(--faint);font-size:.8rem;opacity:0;transition:.15s}
+.o-item:hover .o-drag{opacity:1}
+.o-item.dragging{opacity:.4}
+.o-item.drop-target{border-top:2px solid var(--cyan)}
+
+/* ── question cards ───────────────────────────── */
+.qcard{position:relative;padding:22px 24px 18px;margin-bottom:16px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px solid var(--line);transition:.25s var(--ease);scroll-margin-top:96px}
+.qcard::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:4px;border-radius:0 4px 4px 0;background:var(--grad-brand);opacity:0;transition:.25s}
+.qcard.focus{border-color:rgba(124,92,255,.45);box-shadow:var(--shadow-glow)}
+.qcard.focus::before{opacity:1}
+.qcard.flash{animation:flash 1.1s var(--ease)}
+@keyframes flash{0%{box-shadow:0 0 0 3px rgba(52,224,161,.65)}100%{box-shadow:0 0 0 0 rgba(52,224,161,0)}}
+.qhead{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.qnum{width:28px;height:28px;flex:none;border-radius:9px;background:rgba(255,255,255,.08);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:var(--muted);margin-top:5px}
+.qtext{font-size:1.06rem;font-weight:600}
+.qtools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.num-input{width:74px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line);outline:none;font-size:.84rem}
+.num-input:focus{border-color:var(--violet)}
+
+.choice{display:flex;gap:11px;align-items:center;padding:7px 8px;border-radius:12px;transition:.15s}
+.choice:hover{background:rgba(255,255,255,.04)}
+.choice .mark{width:26px;height:26px;flex:none;border-radius:50%;border:2px solid var(--line-strong);display:grid;place-items:center;
+  cursor:pointer;transition:.2s;font-size:13px;color:transparent;background:transparent}
+.choice.right .mark{border-color:var(--mint);background:rgba(52,224,161,.2);color:var(--mint)}
+.choice.square .mark{border-radius:8px}
+.choice .kill{opacity:0;transition:.15s}
+.choice:hover .kill{opacity:1}
+.add-choice{display:flex;gap:11px;align-items:center;padding:8px;color:var(--faint);cursor:pointer;font-size:.9rem;border-radius:12px}
+.add-choice:hover{color:var(--text);background:rgba(255,255,255,.04)}
+
+/* ── AI panel ─────────────────────────────────── */
+.ai{display:flex;flex-direction:column;height:calc(100vh - 108px);overflow:hidden;padding:0}
+.ai-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.ai-orb{width:36px;height:36px;border-radius:12px;background:var(--grad-brand);display:grid;place-items:center;font-size:17px;
+  box-shadow:0 8px 22px -8px rgba(124,92,255,.9);animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.06);filter:brightness(1.15)}}
+.ai-log{flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.bubble{flex:none;padding:11px 14px;border-radius:16px;font-size:.9rem;line-height:1.5;max-width:94%;animation:fadeUp .3s var(--ease) both}
+.bubble.me{align-self:flex-end;background:var(--grad-brand);color:#fff;border-bottom-right-radius:5px}
+.bubble.ai{align-self:flex-start;background:rgba(255,255,255,.07);border:1px solid var(--line);border-bottom-left-radius:5px}
+.bubble.sys{align-self:center;font-size:.78rem;color:var(--faint);background:none;padding:2px}
+.ops{margin-top:10px;border:1px solid var(--line-strong);border-radius:14px;overflow:hidden;background:rgba(0,0,0,.28)}
+.op{display:flex;gap:9px;padding:9px 12px;font-size:.83rem;border-bottom:1px solid var(--line);align-items:flex-start}
+.op:last-child{border-bottom:none}
+.op-tag{font-size:.66rem;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:6px;flex:none;margin-top:1px}
+.op-add .op-tag{background:rgba(52,224,161,.2);color:#7df3c4}
+.op-del .op-tag{background:rgba(255,77,94,.2);color:#ffa8b1}
+.op-edit .op-tag{background:rgba(255,200,87,.2);color:#ffdf9c}
+.op-meta .op-tag{background:rgba(79,107,255,.22);color:#b9c6ff}
+.op-body{color:var(--muted);line-height:1.4}
+.ai-foot{padding:14px 16px;border-top:1px solid var(--line);background:rgba(0,0,0,.2)}
+.prompts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.prompt-chip{padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.06);border:1px solid var(--line);
+  font-size:.76rem;cursor:pointer;transition:.15s;color:var(--muted)}
+.prompt-chip:hover{background:rgba(124,92,255,.2);color:var(--text);border-color:rgba(124,92,255,.45)}
+.ai-input{display:flex;gap:8px;align-items:flex-end}
+.ai-input textarea{flex:1;resize:none;max-height:120px;min-height:44px;padding:12px 14px;border-radius:14px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);outline:none;font-size:.9rem}
+.ai-input textarea:focus{border-color:rgba(124,92,255,.7);box-shadow:0 0 0 3px rgba(124,92,255,.14)}
+.perm{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:.76rem;color:var(--faint)}
+.perm .seg{flex:1}
+.perm .seg button{padding:7px 8px;font-size:.78rem;white-space:nowrap;flex:1}
+.thinking{display:flex;gap:5px;padding:12px 14px}
+.thinking i{width:7px;height:7px;border-radius:50%;background:var(--violet);animation:bounce 1.1s infinite}
+.thinking i:nth-child(2){animation-delay:.16s}.thinking i:nth-child(3){animation-delay:.32s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
+
+/* ── presence ─────────────────────────────────── */
+.faces{display:flex}
+.face{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:.76rem;font-weight:800;
+  border:2px solid var(--ink-900);margin-left:-8px;color:#08111f}
+.face:first-child{margin-left:0}
+
+/* ── responses ────────────────────────────────── */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px}
+.stat{padding:18px;border-radius:var(--r-md);background:rgba(255,255,255,.045);border:1px solid var(--line)}
+.stat b{display:block;font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
+.stat span{font-size:.78rem;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.bar{height:9px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--grad-mint);transition:width .6s var(--ease)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line)}
+tr:hover td{background:rgba(255,255,255,.03)}
+
+@media (max-width:1200px){
+  .studio{grid-template-columns:minmax(0,1fr);padding:16px}
+  .col{position:static;max-height:none}
+  .ai{height:auto;max-height:640px}
+  #rail{order:3}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="icon-btn" href="/quiz" title="All quizzes">←</a>
+    <div class="brand-mark hide-sm">⚡</div>
+    <input id="title" class="line-input" style="max-width:340px;font-weight:700;font-size:1.02rem" placeholder="Untitled quiz">
+    <span id="save" class="chip">saved</span>
+    <div class="grow"></div>
+    <div class="faces" id="faces"></div>
+    <div class="seg hide-sm" id="tabs">
+      <button data-tab="build" class="on">Build</button>
+      <button data-tab="responses">Responses</button>
+      <button data-tab="settings">Settings</button>
+    </div>
+    <button class="btn sm" id="share">🔗 Share</button>
+    <button class="btn sm primary" id="present">▶ Play live</button>
+  </div>
+</header>
+
+<main class="studio">
+  <!-- outline -->
+  <aside class="col panel outline" id="rail">
+    <h4>Questions</h4>
+    <div id="outline"></div>
+    <button class="btn sm block" style="margin-top:12px" id="add-bottom">＋ Add question</button>
+    <div class="divider"></div>
+    <div class="tiny faint" style="padding:0 4px;line-height:1.6">
+      Drag to reorder. Everything you type saves automatically and streams to anyone else with this quiz open.
+    </div>
+  </aside>
+
+  <!-- main column -->
+  <section>
+    <div id="pane-build">
+      <div class="card pad" style="margin-bottom:18px">
+        <input id="desc" class="line-input" placeholder="Add a description for your students…">
+      </div>
+      <div id="questions"></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn" data-add="mc">＋ Multiple choice</button>
+        <button class="btn" data-add="tf">＋ True / False</button>
+        <button class="btn" data-add="multi">＋ Multi-select</button>
+        <button class="btn" data-add="short">＋ Short answer</button>
+      </div>
+    </div>
+
+    <div id="pane-responses" class="hide"></div>
+
+    <div id="pane-settings" class="hide">
+      <div class="card pad">
+        <h3 style="margin-bottom:18px">Quiz settings</h3>
+        <div id="settings-list" class="stack" style="gap:2px"></div>
+        <div class="divider"></div>
+        <div class="row" style="gap:12px;flex-wrap:wrap">
+          <div class="field" style="width:150px"><label class="label">Default seconds</label>
+            <input class="input" type="number" id="s-time" min="5" max="180"></div>
+          <div class="field" style="width:150px"><label class="label">Default points</label>
+            <input class="input" type="number" id="s-points" min="10" max="2000" step="10"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI co-pilot -->
+  <aside class="col panel ai">
+    <div class="ai-head">
+      <div class="ai-orb">✨</div>
+      <div class="grow">
+        <strong style="display:block;font-size:.98rem">Quiz co-pilot</strong>
+        <span class="tiny faint" id="ai-mode">checking…</span>
+      </div>
+      <button class="icon-btn" id="ai-clear" title="Clear chat">⟳</button>
+    </div>
+    <div class="ai-log" id="ai-log"></div>
+    <div class="ai-foot">
+      <div class="perm">
+        <span>Permission</span>
+        <div class="seg" id="perm" style="border-radius:11px">
+          <button data-p="ask" class="on">Ask me</button>
+          <button data-p="auto">Auto-edit</button>
+          <button data-p="read">Read-only</button>
+        </div>
+      </div>
+      <div class="prompts" id="prompts"></div>
+      <div class="ai-input">
+        <textarea id="ai-text" rows="1" placeholder="Add 5 harder questions about fractions…"></textarea>
+        <button class="btn primary" id="ai-send" style="height:44px;width:46px;padding:0">➤</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script src="/nova.js"></script>
+<script src="/qr.js"></script>
+<script>
+const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
+
+const quizId = qs('id');
+if (!quizId) location.href = '/quiz';
+
+let quiz = null;
+let focused = null;          // question id being edited
+let saveTimer = null;
+let pendingOps = null;
+let permission = store.get('permission', 'ask');
+let myName = store.get('name') || '';
+const myColour = ['#7c5cff','#22d3ee','#34e0a1','#ffc857','#ff5d8f'][Math.abs(clientId.charCodeAt(0) + clientId.charCodeAt(1)) % 5];
+
+/* ── loading & saving ─────────────────────────── */
+async function boot() {
+  quiz = await api('/quizzes/' + quizId);
+  $('#title').value = quiz.title;
+  $('#desc').value = quiz.description || '';
+  renderAll();
+  listen();
+  heartbeat();
+  aiStatus();
+  greet();
+}
+
+function markSaving() { const s = $('#save'); s.textContent = 'saving…'; s.className = 'chip'; }
+function markSaved() { const s = $('#save'); s.textContent = '✓ saved'; s.className = 'chip live'; }
+
+function save(immediate = false) {
+  markSaving();
+  clearTimeout(saveTimer);
+  const run = async () => {
+    try {
+      const body = { clientId, title: quiz.title, description: quiz.description,
+                     questions: quiz.questions, settings: quiz.settings };
+      const fresh = await api('/quizzes/' + quizId, { method: 'PATCH', body });
+      quiz.version = fresh.version;
+      markSaved();
+    } catch (err) { toast('Save failed: ' + err.message, 'bad'); }
+  };
+  if (immediate) run(); else saveTimer = setTimeout(run, 450);
+}
+
+/* ── realtime ─────────────────────────────────── */
+function listen() {
+  stream(`/quizzes/${quizId}/events`, (msg) => {
+    if (msg.event === 'quiz:updated' && msg.data.by !== clientId) {
+      const anchor = rememberFocus();
+      quiz = msg.data.quiz;
+      $('#title').value = quiz.title;
+      $('#desc').value = quiz.description || '';
+      renderAll();
+      restoreFocus(anchor);
+      if (msg.data.by === 'ai') {
+        (msg.data.log || []).forEach(line => addBubble('sys', '✨ ' + line));
+      } else {
+        toast('Updated by a collaborator');
+      }
+    }
+    if (msg.event === 'presence') renderFaces(msg.data.people);
+    if (msg.event === 'response:new' && currentTab === 'responses') loadResponses();
+    if (msg.event === 'quiz:deleted') { toast('This quiz was deleted', 'bad'); setTimeout(() => location.href = '/quiz', 1200); }
+  }, `/quizzes/${quizId}`);
+}
+
+function rememberFocus() {
+  const node = document.activeElement;
+  if (!node || !node.dataset || !node.dataset.path) return null;
+  return { path: node.dataset.path, start: node.selectionStart, end: node.selectionEnd };
+}
+function restoreFocus(anchor) {
+  if (!anchor) return;
+  const node = document.querySelector(`[data-path="${CSS.escape(anchor.path)}"]`);
+  if (!node) return;
+  node.focus();
+  try { node.setSelectionRange(anchor.start, anchor.end); } catch { /* not a text field */ }
+}
+
+async function heartbeat() {
+  if (!myName) myName = 'Teacher';
+  const beat = () => api('/quizzes/' + quizId + '/presence', {
+    method: 'POST', body: { clientId, name: myName, colour: myColour }
+  }).then(r => renderFaces(r.people)).catch(() => {});
+  beat();
+  setInterval(beat, 5000);
+}
+
+function renderFaces(people) {
+  const host = $('#faces');
+  host.innerHTML = '';
+  people.slice(0, 5).forEach(p => {
+    const f = el('div', { class: 'face', title: p.name, style: `background:${p.colour}` },
+                 (p.name || '?').slice(0, 1).toUpperCase());
+    if (p.clientId === clientId) f.style.outline = '2px solid rgba(255,255,255,.35)';
+    host.append(f);
+  });
+  if (people.length > 5) host.append(el('div', { class: 'face', style: 'background:#2a3350;color:#fff' }, '+' + (people.length - 5)));
+}
+
+/* ── rendering the builder ────────────────────── */
+const TYPE_LABEL = { mc: 'Multiple choice', tf: 'True / False', multi: 'Multi-select', short: 'Short answer' };
+
+function renderAll() { renderOutline(); renderQuestions(); renderSettings(); }
+
+function renderOutline() {
+  const host = $('#outline');
+  host.innerHTML = '';
+  if (!quiz.questions.length) host.append(el('div', { class: 'tiny faint', style: 'padding:8px 4px' }, 'No questions yet.'));
+  quiz.questions.forEach((q, i) => {
+    const item = el('div', {
+      class: 'o-item' + (q.id === focused ? ' on' : ''), draggable: 'true', 'data-id': q.id,
+      onclick: () => { focused = q.id; renderAll(); document.getElementById('q-' + q.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+    item.append(el('span', { class: 'o-drag' }, '⠿'),
+                el('span', { class: 'o-num' }, i + 1),
+                el('span', { class: 'o-text' + (q.text ? '' : ' ghost') }, q.text || 'Untitled question'));
+    item.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', q.id); item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drop-target'); });
+    item.addEventListener('dragleave', () => item.classList.remove('drop-target'));
+    item.addEventListener('drop', (e) => {
+      e.preventDefault(); item.classList.remove('drop-target');
+      const dragged = e.dataTransfer.getData('text/plain');
+      if (!dragged || dragged === q.id) return;
+      const from = quiz.questions.findIndex(x => x.id === dragged);
+      const to = quiz.questions.findIndex(x => x.id === q.id);
+      const [moved] = quiz.questions.splice(from, 1);
+      quiz.questions.splice(to, 0, moved);
+      renderAll(); save();
+    });
+    host.append(item);
+  });
+}
+
+function renderQuestions() {
+  const host = $('#questions');
+  host.innerHTML = '';
+  if (!quiz.questions.length) {
+    host.append(el('div', { class: 'card pad empty' },
+      el('span', { class: 'em' }, '🧩'),
+      el('div', {}, 'No questions yet — add one below, or ask the co-pilot to draft the whole quiz.')));
+    return;
+  }
+  quiz.questions.forEach((q, i) => host.append(questionCard(q, i)));
+}
+
+function questionCard(q, i) {
+  const card = el('div', { class: 'qcard' + (q.id === focused ? ' focus' : ''), id: 'q-' + q.id,
+                           onmousedown: () => { if (focused !== q.id) { focused = q.id; renderOutline(); $$('.qcard').forEach(c => c.classList.remove('focus')); card.classList.add('focus'); } } });
+
+  const text = el('textarea', {
+    class: 'line-input qtext', rows: 1, 'data-path': `${q.id}:text`,
+    placeholder: 'Question ' + (i + 1), oninput: (e) => {
+      q.text = e.target.value; autosize(e.target); renderOutline(); save();
+    }
+  });
+  text.value = q.text || '';
+
+  const typeSel = el('select', { class: 'select', style: 'width:172px;flex:none',
+    onchange: (e) => { changeType(q, e.target.value); renderAll(); save(); } });
+  Object.entries(TYPE_LABEL).forEach(([v, label]) =>
+    typeSel.append(el('option', { value: v, ...(q.type === v ? { selected: 'selected' } : {}) }, label)));
+
+  card.append(el('div', { class: 'qhead' },
+    el('span', { class: 'qnum' }, i + 1),
+    el('div', { class: 'grow' }, text),
+    typeSel));
+
+  setTimeout(() => autosize(text), 0);
+
+  /* answers */
+  const body = el('div', { class: 'stack', style: 'gap:2px' });
+  if (q.type === 'short') {
+    const ans = el('input', { class: 'input', 'data-path': `${q.id}:answer`,
+      placeholder: 'Accepted answer(s), separated by | e.g. 12 | twelve',
+      oninput: (e) => { q.answer = e.target.value; save(); } });
+    ans.value = q.answer || '';
+    body.append(el('div', { class: 'field' }, el('label', { class: 'label' }, 'Correct answer'), ans));
+  } else {
+    q.choices.forEach((c, ci) => {
+      const row = el('div', { class: 'choice' + (c.correct ? ' right' : '') + (q.type === 'multi' ? ' square' : '') });
+      row.append(el('button', {
+        class: 'mark', title: 'Mark correct',
+        onclick: () => {
+          if (q.type === 'multi') c.correct = !c.correct;
+          else q.choices.forEach(x => x.correct = (x === c));
+          renderQuestions(); save();
+        }
+      }, '✓'));
+      const inp = el('input', {
+        class: 'line-input grow', 'data-path': `${q.id}:c${c.id}`,
+        placeholder: 'Option ' + (ci + 1), readonly: q.type === 'tf' ? 'readonly' : null,
+        oninput: (e) => { c.text = e.target.value; save(); }
+      });
+      inp.value = c.text || '';
+      row.append(inp);
+      if (q.type !== 'tf') row.append(el('button', {
+        class: 'icon-btn kill', title: 'Remove option',
+        onclick: () => { q.choices = q.choices.filter(x => x !== c); renderQuestions(); save(); }
+      }, '✕'));
+      body.append(row);
+    });
+    if (q.type !== 'tf' && q.choices.length < 6) {
+      body.append(el('div', { class: 'add-choice', onclick: () => {
+        q.choices.push({ id: Math.random().toString(36).slice(2, 8), text: '', correct: false });
+        renderQuestions(); save();
+      } }, el('span', { class: 'mark', style: 'width:26px;height:26px;border:2px dashed var(--line-strong);border-radius:50%' }), 'Add option'));
+    }
+  }
+  card.append(body);
+
+  const why = el('input', { class: 'line-input', 'data-path': `${q.id}:why`, style: 'margin-top:12px;font-size:.86rem',
+    placeholder: 'Explanation shown after the answer (optional)',
+    oninput: (e) => { q.explanation = e.target.value; save(); } });
+  why.value = q.explanation || '';
+  card.append(why);
+
+  const points = el('input', { class: 'num-input', type: 'number', min: 10, step: 10, value: q.points,
+    oninput: (e) => { q.points = +e.target.value || 100; save(); } });
+  const secs = el('input', { class: 'num-input', type: 'number', min: 5, max: 180, value: q.time,
+    oninput: (e) => { q.time = +e.target.value || 20; save(); } });
+
+  card.append(el('div', { class: 'qtools' },
+    el('span', { class: 'tiny faint' }, 'Points'), points,
+    el('span', { class: 'tiny faint' }, 'Seconds'), secs,
+    el('div', { class: 'grow' }),
+    el('button', { class: 'btn sm ghost', title: 'Duplicate', onclick: () => {
+      const copyQ = JSON.parse(JSON.stringify(q));
+      copyQ.id = Math.random().toString(36).slice(2, 10);
+      copyQ.choices = copyQ.choices.map(c => ({ ...c, id: Math.random().toString(36).slice(2, 8) }));
+      quiz.questions.splice(i + 1, 0, copyQ); focused = copyQ.id; renderAll(); save();
+    } }, '⧉ Duplicate'),
+    el('button', { class: 'btn sm danger', onclick: () => {
+      quiz.questions = quiz.questions.filter(x => x.id !== q.id); renderAll(); save();
+    } }, '🗑 Delete')));
+
+  return card;
+}
+
+function autosize(node) { node.style.height = 'auto'; node.style.height = node.scrollHeight + 'px'; }
+
+function changeType(q, type) {
+  q.type = type;
+  const rid = () => Math.random().toString(36).slice(2, 8);
+  if (type === 'tf') q.choices = [{ id: rid(), text: 'True', correct: true }, { id: rid(), text: 'False', correct: false }];
+  else if (type === 'short') q.choices = [];
+  else if (!q.choices.length) q.choices = [0, 1, 2, 3].map((n) => ({ id: rid(), text: '', correct: n === 0 }));
+}
+
+function addQuestion(type) {
+  const rid = (n = 8) => Math.random().toString(36).slice(2, 2 + n);
+  const q = { id: rid(10), type, text: '', points: quiz.settings.defaultPoints, time: quiz.settings.defaultTime,
+              explanation: '', image: '', choices: [], answer: '' };
+  changeType(q, type);
+  quiz.questions.push(q);
+  focused = q.id;
+  renderAll(); save();
+  document.getElementById('q-' + q.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.querySelector(`[data-path="${q.id}:text"]`)?.focus();
+}
+
+/* ── settings ─────────────────────────────────── */
+const TOGGLES = [
+  ['shuffleQuestions', 'Shuffle question order', 'Each student or game gets a different order.'],
+  ['shuffleChoices', 'Shuffle answer options', 'Stops answer-position copying.'],
+  ['showAnswers', 'Show answers afterwards', 'Students see what was right and why when they finish.'],
+  ['requireName', 'Ask for a name', 'Turn off for anonymous responses.']
+];
+
+function renderSettings() {
+  const host = $('#settings-list');
+  if (!host) return;
+  host.innerHTML = '';
+  TOGGLES.forEach(([key, label, hint]) => {
+    const sw = el('label', { class: 'switch' });
+    const input = el('input', { type: 'checkbox', ...(quiz.settings[key] ? { checked: 'checked' } : {}),
+      onchange: (e) => { quiz.settings[key] = e.target.checked; save(); } });
+    sw.append(input, el('span', {}));
+    host.append(el('div', { class: 'spread', style: 'padding:13px 0;border-bottom:1px solid var(--line)' },
+      el('div', {}, el('strong', { style: 'display:block;font-size:.94rem' }, label),
+                    el('span', { class: 'tiny faint' }, hint)), sw));
+  });
+  $('#s-time').value = quiz.settings.defaultTime;
+  $('#s-points').value = quiz.settings.defaultPoints;
+}
+$('#s-time').oninput = (e) => { quiz.settings.defaultTime = +e.target.value || 20; save(); };
+$('#s-points').oninput = (e) => { quiz.settings.defaultPoints = +e.target.value || 100; save(); };
+
+/* ── responses tab ────────────────────────────── */
+async function loadResponses() {
+  const host = $('#pane-responses');
+  const data = await api(`/quizzes/${quizId}/responses`);
+  const rows = data.responses;
+  const avg = rows.length ? Math.round(rows.reduce((s, r) => s + (r.total ? r.score / r.total : 0), 0) / rows.length * 100) : 0;
+  const best = rows.length ? Math.max(...rows.map(r => r.total ? Math.round(r.score / r.total * 100) : 0)) : 0;
+
+  host.innerHTML = '';
+  host.append(el('div', { class: 'stat-row' },
+    stat(rows.length, 'Responses'), stat(avg + '%', 'Average score'),
+    stat(best + '%', 'Top score'), stat(quiz.questions.length, 'Questions')));
+
+  const perQ = el('div', { class: 'card pad', style: 'margin-bottom:18px' },
+    el('h3', { style: 'margin-bottom:16px;font-size:1.06rem' }, 'How each question went'));
+  if (!data.stats.length) perQ.append(el('p', { class: 'faint tiny' }, 'No questions yet.'));
+  data.stats.forEach((s, i) => {
+    const pct = s.answered ? Math.round(s.correct / s.answered * 100) : 0;
+    perQ.append(el('div', { style: 'margin-bottom:15px' },
+      el('div', { class: 'spread', style: 'margin-bottom:6px' },
+        el('span', { class: 'tiny' }, `${i + 1}. ${s.text || 'Untitled'}`),
+        el('span', { class: 'tiny faint' }, `${s.correct}/${s.answered} correct · ${pct}%`)),
+      el('div', { class: 'bar' }, el('i', { style: `width:${pct}%` }))));
+  });
+  host.append(perQ);
+
+  const table = el('table');
+  table.append(el('tr', {}, el('th', {}, 'Student'), el('th', {}, 'Score'), el('th', {}, 'Percent'),
+                            el('th', {}, 'Time'), el('th', {}, 'When')));
+  rows.slice().reverse().forEach(r => {
+    const pct = r.total ? Math.round(r.score / r.total * 100) : 0;
+    table.append(el('tr', {},
+      el('td', {}, el('strong', {}, r.name)),
+      el('td', {}, `${r.score} / ${r.total}`),
+      el('td', {}, el('span', { class: 'chip ' + (pct >= 70 ? 'live' : pct >= 40 ? 'warn' : '') }, pct + '%')),
+      el('td', { class: 'faint' }, Nova.fmtTime((r.seconds || 0) * 1000)),
+      el('td', { class: 'faint tiny' }, Nova.ago(r.at))));
+  });
+  const wrapCard = el('div', { class: 'card pad' }, el('h3', { style: 'margin-bottom:12px;font-size:1.06rem' }, 'Every response'));
+  if (!rows.length) wrapCard.append(el('div', { class: 'empty' }, el('span', { class: 'em' }, '📭'),
+    'No responses yet. Share the link or run a live game.'));
+  else wrapCard.append(table);
+  host.append(wrapCard);
+}
+const stat = (value, label) => el('div', { class: 'stat' }, el('b', {}, String(value)), el('span', {}, label));
+
+/* ── tabs ─────────────────────────────────────── */
+let currentTab = 'build';
+$$('#tabs button').forEach(btn => btn.onclick = () => {
+  currentTab = btn.dataset.tab;
+  $$('#tabs button').forEach(b => b.classList.toggle('on', b === btn));
+  ['build', 'responses', 'settings'].forEach(t => $('#pane-' + t).classList.toggle('hide', t !== currentTab));
+  $('#rail').classList.toggle('hide', currentTab !== 'build');
+  if (currentTab === 'responses') loadResponses();
+});
+
+/* ── AI co-pilot ──────────────────────────────── */
+const QUICK = ['Add 5 questions about this topic', 'Make the quiz harder',
+               'Write explanations for every question', 'Add 3 true/false questions',
+               'Fix the wording for Year 4 readers', 'Delete the last question'];
+
+function renderPrompts() {
+  const host = $('#prompts');
+  host.innerHTML = '';
+  QUICK.forEach(p => host.append(el('div', { class: 'prompt-chip', onclick: () => { $('#ai-text').value = p; askAI(); } }, p)));
+}
+
+function addBubble(kind, html) {
+  const node = el('div', { class: 'bubble ' + kind, html });
+  $('#ai-log').append(node);
+  $('#ai-log').scrollTop = $('#ai-log').scrollHeight;
+  return node;
+}
+
+function greet() {
+  addBubble('ai', `Hi! I can add, rewrite, reorder and delete questions in this quiz.<br>
+    You are in <strong>${permission === 'auto' ? 'Auto-edit' : permission === 'read' ? 'Read-only' : 'Ask me'}</strong> mode —
+    ${permission === 'auto' ? 'I will apply changes straight away.' : permission === 'read' ? 'I will only suggest, never change anything.' : 'I will show you every change and wait for your approval.'}`);
+  renderPrompts();
+}
+
+async function aiStatus() {
+  try {
+    const s = await api('/ai/status');
+    $('#ai-mode').textContent = s.live ? `Claude · ${s.model}` : 'Built-in question bank (no API key)';
+  } catch { $('#ai-mode').textContent = 'offline'; }
+}
+
+$$('#perm button').forEach(btn => {
+  btn.classList.toggle('on', btn.dataset.p === permission);
+  btn.onclick = () => {
+    permission = btn.dataset.p;
+    store.set('permission', permission);
+    $$('#perm button').forEach(b => b.classList.toggle('on', b === btn));
+    addBubble('sys', permission === 'auto' ? '🔓 Auto-edit on — I will apply changes immediately'
+            : permission === 'read' ? '🔒 Read-only — I will not touch the quiz'
+            : '🛡 Ask me — you approve every change');
+  };
+});
+
+const opClass = (op) => op.op === 'add_question' ? 'op-add' : op.op === 'delete_question' ? 'op-del'
+                     : op.op === 'update_question' ? 'op-edit' : 'op-meta';
+const opTag = (op) => ({ add_question: 'ADD', delete_question: 'DELETE', update_question: 'EDIT',
+                         reorder: 'REORDER', update_quiz: 'SETTINGS' }[op.op] || op.op);
+
+function describe(op) {
+  if (op.op === 'add_question') {
+    const q = op.question || {};
+    const right = (q.choices || []).find(c => c.correct);
+    return `${esc(q.text || 'New question')}${right ? ` <span style="color:var(--mint)">✓ ${esc(right.text)}</span>` : ''}`;
+  }
+  if (op.op === 'delete_question') {
+    const q = quiz.questions.find(x => x.id === op.id);
+    return esc(q ? (q.text || 'Untitled question') : 'a question');
+  }
+  if (op.op === 'update_question') {
+    const q = quiz.questions.find(x => x.id === op.id);
+    const keys = Object.keys(op.patch || {}).join(', ');
+    return `${esc(q ? (q.text || 'Untitled') : 'question')} <span class="faint">(${esc(keys)})</span>`;
+  }
+  if (op.op === 'reorder') return 'Reorder the questions';
+  return esc(JSON.stringify(op.patch || {}).slice(0, 120));
+}
+
+function showOps(bubble, ops) {
+  const box = el('div', { class: 'ops' });
+  ops.slice(0, 40).forEach(op => box.append(
+    el('div', { class: 'op ' + opClass(op) },
+      el('span', { class: 'op-tag' }, opTag(op)),
+      el('span', { class: 'op-body', html: describe(op) }))));
+  if (ops.length > 40) box.append(el('div', { class: 'op' }, el('span', { class: 'op-body' }, `+ ${ops.length - 40} more`)));
+  bubble.append(box);
+
+  const actions = el('div', { class: 'row', style: 'margin-top:10px;gap:8px' });
+  actions.append(
+    el('button', { class: 'btn sm mint grow', onclick: async () => {
+      actions.remove();
+      const res = await api(`/quizzes/${quizId}/ops`, { method: 'POST', body: { ops, clientId } });
+      quiz = res.quiz;
+      $('#title').value = quiz.title; $('#desc').value = quiz.description || '';
+      renderAll(); markSaved();
+      res.log.forEach(line => addBubble('sys', '✓ ' + esc(line)));
+      flashChanges(ops);
+      toast('Applied ' + ops.length + ' change' + (ops.length === 1 ? '' : 's'), 'good');
+      pendingOps = null;
+    } }, '✓ Approve'),
+    el('button', { class: 'btn sm ghost', onclick: () => { actions.remove(); addBubble('sys', '✕ Rejected'); pendingOps = null; } }, 'Reject'));
+  bubble.append(actions);
+}
+
+function flashChanges(ops) {
+  setTimeout(() => {
+    ops.forEach(op => {
+      const id = op.id || null;
+      const node = id ? document.getElementById('q-' + id) : null;
+      if (node) node.classList.add('flash');
+    });
+    if (ops.some(o => o.op === 'add_question')) {
+      const last = $('#questions').lastElementChild;
+      last?.classList.add('flash');
+      last?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 60);
+}
+
+async function askAI() {
+  const box = $('#ai-text');
+  const prompt = box.value.trim();
+  if (!prompt) return;
+  box.value = ''; box.style.height = 'auto';
+  addBubble('me', esc(prompt));
+  const thinking = addBubble('ai', '<div class="thinking"><i></i><i></i><i></i></div>');
+  $('#ai-send').disabled = true;
+
+  try {
+    const res = await api('/ai', { method: 'POST', body: { quizId, prompt, permission } });
+    thinking.innerHTML = esc(res.reply);
+    if (res.source === 'offline') thinking.append(el('div', { class: 'tiny faint', style: 'margin-top:6px' }, 'answered by the built-in bank'));
+    if (res.applied) {
+      quiz = res.quiz;
+      $('#title').value = quiz.title; $('#desc').value = quiz.description || '';
+      renderAll(); markSaved();
+      (res.log || []).forEach(line => addBubble('sys', '✓ ' + esc(line)));
+      flashChanges(res.ops || []);
+    } else if ((res.ops || []).length) {
+      pendingOps = res.ops;
+      showOps(thinking, res.ops);
+    } else if (res.note) {
+      thinking.append(el('div', { class: 'tiny faint', style: 'margin-top:6px' }, res.note));
+    }
+  } catch (err) {
+    thinking.innerHTML = '⚠️ ' + esc(err.message);
+  } finally {
+    $('#ai-send').disabled = false;
+    $('#ai-log').scrollTop = $('#ai-log').scrollHeight;
+  }
+}
+
+$('#ai-send').onclick = askAI;
+$('#ai-text').addEventListener('input', (e) => autosize(e.target));
+$('#ai-text').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askAI(); }
+});
+$('#ai-clear').onclick = () => { $('#ai-log').innerHTML = ''; greet(); };
+
+/* ── header actions ───────────────────────────── */
+$('#title').oninput = (e) => { quiz.title = e.target.value; save(); };
+$('#desc').oninput = (e) => { quiz.description = e.target.value; save(); };
+$('#add-bottom').onclick = () => addQuestion('mc');
+$$('[data-add]').forEach(b => b.onclick = () => addQuestion(b.dataset.add));
+
+$('#share').onclick = () => {
+  const link = location.origin + '/take?id=' + quizId;
+  modal(`
+    <h2 style="margin-bottom:6px">Share with your class</h2>
+    <p class="muted tiny" style="margin-bottom:18px">Perfect for homework — responses appear live in your Responses tab.</p>
+    <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
+    <div class="field"><label class="label">Student link</label><input class="input mono" value="${esc(link)}" readonly></div>
+    <div class="row" style="margin-top:18px;gap:10px">
+      <button class="btn grow" id="cp">📋 Copy</button>
+      <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
+         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on QuizNova.'))}">📚 Google Classroom</a>
+    </div>`, { onMount(box) {
+      box.querySelector('#cp').onclick = () => copy(link);
+      const code = window.QR && QR.svg(link, { size: 150 });
+      if (code) box.querySelector('#qrbox').innerHTML =
+        `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`;
+    } });
+};
+
+$('#present').onclick = () => {
+  if (!quiz.questions.length) return toast('Add a question first', 'bad');
+  modal(`
+    <h2 style="margin-bottom:6px">Start a live game</h2>
+    <p class="muted tiny" style="margin-bottom:18px">Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
+    <div class="stack" style="gap:12px">
+      <button class="btn lg block" data-mode="normal" style="justify-content:flex-start;padding:18px 20px">
+        <span style="font-size:26px">🎯</span><span style="text-align:left"><strong style="display:block">Normal mode</strong>
+        <span class="tiny muted">Speed points · streak multipliers · leaderboard</span></span></button>
+      <button class="btn lg block" data-mode="laser" style="justify-content:flex-start;padding:18px 20px;border-color:rgba(255,77,94,.4)">
+        <span style="font-size:26px">🔫</span><span style="text-align:left"><strong style="display:block">Laser Tag mode</strong>
+        <span class="tiny muted">Two teams · HP bars · overcharge · revives</span></span></button>
+    </div>`, {
+    onMount(box, close) {
+      box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {
+        try {
+          const game = await api('/games', { method: 'POST', body: { quizId, mode: btn.dataset.mode } });
+          store.set('host:' + game.pin, game.hostToken);
+          location.href = '/host?pin=' + game.pin;
+        } catch (err) { toast(err.message, 'bad'); close(); }
+      });
+    }
+  });
+};
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(true); toast('Saved', 'good'); }
+});
+
+boot().catch(err => { document.body.innerHTML = `<div class="empty" style="padding-top:120px"><span class="em">⚠️</span>${esc(err.message)}<br><a class="btn sm" style="margin-top:16px" href="/quiz">Back to quizzes</a></div>`; });
+</script>
+</body>
+</html>

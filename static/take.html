@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizNova — take the quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/nova.css">
+<style>
+.shell{max-width:760px;margin:0 auto;padding:26px 20px 90px}
+.progress{position:fixed;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,.07);z-index:80}
+.progress i{display:block;height:100%;background:var(--grad-brand);width:0;transition:width .5s var(--ease)}
+
+.cover{padding:38px;text-align:left}
+.cover h1{font-size:clamp(1.9rem,5vw,2.7rem);margin-bottom:10px}
+.cover .facts{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 26px}
+
+.qbox{padding:30px;animation:fadeUp .4s var(--ease) both}
+.qkicker{font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:12px}
+.qbox h2{font-size:clamp(1.25rem,3.2vw,1.7rem);line-height:1.3;margin-bottom:24px}
+.opt{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:var(--r-md);
+  border:1.5px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;transition:.2s var(--ease);margin-bottom:11px}
+.opt:hover{border-color:var(--line-strong);background:rgba(255,255,255,.07);transform:translateX(3px)}
+.opt.on{border-color:var(--violet);background:rgba(124,92,255,.16);box-shadow:0 0 0 3px rgba(124,92,255,.13)}
+.opt .key{width:30px;height:30px;flex:none;border-radius:9px;background:rgba(255,255,255,.08);display:grid;place-items:center;
+  font-weight:800;font-size:.85rem;color:var(--muted)}
+.opt.on .key{background:var(--violet);color:#fff}
+.opt.multi .key{border-radius:8px}
+
+.nav{display:flex;gap:10px;align-items:center;margin-top:26px}
+.pips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:26px}
+.pip{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14);transition:.2s;cursor:pointer}
+.pip.done{background:var(--violet)}.pip.now{background:var(--cyan);transform:scale(1.5)}
+
+.score-ring{width:168px;height:168px;margin:0 auto 22px;position:relative}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .val{position:absolute;inset:0;display:grid;place-items:center;font-size:2.5rem;font-weight:800;letter-spacing:-.03em}
+.review{padding:16px 18px;border-radius:var(--r-md);border:1px solid var(--line);margin-bottom:11px;background:rgba(255,255,255,.03)}
+.review.ok{border-color:rgba(52,224,161,.35);background:rgba(52,224,161,.07)}
+.review.no{border-color:rgba(255,77,94,.35);background:rgba(255,77,94,.07)}
+</style>
+</head>
+<body>
+<div class="progress"><i id="bar"></i></div>
+<main class="shell" id="app">
+  <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
+</main>
+
+<script src="/nova.js"></script>
+<script>
+const { $, api, el, esc, qs, toast, confetti } = Nova;
+const quizId = qs('id');
+let quiz = null, order = [], answers = {}, step = -1, startedAt = 0, name = Nova.store.get('studentName') || '';
+
+async function boot() {
+  try { quiz = await api('/quizzes/' + quizId); }
+  catch { return fail('This quiz link is not valid any more.'); }
+  if (!quiz.questions.length) return fail('Your teacher has not added any questions yet.');
+
+  order = quiz.questions.map((q, i) => i);
+  if (quiz.settings.shuffleQuestions) order.sort(() => Math.random() - .5);
+  cover();
+}
+
+const fail = (msg) => { $('#app').innerHTML = `<div class="card pad empty"><span class="em">🙈</span>${esc(msg)}</div>`; };
+
+function cover() {
+  const totalPoints = quiz.questions.reduce((s, q) => s + (q.points || 100), 0);
+  $('#app').innerHTML = `
+    <div class="card cover fade-up">
+      <span class="chip">⚡ QuizNova</span>
+      <h1 style="margin-top:14px">${esc(quiz.title)}</h1>
+      <p class="muted">${esc(quiz.description || 'Answer every question, then submit. Good luck!')}</p>
+      <div class="facts">
+        <span class="chip">${quiz.questions.length} questions</span>
+        <span class="chip">${totalPoints} points</span>
+        <span class="chip">${quiz.settings.showAnswers ? 'Answers shown at the end' : 'Answers hidden'}</span>
+      </div>
+      ${quiz.settings.requireName ? `
+        <div class="field" style="max-width:340px;margin-bottom:22px">
+          <label class="label" for="nm">Your name</label>
+          <input class="input" id="nm" placeholder="e.g. Amina K." value="${esc(name)}" autocomplete="name">
+        </div>` : ''}
+      <button class="btn primary lg" id="start">Start the quiz →</button>
+    </div>`;
+  $('#start').onclick = () => {
+    if (quiz.settings.requireName) {
+      name = ($('#nm').value || '').trim();
+      if (!name) return toast('Please type your name first', 'bad');
+      Nova.store.set('studentName', name);
+    } else name = 'Anonymous';
+    startedAt = Date.now();
+    step = 0;
+    render();
+  };
+  $('#nm')?.addEventListener('keydown', e => { if (e.key === 'Enter') $('#start').click(); });
+}
+
+function choicesOf(q) {
+  const list = q.choices.slice();
+  if (quiz.settings.shuffleChoices && q.type !== 'tf') list.sort(() => Math.random() - .5);
+  return list;
+}
+const shuffled = {};
+
+function render() {
+  const q = quiz.questions[order[step]];
+  $('#bar').style.width = (step / quiz.questions.length * 100) + '%';
+  if (!shuffled[q.id]) shuffled[q.id] = choicesOf(q);
+
+  const box = el('div', { class: 'card qbox' });
+  box.append(el('div', { class: 'qkicker' }, `Question ${step + 1} of ${quiz.questions.length} · ${q.points || 100} points`),
+             el('h2', {}, q.text || 'Untitled question'));
+
+  if (q.type === 'short') {
+    const input = el('input', { class: 'input', style: 'font-size:1.05rem;padding:16px', placeholder: 'Type your answer…',
+      oninput: (e) => { answers[q.id] = e.target.value; } });
+    input.value = answers[q.id] || '';
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') next(); });
+    box.append(input);
+    setTimeout(() => input.focus(), 60);
+  } else {
+    shuffled[q.id].forEach((c, i) => {
+      const isMulti = q.type === 'multi';
+      const picked = isMulti ? (answers[q.id] || []).includes(c.id) : answers[q.id] === c.id;
+      const opt = el('div', { class: 'opt' + (picked ? ' on' : '') + (isMulti ? ' multi' : ''), onclick: () => {
+        if (isMulti) {
+          const set = new Set(answers[q.id] || []);
+          set.has(c.id) ? set.delete(c.id) : set.add(c.id);
+          answers[q.id] = Array.from(set);
+        } else {
+          answers[q.id] = c.id;
+        }
+        render();
+        if (!isMulti) setTimeout(next, 260);
+      } });
+      opt.append(el('span', { class: 'key' }, String.fromCharCode(65 + i)), el('span', {}, c.text || '—'));
+      box.append(opt);
+    });
+    if (q.type === 'multi') box.append(el('p', { class: 'tiny faint', style: 'margin-top:8px' }, 'Choose every correct option.'));
+  }
+
+  const nav = el('div', { class: 'nav' });
+  nav.append(el('button', { class: 'btn ghost', ...(step === 0 ? { disabled: 'disabled' } : {}), onclick: () => { step--; render(); } }, '← Back'),
+             el('div', { class: 'grow' }),
+             el('button', { class: 'btn primary', onclick: next },
+                step === quiz.questions.length - 1 ? 'Finish & submit' : 'Next →'));
+  box.append(nav);
+
+  const pips = el('div', { class: 'pips' });
+  quiz.questions.forEach((_, i) => {
+    const qq = quiz.questions[order[i]];
+    pips.append(el('div', {
+      class: 'pip' + (i === step ? ' now' : (answers[qq.id] !== undefined && answers[qq.id] !== '' ? ' done' : '')),
+      title: 'Question ' + (i + 1), onclick: () => { step = i; render(); }
+    }));
+  });
+
+  $('#app').innerHTML = '';
+  $('#app').append(box, pips);
+}
+
+function next() {
+  if (step === quiz.questions.length - 1) return submit();
+  step++; render();
+}
+
+async function submit() {
+  const missing = quiz.questions.filter(q => answers[q.id] === undefined || answers[q.id] === '' ||
+                                            (Array.isArray(answers[q.id]) && !answers[q.id].length));
+  if (missing.length && !confirm(`${missing.length} question(s) are unanswered. Submit anyway?`)) return;
+  $('#app').innerHTML = '<div class="card pad center" style="min-height:40vh"><div class="thinking">Marking…</div></div>';
+  try {
+    const result = await api(`/quizzes/${quizId}/submit`, {
+      method: 'POST',
+      body: { name, answers, seconds: Math.round((Date.now() - startedAt) / 1000) }
+    });
+    showResult(result);
+  } catch (err) { fail('Could not submit: ' + err.message); }
+}
+
+function showResult(result) {
+  $('#bar').style.width = '100%';
+  const pct = result.total ? Math.round(result.score / result.total * 100) : 0;
+  const circumference = 2 * Math.PI * 74;
+  const stroke = circumference * (1 - pct / 100);
+  const mood = pct >= 90 ? ['Outstanding!', '🏆'] : pct >= 70 ? ['Great work!', '🎉']
+             : pct >= 50 ? ['Good effort!', '💪'] : ['Keep practising!', '🌱'];
+
+  const box = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:38px' });
+  box.innerHTML = `
+    <div style="font-size:2.6rem;margin-bottom:6px">${mood[1]}</div>
+    <h1 style="font-size:1.9rem;margin-bottom:6px">${mood[0]}</h1>
+    <p class="muted" style="margin-bottom:26px">${esc(result.name)} · ${result.score} of ${result.total} points</p>
+    <div class="score-ring">
+      <svg width="168" height="168">
+        <circle cx="84" cy="84" r="74" stroke="rgba(255,255,255,.09)" stroke-width="13" fill="none"></circle>
+        <circle cx="84" cy="84" r="74" stroke="url(#g)" stroke-width="13" fill="none" stroke-linecap="round"
+                stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" id="ring"></circle>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#7c5cff"></stop><stop offset="1" stop-color="#22d3ee"></stop></linearGradient></defs>
+      </svg>
+      <div class="val">${pct}%</div>
+    </div>`;
+  $('#app').innerHTML = '';
+  $('#app').append(box);
+  setTimeout(() => {
+    const ring = document.getElementById('ring');
+    ring.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1)';
+    ring.style.strokeDashoffset = stroke;
+  }, 120);
+  if (pct >= 70) confetti();
+
+  if (quiz.settings.showAnswers) {
+    const review = el('div', { style: 'margin-top:26px' }, el('h3', { style: 'margin-bottom:14px' }, 'Your answers'));
+    quiz.questions.forEach((q, i) => {
+      const line = result.breakdown.find(b => b.id === q.id);
+      const ok = line?.correct;
+      const right = q.type === 'short' ? q.answer
+        : q.choices.filter(c => c.correct).map(c => c.text).join(', ');
+      const given = q.type === 'short' ? (line?.given || '—')
+        : (Array.isArray(line?.given) ? line.given : [line?.given])
+            .map(id => q.choices.find(c => c.id === id)?.text).filter(Boolean).join(', ') || '—';
+      review.append(el('div', { class: 'review ' + (ok ? 'ok' : 'no'), style: 'text-align:left' },
+        el('div', { class: 'spread', style: 'align-items:flex-start;gap:12px' },
+          el('strong', { style: 'font-size:.96rem' }, `${i + 1}. ${q.text || 'Untitled'}`),
+          el('span', { class: 'chip ' + (ok ? 'live' : '') }, ok ? '✓ correct' : '✕ missed')),
+        el('p', { class: 'tiny muted', style: 'margin-top:8px' }, `You answered: ${given}`),
+        ok ? '' : el('p', { class: 'tiny', style: 'margin-top:4px;color:var(--mint)' }, `Correct: ${right}`),
+        q.explanation ? el('p', { class: 'tiny faint', style: 'margin-top:8px;font-style:italic' }, q.explanation) : ''));
+    });
+    $('#app').append(review);
+  }
+  $('#app').append(el('div', { class: 'row', style: 'justify-content:center;margin-top:26px' },
+    el('button', { class: 'btn', onclick: () => location.reload() }, '↻ Take it again')));
+}
+
+boot();
+</script>
+</body>
+</html>
