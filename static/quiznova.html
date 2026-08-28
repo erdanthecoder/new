@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>QuizNova — realtime quizzes, live games & an AI co-pilot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="/nova.css">
 <style>
 .hero{padding:74px 0 48px;position:relative}
@@ -238,8 +238,10 @@ function share(q) {
     onMount(box) {
       box.querySelector('#cp').onclick = () => copy(link);
       const code = window.QR && QR.svg(link, { size: 150 });
-      if (code) box.querySelector('#qrbox').innerHTML =
-        `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`;
+      box.querySelector('#qrbox').innerHTML = code
+        ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
+        : `<p class="tiny faint" style="text-align:center;max-width:34ch">This link carries the whole quiz inside it, so it is too
+           long for a QR code — use Copy or the Classroom button below.</p>`;
     }
   });
 }
@@ -270,11 +272,16 @@ api('/ai/status').then(s => {
 
 api('/status').then(s => {
   const pill = $('#store-pill');
-  pill.className = 'chip hide-sm ' + (s.durable ? 'live' : 'warn');
-  pill.textContent = s.durable ? '💾 Saved to your database' : '💾 Saved on this server';
-  pill.title = s.durable
-    ? 'Quizzes live in Postgres — they survive the site sleeping or redeploying.'
-    : 'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps — connect a database to keep them.';
+  const look = { browser: ['live', '💾 Saved in this browser',
+                   'Quizzes are stored on this device. Share links carry the quiz inside the link, so students need nothing.'],
+                 database: ['live', '💾 Saved to your database',
+                   'Quizzes live in Postgres — they survive the site sleeping or redeploying.'],
+                 server: ['warn', '💾 Saved on this server',
+                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps — connect a database to keep them.'] };
+  const [cls, label, why] = look[s.storage === 'browser' ? 'browser' : s.durable ? 'database' : 'server'];
+  pill.className = 'chip hide-sm ' + cls;
+  pill.textContent = label;
+  pill.title = why;
 }).catch(() => {});
 
 load();

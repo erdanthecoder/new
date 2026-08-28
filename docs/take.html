@@ -6,7 +6,7 @@
 <title>QuizNova — take the quiz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="/nova.css">
+<link rel="stylesheet" href="nova.css">
 <style>
 .shell{max-width:760px;margin:0 auto;padding:26px 20px 90px}
 .progress{position:fixed;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,.07);z-index:80}
@@ -47,7 +47,8 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
-<script src="/nova.js"></script>
+<script src="nova.js"></script>
+<script src="nova-local.js"></script>
 <script>
 const { $, api, el, esc, qs, toast, confetti } = Nova;
 // A quiz reaches a student either as ?id= (server edition) or as a #d= payload

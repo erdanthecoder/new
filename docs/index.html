@@ -1,9 +1,291 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<title>QuizNova</title>
-<body style="font-family:system-ui;background:#05070f;color:#eef2ff;display:grid;place-items:center;height:100vh;margin:0">
-<div style="text-align:center">
-  <div style="font-size:3rem">⚡</div>
-  <h1>QuizNova</h1>
-  <p style="color:#96a0c2">Deployment check — the full app lands here next.</p>
-</div>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizNova — realtime quizzes, live games & an AI co-pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link rel="stylesheet" href="nova.css">
+<style>
+.hero{padding:74px 0 48px;position:relative}
+.hero h1{font-size:clamp(2.6rem,6.2vw,4.6rem);font-weight:800;letter-spacing:-.045em;margin:20px 0 16px;max-width:16ch}
+.hero p.lede{font-size:clamp(1rem,1.9vw,1.22rem);color:var(--muted);max-width:56ch;margin-bottom:30px}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.eyebrow{display:inline-flex;gap:10px;align-items:center;padding:7px 14px;border-radius:99px;
+  background:rgba(124,92,255,.13);border:1px solid rgba(124,92,255,.3);font-size:.82rem;font-weight:650;color:#cbc0ff}
+
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px;margin:52px 0 8px}
+.pillar{padding:22px;border-radius:var(--r-lg);border:1px solid var(--line);background:rgba(255,255,255,.032);transition:.25s var(--ease)}
+.pillar:hover{transform:translateY(-3px);border-color:var(--line-strong);background:rgba(255,255,255,.06)}
+.pillar .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:19px;margin-bottom:14px;background:rgba(255,255,255,.07)}
+.pillar h3{font-size:1.02rem;margin-bottom:6px}
+.pillar p{font-size:.88rem;color:var(--muted);line-height:1.55}
+
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:56px 0 18px;flex-wrap:wrap}
+.section-head h2{font-size:1.6rem}
+.section-head p{color:var(--muted);font-size:.9rem;margin-top:4px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(276px,1fr));gap:16px}
+.quiz-card{
+  position:relative;padding:20px;border-radius:var(--r-lg);border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  display:flex;flex-direction:column;gap:12px;min-height:186px;transition:.25s var(--ease);overflow:hidden;
+}
+.quiz-card::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--grad-brand);opacity:.75}
+.quiz-card:hover{transform:translateY(-4px);border-color:var(--line-strong);box-shadow:var(--shadow-glow)}
+.quiz-card h3{font-size:1.08rem;line-height:1.3}
+.quiz-card .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.quiz-card .acts{display:flex;gap:7px;border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.new-card{border-style:dashed;align-items:center;justify-content:center;text-align:center;cursor:pointer;gap:8px;color:var(--muted)}
+.new-card::before{display:none}
+.new-card:hover{color:var(--text);border-color:var(--violet);background:rgba(124,92,255,.08)}
+.new-card .plus{width:46px;height:46px;border-radius:14px;background:var(--grad-brand);display:grid;place-items:center;font-size:24px;color:#fff}
+
+.join-box{
+  display:flex;gap:10px;align-items:center;padding:14px;border-radius:var(--r-lg);
+  background:rgba(255,255,255,.045);border:1px solid var(--line-strong);max-width:430px;
+}
+.join-box input{
+  flex:1;background:transparent;border:none;outline:none;font-size:1.5rem;font-weight:800;
+  letter-spacing:.42em;text-align:center;width:100%;
+}
+.join-box input::placeholder{letter-spacing:.32em;color:var(--faint);font-weight:600}
+footer{margin:80px 0 40px;padding-top:24px;border-top:1px solid var(--line);color:var(--faint);font-size:.84rem}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">
+      <div class="brand-mark">⚡</div>
+      <div>QuizNova<small>realtime quiz studio</small></div>
+    </a>
+    <div class="grow"></div>
+    <span id="store-pill" class="chip hide-sm">💾 checking…</span>
+    <span id="ai-pill" class="chip hide-sm">✨ checking AI…</span>
+    <a class="btn ghost sm hide-sm" href="index.html">KidWorld</a>
+    <a class="btn primary sm" href="#new" id="top-new">＋ New quiz</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero fade-up">
+    <span class="eyebrow"><span class="dot"></span> Live collaboration · AI co-pilot · Laser Tag mode</span>
+    <h1>Build a quiz together. <span class="gradient-text">Play it live.</span></h1>
+    <p class="lede">A Google-Forms-style quiz builder with an AI that adds, edits and deletes questions — but only
+      when you allow it — and instant marking with explanations. Share a quiz straight to Google Classroom:
+      the link carries the whole quiz, so your students need no account and nothing to install.</p>
+    <div class="hero-actions">
+      <button class="btn primary lg" id="hero-new">Create a quiz</button>
+      <div class="join-box">
+        <input id="pin" maxlength="6" inputmode="numeric" placeholder="GAME PIN" aria-label="Game PIN">
+        <button class="btn sm" id="join">Join →</button>
+      </div>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar"><div class="ic">🧩</div><h3>Realtime builder</h3>
+        <p>Every keystroke syncs to everyone with the quiz open. See who is editing beside you.</p></div>
+      <div class="pillar"><div class="ic">✨</div><h3>AI co-pilot, on a leash</h3>
+        <p>Ask for ten harder fractions questions. Review the exact adds, edits and deletes before approving.</p></div>
+      <div class="pillar"><div class="ic">🎯</div><h3>Normal live mode</h3>
+        <p>Speed scoring, streak multipliers, a leaderboard that moves between every question.</p></div>
+      <div class="pillar"><div class="ic">🔫</div><h3>Laser Tag mode</h3>
+        <p>Two teams, real HP. Right answers fire, streaks overcharge, downed players revive their team.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <div><h2>Your quizzes</h2><p>Stored on the server — open one on any device and keep editing.</p></div>
+      <div class="row">
+        <input class="input" id="search" placeholder="Search…" style="width:190px">
+      </div>
+    </div>
+    <div class="grid" id="grid">
+      <div class="quiz-card skeleton" style="border:none"></div>
+      <div class="quiz-card skeleton" style="border:none"></div>
+      <div class="quiz-card skeleton" style="border:none"></div>
+    </div>
+  </section>
+
+  <footer>
+    QuizNova · works offline-friendly, deploys anywhere Flask runs.
+    Set <span class="mono">ANTHROPIC_API_KEY</span> to switch the co-pilot from its built-in question bank to live Claude.
+  </footer>
+</main>
+
+<script src="nova.js"></script>
+<script src="nova-local.js"></script>
+<script src="qr.js"></script>
+<script>
+const { $, api, el, esc, toast, modal, ago, classroomUrl, copy } = Nova;
+let quizzes = [];
+
+async function load() {
+  try {
+    quizzes = (await api('/quizzes')).quizzes;
+    render();
+  } catch (err) {
+    $('#grid').innerHTML = `<div class="empty"><span class="em">⚠️</span>Could not reach the server.<br>${esc(err.message)}</div>`;
+  }
+}
+
+function render() {
+  const term = ($('#search').value || '').toLowerCase();
+  const list = quizzes.filter(q => !term || q.title.toLowerCase().includes(term));
+  const grid = $('#grid');
+  grid.innerHTML = '';
+
+  const add = el('div', { class: 'quiz-card new-card', onclick: newQuiz });
+  add.append(el('div', { class: 'plus' }, '＋'),
+             el('strong', {}, 'New quiz'),
+             el('span', { class: 'tiny faint' }, 'Blank, or let the AI draft it'));
+  grid.append(add);
+
+  if (!list.length && quizzes.length) {
+    grid.append(el('div', { class: 'empty', style: 'grid-column:1/-1' }, 'Nothing matches that search.'));
+  }
+
+  list.forEach((q, i) => {
+    const card = el('div', { class: 'quiz-card fade-up', style: `animation-delay:${i * 40}ms` });
+    card.append(
+      el('h3', {}, q.title || 'Untitled quiz'),
+      el('p', { class: 'tiny muted' }, q.description || 'No description yet.'),
+      el('div', { class: 'meta' },
+        el('span', { class: 'chip' }, `${q.questions} question${q.questions === 1 ? '' : 's'}`),
+        el('span', { class: 'chip' }, `${q.responses} response${q.responses === 1 ? '' : 's'}`),
+        el('span', { class: 'chip' }, ago(q.updatedAt))),
+      el('div', { class: 'acts' },
+        el('a', { class: 'btn sm primary grow', style: 'justify-content:center', href: 'studio.html?id=' + q.id }, 'Open'),
+        el('button', { class: 'btn sm', title: 'Host a live game', onclick: () => hostGame(q) }, '🎮'),
+        el('button', { class: 'btn sm', title: 'Share', onclick: () => share(q) }, '🔗'),
+        el('button', { class: 'btn sm danger', title: 'Delete', onclick: () => removeQuiz(q) }, '🗑'))
+    );
+    grid.append(card);
+  });
+}
+
+async function newQuiz() {
+  modal(`
+    <h2 style="margin-bottom:6px">New quiz</h2>
+    <p class="muted tiny" style="margin-bottom:20px">Give it a name — you can change everything later.</p>
+    <div class="field"><label class="label" for="t">Title</label>
+      <input class="input" id="t" placeholder="e.g. Year 4 fractions check-in" autofocus></div>
+    <div class="row" style="margin-top:22px;justify-content:flex-end">
+      <button class="btn ghost" data-x>Cancel</button>
+      <button class="btn primary" id="go">Create & open</button>
+    </div>`, {
+    onMount(box, close) {
+      box.querySelector('[data-x]').onclick = close;
+      const create = async () => {
+        const title = box.querySelector('#t').value.trim() || 'Untitled quiz';
+        try {
+          const quiz = await api('/quizzes', { method: 'POST', body: { title } });
+          location.href = 'studio.html?id=' + quiz.id;
+        } catch (err) { toast(err.message, 'bad'); }
+      };
+      box.querySelector('#go').onclick = create;
+      box.querySelector('#t').onkeydown = (e) => { if (e.key === 'Enter') create(); };
+    }
+  });
+}
+
+async function hostGame(q) {
+  modal(`
+    <h2 style="margin-bottom:6px">Host “${esc(q.title)}”</h2>
+    <p class="muted tiny" style="margin-bottom:20px">Pick the game mode. Students join with the PIN on their own device.</p>
+    <div class="stack" style="gap:12px">
+      <button class="btn lg block" data-mode="normal" style="justify-content:flex-start;text-align:left;padding:18px 20px">
+        <span style="font-size:26px">🎯</span>
+        <span><strong style="display:block">Normal mode</strong>
+        <span class="tiny muted">Speed points, streak multipliers, live leaderboard</span></span>
+      </button>
+      <button class="btn lg block" data-mode="laser" style="justify-content:flex-start;text-align:left;padding:18px 20px;border-color:rgba(255,77,94,.4)">
+        <span style="font-size:26px">🔫</span>
+        <span><strong style="display:block">Laser Tag mode</strong>
+        <span class="tiny muted">Two teams, HP bars, overcharge streaks, revives</span></span>
+      </button>
+    </div>
+    <div class="row" style="margin-top:20px;justify-content:flex-end"><button class="btn ghost" data-x>Cancel</button></div>`, {
+    onMount(box, close) {
+      box.querySelector('[data-x]').onclick = close;
+      box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {
+        try {
+          const game = await api('/games', { method: 'POST', body: { quizId: q.id, mode: btn.dataset.mode } });
+          Nova.store.set('host:' + game.pin, game.hostToken);
+          location.href = '/host?pin=' + game.pin;
+        } catch (err) { toast(err.message, 'bad'); }
+      });
+    }
+  });
+}
+
+function share(q) {
+  const link = Nova.shareLink(q.id);
+  modal(`
+    <h2 style="margin-bottom:6px">Share “${esc(q.title)}”</h2>
+    <p class="muted tiny" style="margin-bottom:18px">Students open this link, type their name and take the quiz. Results land in your Responses tab.</p>
+    <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
+    <div class="field"><label class="label">Student link</label>
+      <input class="input mono" id="lnk" value="${esc(link)}" readonly></div>
+    <div class="row" style="margin-top:18px;gap:10px">
+      <button class="btn grow" id="cp">📋 Copy link</button>
+      <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
+         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on QuizNova.'))}">📚 Send to Google Classroom</a>
+    </div>`, {
+    onMount(box) {
+      box.querySelector('#cp').onclick = () => copy(link);
+      const code = window.QR && QR.svg(link, { size: 150 });
+      box.querySelector('#qrbox').innerHTML = code
+        ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
+        : `<p class="tiny faint" style="text-align:center;max-width:34ch">This link carries the whole quiz inside it, so it is too
+           long for a QR code — use Copy or the Classroom button below.</p>`;
+    }
+  });
+}
+
+async function removeQuiz(q) {
+  if (!confirm(`Delete “${q.title}” and all its responses? This cannot be undone.`)) return;
+  await api('/quizzes/' + q.id, { method: 'DELETE' });
+  quizzes = quizzes.filter(x => x.id !== q.id);
+  render();
+  toast('Quiz deleted');
+}
+
+$('#search').oninput = render;
+$('#hero-new').onclick = newQuiz;
+$('#top-new').onclick = (e) => { e.preventDefault(); newQuiz(); };
+$('#join').onclick = () => {
+  const pin = $('#pin').value.replace(/\D/g, '');
+  if (pin.length !== 6) return toast('A game PIN is 6 digits', 'bad');
+  location.href = '/play?pin=' + pin;
+};
+$('#pin').onkeydown = (e) => { if (e.key === 'Enter') $('#join').click(); };
+
+api('/ai/status').then(s => {
+  const pill = $('#ai-pill');
+  pill.className = 'chip hide-sm ' + (s.live ? 'live' : 'warn');
+  pill.textContent = s.live ? `✨ Claude connected (${s.model})` : '✨ AI running on the built-in bank';
+}).catch(() => {});
+
+api('/status').then(s => {
+  const pill = $('#store-pill');
+  const look = { browser: ['live', '💾 Saved in this browser',
+                   'Quizzes are stored on this device. Share links carry the quiz inside the link, so students need nothing.'],
+                 database: ['live', '💾 Saved to your database',
+                   'Quizzes live in Postgres — they survive the site sleeping or redeploying.'],
+                 server: ['warn', '💾 Saved on this server',
+                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps — connect a database to keep them.'] };
+  const [cls, label, why] = look[s.storage === 'browser' ? 'browser' : s.durable ? 'database' : 'server'];
+  pill.className = 'chip hide-sm ' + cls;
+  pill.textContent = label;
+  pill.title = why;
+}).catch(() => {});
+
+load();
+</script>
+</body>
+</html>

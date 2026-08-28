@@ -102,6 +102,29 @@ The host board shows both HP bars, every fighter’s health, and a live kill fee
 
 ---
 
+## 🌐 Two editions
+
+| | **Static** (GitHub Pages) | **Server** (Render / Railway / laptop) |
+|---|---|---|
+| Hosting | free, no account beyond GitHub | needs a host running Python |
+| Quiz builder + AI co-pilot | ✅ | ✅ |
+| Homework links for Google Classroom | ✅ the link carries the quiz | ✅ short link |
+| Instant marking with explanations | ✅ | ✅ |
+| Teacher sees everyone's results | ❌ results stay on each student's device | ✅ live Responses tab |
+| Live PIN games (Normal + Laser Tag) | ❌ needs a server | ✅ |
+| Realtime co-editing | ❌ | ✅ |
+
+Both are built from the same source. `python build_pages.py` regenerates the
+static edition into `docs/`, which GitHub Pages publishes automatically on every
+push to `main` via `.github/workflows/pages.yml`.
+
+**Turning Pages on (one time):** repository **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. The workflow tries to enable it
+automatically, but GitHub does not let a workflow token create a Pages site on
+a repository that has never had one.
+
+---
+
 ## ☁️ Put it on the internet (get a real web address)
 
 The app is a Python web server, so it needs a host. Both options below are free,
