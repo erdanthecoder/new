@@ -49,6 +49,13 @@ every other person who has the quiz open**, with presence avatars in the header 
 see who is editing beside you. Drag the outline on the left to reorder.
 
 ### The AI co-pilot — only edits when you allow it
+
+**On the static edition, add your own Claude key** (the 🔑 button in the co-pilot
+header) and it writes original questions on any topic, at any reading level. The
+key is stored *only in that browser* — never committed, never sent anywhere but
+`api.anthropic.com`. Without a key it falls back to a small built-in bank
+covering maths, science, English, geography and history, and **says so plainly
+rather than inventing questions on a topic it does not have**.
 The panel on the right can add, rewrite, reorder and delete questions. You choose how much
 rope it gets, and the setting is remembered:
 

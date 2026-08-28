@@ -686,7 +686,7 @@ def ai_key() -> str:
 
 def call_claude(payload: dict) -> dict:
     body = json.dumps({
-        "model": os.environ.get("QUIZNOVA_MODEL", "claude-sonnet-5"),
+        "model": os.environ.get("QUIZNOVA_MODEL", "claude-opus-5"),
         "max_tokens": 4000,
         "system": AI_SYSTEM,
         "messages": [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
@@ -784,7 +784,7 @@ def offline_brain(prompt: str, quiz: dict) -> dict:
 
 @api.get("/ai/status")
 def ai_status():
-    return jsonify({"live": bool(ai_key()), "model": os.environ.get("QUIZNOVA_MODEL", "claude-sonnet-5")})
+    return jsonify({"live": bool(ai_key()), "model": os.environ.get("QUIZNOVA_MODEL", "claude-opus-5")})
 
 
 @api.post("/ai")

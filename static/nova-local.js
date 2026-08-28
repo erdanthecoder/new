@@ -101,7 +101,82 @@
     return quiz ? `${base}#d=${packQuiz(quiz)}` : base;
   };
 
-  /* ── the AI co-pilot, running offline ──────────────── */
+  /* ── real Claude, called straight from the browser ──
+   * The key is the teacher's own and lives only in this browser's storage —
+   * it is never committed, never sent anywhere but api.anthropic.com.
+   */
+  const KEY_STORE = 'nova:anthropicKey';
+  const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch { return ''; } };
+  const setKey = (k) => { try { k ? localStorage.setItem(KEY_STORE, k) : localStorage.removeItem(KEY_STORE); } catch { /* private mode */ } };
+  Nova.aiKey = { get: getKey, set: setKey };
+
+  const AI_SYSTEM = `You are the quiz co-pilot inside QuizNova, a classroom quiz builder.
+You edit a quiz by returning JSON operations. Never return prose outside the JSON object.
+
+Return exactly this shape:
+{"reply": "<one short friendly sentence for the teacher>",
+ "ops": [ ...operations... ]}
+
+Allowed operations:
+{"op":"add_question","at":<optional index>,"question":{"type":"mc|tf|short|multi","text":"...","choices":[{"text":"...","correct":true}],"answer":"for short answers","points":100,"time":20,"explanation":"..."}}
+{"op":"update_question","id":"<question id>","patch":{ same fields as above }}
+{"op":"delete_question","id":"<question id>"}
+{"op":"reorder","ids":["id","id"]}
+{"op":"update_quiz","patch":{"title":"...","description":"...","settings":{"defaultTime":20}}}
+
+Rules:
+- Multiple choice questions get exactly 4 choices with exactly one correct.
+- true/false questions get exactly the two choices True and False.
+- Keep language age appropriate for the class described in the quiz.
+- Only touch what the teacher asked for. If nothing should change, return an empty ops list.
+- Always write a short explanation for each question you create.`;
+
+  async function callClaude(prompt, quiz, key) {
+    const context = {
+      instruction: prompt,
+      quiz: {
+        title: quiz.title, description: quiz.description || '', settings: quiz.settings,
+        questions: quiz.questions.map(q => ({
+          id: q.id, type: q.type, text: q.text, points: q.points, time: q.time,
+          answer: q.answer || '',
+          choices: (q.choices || []).map(c => ({ text: c.text, correct: c.correct }))
+        }))
+      }
+    };
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        // required for calls made directly from a browser
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-5',
+        max_tokens: 16000,
+        system: AI_SYSTEM,
+        messages: [{ role: 'user', content: JSON.stringify(context) }]
+      })
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      let message = `Claude returned ${res.status}`;
+      try { message = JSON.parse(detail).error?.message || message; } catch { /* not json */ }
+      if (res.status === 401) message = 'That API key was rejected — check it and try again.';
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const json = text.match(/\{[\s\S]*\}/);
+    if (!json) throw new Error('Claude did not return the expected JSON.');
+    return JSON.parse(json[0]);
+  }
+
+  /* ── the offline fallback, used when no key is set ─── */
   const BANK = {
     math: [
       ['What is 7 × 8?', ['56', '48', '64', '54'], '7 × 8 = 56.'],
@@ -144,10 +219,13 @@
   function offlineBrain(prompt, quiz) {
     const text = prompt.toLowerCase();
     let count = 5;
-    const digits = text.match(/(\d+)(?=[^.]*\bquestion)/) || text.match(/^\D*(\d+)/);
+    // "Year 2", "grade 4", "key stage 1" are year groups, not question counts
+    const scrubbed = text.replace(/\b(year|grade|class|stage|key stage|ks)\s*\d+/g, ' ');
+    const digits = scrubbed.match(/(\d+)\s*(?:more\s*|new\s*|extra\s*)*(?:\w+\s+){0,3}questions?\b/)
+                || scrubbed.match(/\bquestions?\b[^.]{0,12}?(\d+)/);
     if (digits) count = Math.max(1, Math.min(20, parseInt(digits[1], 10)));
     else for (const [word, value] of Object.entries(WORDS)) {
-      if (new RegExp(`\\b${word}\\b[^.]*\\bquestion`).test(text)) { count = value; break; }
+      if (new RegExp(`\\b${word}\\b[^.]{0,24}\\bquestions?\\b`).test(scrubbed)) { count = value; break; }
     }
 
     let topic = Object.keys(BANK).find(k => text.includes(k));
@@ -157,7 +235,7 @@
     }
     if (!topic) {
       const blob = ((quiz.title || '') + ' ' + (quiz.description || '')).toLowerCase();
-      topic = Object.keys(BANK).find(k => blob.includes(k)) || 'science';
+      topic = Object.keys(BANK).find(k => blob.includes(k));
     }
 
     if (/\b(delete|remove|clear)\b/.test(text)) {
@@ -179,17 +257,35 @@
       return { reply: `Renamed the quiz to “${title}”.`, ops: [{ op: 'update_quiz', patch: { title } }] };
     }
 
-    const bank = BANK[topic].slice().sort(() => Math.random() - 0.5);
-    const ops = [];
-    for (let i = 0; i < count; i++) {
-      const [stem, options, why] = bank[i % bank.length];
-      const shuffled = options.slice().sort(() => Math.random() - 0.5);
-      ops.push({ op: 'add_question', question: {
-        type: 'mc', text: stem, points: 100, time: 20, explanation: why,
-        choices: shuffled.map(opt => ({ text: opt, correct: opt === options[0] }))
-      } });
+    if (!topic) {
+      return { reply: 'Without an API key I only have ready-made questions for maths, science, English, ' +
+                      'geography and history — I will not invent questions on a topic I do not know. ' +
+                      'Add your Claude key (the 🔑 button above) and I can write questions on any topic, ' +
+                      'for any year group.', ops: [] };
     }
-    return { reply: `Added ${count} ${topic} question(s) for you.`, ops };
+
+    // never hand back the same question twice — neither within this batch nor
+    // against what the quiz already contains
+    const already = new Set(quiz.questions.map(q => (q.text || '').toLowerCase()));
+    const pool = BANK[topic].filter(([stem]) => !already.has(stem.toLowerCase()))
+                            .sort(() => Math.random() - 0.5);
+    const ops = pool.slice(0, count).map(([stem, options, why]) => ({
+      op: 'add_question',
+      question: {
+        type: 'mc', text: stem, points: 100, time: 20, explanation: why,
+        choices: options.slice().sort(() => Math.random() - 0.5)
+                        .map(opt => ({ text: opt, correct: opt === options[0] }))
+      }
+    }));
+
+    if (!ops.length) {
+      return { reply: `My offline ${topic} questions are all in this quiz already. ` +
+                      'Add your Claude key (🔑 above) for fresh ones on any topic.', ops: [] };
+    }
+    const short = ops.length < count
+      ? ` That is all the ${topic} questions I have offline — add a Claude key for more.`
+      : '';
+    return { reply: `Added ${ops.length} ${topic} question(s) for you.${short}`, ops };
   }
 
   /* ── operations, mirroring the server's apply_ops ──── */
@@ -258,7 +354,11 @@
     const all = allQuizzes();
 
     if (clean === '/status') return { storage: 'browser', durable: true, quizzes: Object.keys(all).length, liveGames: 0, ai: false };
-    if (clean === '/ai/status') return { live: false, model: 'built-in question bank' };
+    if (clean === '/ai/status') {
+      return getKey()
+        ? { live: true, model: 'claude-opus-5' }
+        : { live: false, model: 'built-in question bank' };
+    }
 
     if (clean === '/quizzes' && method === 'GET') {
       return { quizzes: Object.values(all).map(summary).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)) };
@@ -331,17 +431,31 @@
     if (clean === '/ai' && method === 'POST') {
       const quiz = all[body.quizId];
       if (!quiz) fail('Quiz not found', 404);
-      const result = offlineBrain(body.prompt || '', quiz);
+
+      let result, source = 'offline';
+      const key = getKey();
+      if (key) {
+        try {
+          result = await callClaude(body.prompt || '', quiz, key);
+          source = 'claude';
+        } catch (err) {
+          result = offlineBrain(body.prompt || '', quiz);
+          result.reply = `⚠️ ${err.message}\n\n${result.reply}`;
+        }
+      } else {
+        result = offlineBrain(body.prompt || '', quiz);
+      }
+      result.ops = result.ops || [];
       if (body.permission === 'read') {
-        return { reply: result.reply, ops: [], applied: false, source: 'offline',
+        return { reply: result.reply, ops: [], applied: false, source,
                  note: 'Read only mode — I did not change anything.' };
       }
-      if (body.permission === 'auto') {
+      if (body.permission === 'auto' && result.ops.length) {
         const log = applyOps(quiz, result.ops);
         quiz.updatedAt = now(); all[quiz.id] = quiz; saveQuizzes(all);
-        return { reply: result.reply, ops: result.ops, applied: true, log, quiz, source: 'offline' };
+        return { reply: result.reply, ops: result.ops, applied: true, log, quiz, source };
       }
-      return { reply: result.reply, ops: result.ops, applied: false, source: 'offline' };
+      return { reply: result.reply, ops: result.ops, applied: false, source };
     }
 
     if (clean.startsWith('/games')) {
@@ -349,6 +463,67 @@
     }
     fail('Unknown request: ' + path, 404);
   };
+
+  /* ── "Connect Claude": one button in the co-pilot header ─────
+   * Injected here rather than in the shared HTML so the server edition,
+   * which reads its key from the server environment, stays untouched.
+   */
+  function mountKeyButton() {
+    const header = document.querySelector('.ai-head');
+    const mode = document.getElementById('ai-mode');
+    if (!header || !mode || document.getElementById('ai-key')) return;
+
+    const paint = () => {
+      mode.textContent = getKey() ? 'Claude · claude-opus-5' : 'Built-in question bank — add a key for any topic';
+      button.textContent = getKey() ? '🔑' : '🔑';
+      button.title = getKey() ? 'Claude is connected — click to change or remove the key'
+                              : 'Connect your Claude API key for questions on any topic';
+      button.style.opacity = getKey() ? '1' : '.6';
+    };
+
+    const button = document.createElement('button');
+    button.id = 'ai-key';
+    button.className = 'icon-btn';
+    button.onclick = () => {
+      const current = getKey();
+      Nova.modal(`
+        <h2 style="margin-bottom:6px">Connect Claude</h2>
+        <p class="muted tiny" style="margin-bottom:18px">
+          Without a key I can only offer ready-made questions on five school subjects. With one I write
+          original questions on any topic, at any reading level.<br><br>
+          Your key is stored <strong>only in this browser</strong> — it is never sent anywhere except
+          Anthropic, and never saved into the website's code.
+        </p>
+        <div class="field"><label class="label" for="k">Anthropic API key</label>
+          <input class="input mono" id="k" placeholder="sk-ant-..." value="${current ? current.slice(0, 12) + '…' : ''}"></div>
+        <p class="tiny faint" style="margin-top:10px">Get one at console.anthropic.com → API keys. Usage is billed to your own account.</p>
+        <div class="row" style="margin-top:20px;gap:10px">
+          ${current ? '<button class="btn danger" id="forget-key">Remove key</button>' : ''}
+          <div class="grow"></div>
+          <button class="btn ghost" id="cancel">Cancel</button>
+          <button class="btn primary" id="save-key">Save key</button>
+        </div>`, {
+        onMount(box, close) {
+          box.querySelector('#cancel').onclick = close;
+          box.querySelector('#forget-key')?.addEventListener('click', () => {
+            setKey(''); paint(); close(); Nova.toast('Key removed — back to the built-in bank');
+          });
+          box.querySelector('#save-key').onclick = () => {
+            const value = box.querySelector('#k').value.trim();
+            if (!value || value.endsWith('…')) return Nova.toast('Paste the whole key', 'bad');
+            if (!value.startsWith('sk-ant-')) return Nova.toast('That does not look like an Anthropic key', 'bad');
+            setKey(value); paint(); close();
+            Nova.toast('Claude connected — ask for any topic now', 'good');
+          };
+        }
+      });
+    };
+    header.insertBefore(button, document.getElementById('ai-clear'));
+    paint();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountKeyButton);
+  else mountKeyButton();
 
   /* No server means no cross-device streaming; other tabs still sync. */
   Nova.stream = function (path, onMessage) {
