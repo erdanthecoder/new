@@ -8,12 +8,15 @@ polling fallback, so it runs anywhere Flask runs (Railway, Render, laptop).
 """
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import queue
 import random
 import re
+import signal
 import string
+import sys
 import threading
 import time
 import urllib.error
@@ -35,28 +38,156 @@ _presence: dict[str, dict] = {}       # quiz id -> {clientId: {name, colour, ts}
 
 
 # ─────────────────────────────────────────── storage ──
+#
+# Two backends, chosen by environment:
+#
+#   • JSON file (default)  — great locally and on any host with a real disk.
+#   • Supabase / Postgres  — set SUPABASE_URL and SUPABASE_SERVICE_KEY.
+#
+# The second one matters on free hosting: those servers sleep when idle and wipe
+# their filesystem on the way back up, which would take every quiz with it. With
+# the database backend the file is only ever a warm cache.
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE", "quiznova_state")
+STATE_ROW = "main"
+FLUSH_DELAY = 1.2          # seconds to coalesce a burst of edits into one write
+
+
+class FileBackend:
+    """Stores everything in data/store.json."""
+
+    name = "file"
+
+    def load(self) -> dict | None:
+        if not os.path.exists(STORE_PATH):
+            return None
+        with open(STORE_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def save(self, snapshot: dict) -> None:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        tmp = STORE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(snapshot, fh, ensure_ascii=False)
+        os.replace(tmp, STORE_PATH)
+
+
+class SupabaseBackend:
+    """Keeps the whole store in one jsonb row, reached over PostgREST.
+
+    One row keeps writes atomic and needs no schema migrations as the quiz
+    format grows. A local file copy is kept alongside as a cache, so a network
+    blip never loses the lesson in progress.
+    """
+
+    name = "supabase"
+
+    def __init__(self, url: str, key: str, table: str):
+        self.endpoint = f"{url}/rest/v1/{table}"
+        self.headers = {
+            "apikey": key,
+            "authorization": f"Bearer {key}",
+            "content-type": "application/json",
+        }
+        self.mirror = FileBackend()
+
+    def _request(self, method: str, url: str, body=None, extra_headers=None, timeout=20):
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method,
+                                     headers={**self.headers, **(extra_headers or {})})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+        return json.loads(raw) if raw.strip() else None
+
+    def load(self) -> dict | None:
+        try:
+            rows = self._request("GET", f"{self.endpoint}?id=eq.{STATE_ROW}&select=data")
+            if rows:
+                return rows[0].get("data") or None
+            return None
+        except Exception as exc:                                  # noqa: BLE001
+            print(f"[quiznova] could not read from Supabase ({exc}); using the local cache",
+                  file=sys.stderr, flush=True)
+            return self.mirror.load()
+
+    def save(self, snapshot: dict) -> None:
+        self.mirror.save(snapshot)          # cache first — never lose the newest copy
+        self._request("POST", self.endpoint,
+                      body={"id": STATE_ROW, "data": snapshot},
+                      extra_headers={"prefer": "resolution=merge-duplicates,return=minimal"})
+
+
+def make_backend():
+    if SUPABASE_URL and SUPABASE_KEY:
+        return SupabaseBackend(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE)
+    return FileBackend()
+
+
+BACKEND = make_backend()
+_dirty = threading.Event()
+_flushed = threading.Event()
+_flushed.set()
+
 
 def _load() -> None:
     global _store
     os.makedirs(DATA_DIR, exist_ok=True)
-    if os.path.exists(STORE_PATH):
-        try:
-            with open(STORE_PATH, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
-            _store = {"quizzes": data.get("quizzes", {}), "responses": data.get("responses", {})}
-        except Exception:
-            _store = {"quizzes": {}, "responses": {}}
+    try:
+        data = BACKEND.load()
+    except Exception as exc:                                      # noqa: BLE001
+        print(f"[quiznova] load failed ({exc}); starting empty", file=sys.stderr, flush=True)
+        data = None
+    _store = {"quizzes": (data or {}).get("quizzes", {}), "responses": (data or {}).get("responses", {})}
+    print(f"[quiznova] storage: {BACKEND.name} · {len(_store['quizzes'])} quizzes loaded",
+          file=sys.stderr, flush=True)
 
 
 def _save() -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    tmp = STORE_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(_store, fh, ensure_ascii=False)
-    os.replace(tmp, STORE_PATH)
+    """Mark the store dirty; the writer thread persists it a moment later.
+
+    Called while holding _lock, so it must stay cheap — a network round trip on
+    every keystroke of a shared editing session would be felt by everyone.
+    """
+    _flushed.clear()
+    _dirty.set()
+
+
+def flush_now() -> None:
+    """Write the current store out synchronously (shutdown, or an explicit save)."""
+    _dirty.clear()
+    with _lock:
+        snapshot = json.loads(json.dumps(_store))
+    try:
+        BACKEND.save(snapshot)
+    except Exception as exc:                                      # noqa: BLE001
+        print(f"[quiznova] save failed: {exc}", file=sys.stderr, flush=True)
+    finally:
+        _flushed.set()
+
+
+def _writer_loop() -> None:
+    while True:
+        _dirty.wait()
+        time.sleep(FLUSH_DELAY)      # coalesce a burst of edits into a single write
+        flush_now()
+
+
+def _on_signal(signum, _frame):
+    """A sleeping host sends SIGTERM — persist before the lights go out."""
+    flush_now()
+    sys.exit(0)
 
 
 _load()
+threading.Thread(target=_writer_loop, daemon=True, name="quiznova-writer").start()
+atexit.register(flush_now)
+for _sig in (signal.SIGTERM, signal.SIGINT):
+    try:
+        signal.signal(_sig, _on_signal)
+    except (ValueError, OSError):
+        pass                          # not the main thread (some WSGI servers)
 
 
 # ─────────────────────────────────────────── realtime ──
@@ -231,6 +362,18 @@ def grade(question: dict, given) -> bool:
 
 
 # ─────────────────────────────────────────── quizzes ──
+
+@api.get("/status")
+def status():
+    """What the server is running on — shown in the hub so persistence is visible."""
+    return jsonify({
+        "storage": BACKEND.name,
+        "durable": BACKEND.name != "file",
+        "quizzes": len(_store["quizzes"]),
+        "liveGames": len(_games),
+        "ai": bool(ai_key()),
+    })
+
 
 @api.get("/quizzes")
 def list_quizzes():

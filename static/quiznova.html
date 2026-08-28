@@ -63,6 +63,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:1px solid var(--line);colo
       <div>QuizNova<small>realtime quiz studio</small></div>
     </a>
     <div class="grow"></div>
+    <span id="store-pill" class="chip hide-sm">💾 checking…</span>
     <span id="ai-pill" class="chip hide-sm">✨ checking AI…</span>
     <a class="btn ghost sm hide-sm" href="/index.html">KidWorld</a>
     <a class="btn primary sm" href="#new" id="top-new">＋ New quiz</a>
@@ -265,6 +266,15 @@ api('/ai/status').then(s => {
   const pill = $('#ai-pill');
   pill.className = 'chip hide-sm ' + (s.live ? 'live' : 'warn');
   pill.textContent = s.live ? `✨ Claude connected (${s.model})` : '✨ AI running on the built-in bank';
+}).catch(() => {});
+
+api('/status').then(s => {
+  const pill = $('#store-pill');
+  pill.className = 'chip hide-sm ' + (s.durable ? 'live' : 'warn');
+  pill.textContent = s.durable ? '💾 Saved to your database' : '💾 Saved on this server';
+  pill.title = s.durable
+    ? 'Quizzes live in Postgres — they survive the site sleeping or redeploying.'
+    : 'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps — connect a database to keep them.';
 }).catch(() => {});
 
 load();

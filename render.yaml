@@ -13,3 +13,10 @@ services:
       # built-in question bank to live Claude. Leave unset and everything still works.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Where quizzes live. Without these the app writes to a file on the server —
+      # and free hosts wipe that file every time the service sleeps. With them,
+      # quizzes and results survive sleeps, restarts and redeploys.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

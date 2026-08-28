@@ -125,8 +125,44 @@ Google Classroom.
 3. **Settings → Networking → Generate Domain**
 4. Open the domain and go to `/quiz`
 
+### Keeping quizzes when the site sleeps  ⚠️ important on free plans
+
+A free Render service **wipes its filesystem every time it sleeps**, so the
+default `data/store.json` would take your quizzes with it. Point the app at a
+Postgres database and they survive sleeps, restarts and redeploys:
+
+| Key | Value |
+|-----|-------|
+| `SUPABASE_URL` | `https://<your-project>.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | the **service_role** key — Supabase → Project Settings → API Keys |
+
+Create the table once, in the Supabase SQL editor:
+
+```sql
+create table if not exists public.quiznova_state (
+  id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.quiznova_state enable row level security;
+```
+
+Leave RLS on with **no policies**: the anon and publishable keys then see nothing
+at all, and only the `service_role` key — used server-side, never sent to a
+browser — can read or write. Keep that key in your host's environment variables;
+it must never be committed or pasted into a page.
+
+The hub at `/quiz` shows which mode you are in: **💾 Saved to your database** or
+**💾 Saved on this server**.
+
+How it works: the whole store is one `jsonb` row, written by a background thread
+that coalesces a burst of edits into a single write (so a shared editing session
+never waits on the network), flushed on `SIGTERM` when a host puts the site to
+sleep, and mirrored to a local file so a database outage cannot lose the lesson
+in progress.
+
 ### Turning on live Claude (optional)
-In either dashboard add an environment variable:
+In your host's dashboard add:
 
 | Key | Value |
 |-----|-------|
@@ -134,19 +170,12 @@ In either dashboard add an environment variable:
 
 Without it the co-pilot still works from its built-in question bank.
 
-### Two things to know about hosting
+### One worker, many threads
 
-**One worker, many threads.** Live games and realtime streams are held in the
-server's memory, so the `Procfile` deliberately runs a *single* gunicorn worker
-with 128 threads. Adding workers would put half your class in a different copy
-of the game. Each open realtime connection uses one thread, so 128 covers a
-large class comfortably.
-
-**Quizzes are stored in `data/store.json`.** That file lives on the server's
-disk, which free hosts wipe on every redeploy. Quizzes and results survive
-restarts but not redeploys — attach a persistent disk (Render) or a volume
-(Railway) mounted at `data/`, or move the store to a database, if you need them
-to last a whole year.
+Live games and realtime streams are held in the server's memory, so the
+`Procfile` deliberately runs a *single* gunicorn worker with 128 threads. Adding
+workers would put half your class in a different copy of the game. Each open
+realtime connection uses one thread, so 128 covers a large class comfortably.
 
 ---
 
