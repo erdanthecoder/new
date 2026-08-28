@@ -50,7 +50,12 @@ see who is editing beside you. Drag the outline on the left to reorder.
 
 ### The AI co-pilot — only edits when you allow it
 
-**On the static edition, add your own Claude key** (the 🔑 button in the co-pilot
+**You do not need to pay for an API key.** Ask Claude in a normal chat for a
+quiz, have it hand you a QuizNova code, then press **📥 Import** on the hub — the
+quiz lands in your studio complete with answers and explanations. That uses the
+Claude subscription you already have.
+
+**Or, on the static edition, add your own Claude key** (the 🔑 button in the co-pilot
 header) and it writes original questions on any topic, at any reading level. The
 key is stored *only in that browser* — never committed, never sent anywhere but
 `api.anthropic.com`. Without a key it falls back to a small built-in bank

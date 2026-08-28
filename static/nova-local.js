@@ -95,6 +95,29 @@
     };
   }
 
+  /* Import a quiz from a share link or code — this is how a quiz written
+   * elsewhere (by Claude in a chat, or by another teacher) lands in the studio
+   * without anyone needing an API key.
+   */
+  Nova.importQuiz = (text) => {
+    const raw = String(text || '').trim();
+    if (!raw) throw new Error('Paste a quiz link or code first.');
+    const packed = raw.includes('d=') ? raw.split('d=')[1].split('&')[0].trim() : raw;
+    let quiz;
+    try {
+      quiz = unpackQuiz(packed);
+    } catch {
+      throw new Error('That does not look like a QuizNova link or code.');
+    }
+    if (!quiz.questions || !quiz.questions.length) throw new Error('That quiz has no questions in it.');
+    const all = allQuizzes();
+    quiz.id = rid(8);                       // a fresh copy, never overwriting yours
+    quiz.createdAt = quiz.updatedAt = now();
+    all[quiz.id] = quiz;
+    saveQuizzes(all);
+    return quiz;
+  };
+
   Nova.shareLink = (quizId) => {
     const quiz = allQuizzes()[quizId];
     const base = location.href.replace(/[^/]*$/, '') + 'take.html';
@@ -522,8 +545,51 @@ Rules:
     paint();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountKeyButton);
-  else mountKeyButton();
+  function mountImportButton() {
+    const search = document.getElementById('search');
+    if (!search || document.getElementById('import-quiz')) return;
+
+    const button = document.createElement('button');
+    button.id = 'import-quiz';
+    button.className = 'btn';
+    button.textContent = '📥 Import';
+    button.title = 'Paste a quiz link or code — including one written for you in a Claude chat';
+    button.onclick = () => {
+      Nova.modal(`
+        <h2 style="margin-bottom:6px">Import a quiz</h2>
+        <p class="muted tiny" style="margin-bottom:18px">
+          Paste a QuizNova share link or code. Handy when someone sends you a quiz — or when you ask
+          Claude in a chat to write one for you and it hands you the code.
+        </p>
+        <div class="field"><label class="label" for="code">Link or code</label>
+          <textarea class="textarea mono" id="code" style="min-height:120px;font-size:.8rem"
+                    placeholder="https://…/take.html#d=eyJpIjoi…  — or just the code"></textarea></div>
+        <div class="row" style="margin-top:20px;justify-content:flex-end">
+          <button class="btn ghost" id="cancel-import">Cancel</button>
+          <button class="btn primary" id="do-import">Import quiz</button>
+        </div>`, {
+        onMount(box, close) {
+          box.querySelector('#cancel-import').onclick = close;
+          box.querySelector('#do-import').onclick = () => {
+            try {
+              const quiz = Nova.importQuiz(box.querySelector('#code').value);
+              close();
+              Nova.toast(`Imported “${quiz.title}” — ${quiz.questions.length} questions`, 'good');
+              location.href = 'studio.html?id=' + quiz.id;
+            } catch (err) {
+              Nova.toast(err.message, 'bad');
+            }
+          };
+          box.querySelector('#code').focus();
+        }
+      });
+    };
+    search.parentNode.insertBefore(button, search);
+  }
+
+  function mountAll() { mountKeyButton(); mountImportButton(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountAll);
+  else mountAll();
 
   /* No server means no cross-device streaming; other tabs still sync. */
   Nova.stream = function (path, onMessage) {
