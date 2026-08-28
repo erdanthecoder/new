@@ -16,7 +16,11 @@ services:
       # Where quizzes live. Without these the app writes to a file on the server —
       # and free hosts wipe that file every time the service sleeps. With them,
       # quizzes and results survive sleeps, restarts and redeploys.
+      #
+      # The project URL is not a secret, so it is set here and needs no dashboard
+      # work. The service_role key IS a secret and this repository is public, so
+      # it must be pasted into Render → Environment by the account owner.
       - key: SUPABASE_URL
-        sync: false
+        value: https://blkwilonabowayxefxpx.supabase.co
       - key: SUPABASE_SERVICE_KEY
         sync: false
