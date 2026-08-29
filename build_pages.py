@@ -6,6 +6,7 @@ Flask API for an in-browser one (nova-local.js) and drops the live-game pages,
 which genuinely need a server. Everything else survives: the builder, the AI
 co-pilot, homework links and instant marking.
 """
+import hashlib
 import os
 import re
 import shutil
@@ -25,10 +26,15 @@ def build():
             path = os.path.join(OUT, name)
             shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
 
+    # a content hash on each asset URL, so a returning browser can never serve a
+    # stale copy of the app from its cache after a deploy
+    stamps = {}
     for asset in ASSETS:
         src = os.path.join(SRC, asset)
         if os.path.exists(src):
             shutil.copy2(src, os.path.join(OUT, asset))
+            digest = hashlib.sha256(open(src, "rb").read()).hexdigest()[:8]
+            stamps[asset] = f"{asset}?v={digest}"
 
     for page in PAGES:
         html = open(os.path.join(SRC, page), encoding="utf-8").read()
@@ -64,6 +70,9 @@ def build():
         html = html.replace(
             '<p class="lede">A Google-Forms-style builder that updates in realtime for everyone editing it, an AI that adds,\n      edits and deletes questions — but only when you allow it — and two live game modes your class will actually\n      ask to play again. Send any quiz straight to Google Classroom.</p>',
             '<p class="lede">A Google-Forms-style quiz builder with an AI that adds, edits and deletes questions — but only\n      when you allow it — and instant marking with explanations. Share a quiz straight to Google Classroom:\n      the link carries the whole quiz, so your students need no account and nothing to install.</p>')
+
+        for asset, stamped in stamps.items():
+            html = html.replace(f'"{asset}"', f'"{stamped}"')
 
         open(os.path.join(OUT, "index.html" if page == "quiznova.html" else page), "w", encoding="utf-8").write(html)
 

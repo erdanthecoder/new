@@ -545,16 +545,7 @@ Rules:
     paint();
   }
 
-  function mountImportButton() {
-    const search = document.getElementById('search');
-    if (!search || document.getElementById('import-quiz')) return;
-
-    const button = document.createElement('button');
-    button.id = 'import-quiz';
-    button.className = 'btn';
-    button.textContent = '📥 Import';
-    button.title = 'Paste a quiz link or code — including one written for you in a Claude chat';
-    button.onclick = () => {
+  function openImportDialog() {
       Nova.modal(`
         <h2 style="margin-bottom:6px">Import a quiz</h2>
         <p class="muted tiny" style="margin-bottom:18px">
@@ -583,8 +574,45 @@ Rules:
           box.querySelector('#code').focus();
         }
       });
+  }
+
+  /* Two entry points, because a button tucked beside Search is easy to miss:
+   * one in the top bar that is on screen the moment the page opens, and one as
+   * a card sitting next to "New quiz".
+   */
+  function mountImportButton() {
+    const grid = document.getElementById('grid');
+    if (!grid) return;                       // hub page only
+
+    const top = document.querySelector('.topbar-inner');
+    const newBtn = document.getElementById('top-new');
+    if (top && newBtn && !document.getElementById('import-top')) {
+      const button = document.createElement('button');
+      button.id = 'import-top';
+      button.className = 'btn sm';
+      button.textContent = '📥 Import';
+      button.title = 'Paste a quiz code — including one Claude wrote for you in a chat';
+      button.onclick = openImportDialog;
+      top.insertBefore(button, newBtn);
+    }
+
+    // the grid is rebuilt on every search keystroke, so re-add the card each time
+    const addCard = () => {
+      if (grid.querySelector('.import-card')) return;
+      const anchor = grid.querySelector('.new-card');
+      if (!anchor) return;
+      const card = document.createElement('div');
+      card.className = 'quiz-card new-card import-card';
+      card.style.borderColor = 'rgba(52,224,161,.45)';
+      card.innerHTML = `
+        <div class="plus" style="background:var(--grad-mint);color:#03251b">📥</div>
+        <strong>Import a quiz</strong>
+        <span class="tiny faint">Paste a code Claude wrote for you</span>`;
+      card.onclick = openImportDialog;
+      anchor.after(card);
     };
-    search.parentNode.insertBefore(button, search);
+    addCard();
+    new MutationObserver(addCard).observe(grid, { childList: true });
   }
 
   function mountAll() { mountKeyButton(); mountImportButton(); }
