@@ -138,7 +138,7 @@ function render() {
           answers[q.id] = c.id;
         }
         render();
-        if (!isMulti) setTimeout(next, 260);
+        if (!isMulti) { clearTimeout(advanceTimer); advanceTimer = setTimeout(next, 260); }
       } });
       opt.append(el('span', { class: 'key' }, String.fromCharCode(65 + i)), el('span', {}, c.text || '—'));
       box.append(opt);
@@ -166,15 +166,22 @@ function render() {
   $('#app').append(box, pips);
 }
 
+let advanceTimer = null;      // the auto-advance after picking an answer
+let submitting = false;       // one submission per attempt, no matter how fast the taps
+
 function next() {
+  clearTimeout(advanceTimer);
   if (step === quiz.questions.length - 1) return submit();
   step++; render();
 }
 
 async function submit() {
+  if (submitting) return;
   const missing = quiz.questions.filter(q => answers[q.id] === undefined || answers[q.id] === '' ||
                                             (Array.isArray(answers[q.id]) && !answers[q.id].length));
   if (missing.length && !confirm(`${missing.length} question(s) are unanswered. Submit anyway?`)) return;
+  submitting = true;
+  clearTimeout(advanceTimer);
   $('#app').innerHTML = '<div class="card pad center" style="min-height:40vh"><div class="thinking">Marking…</div></div>';
   try {
     const result = await api(`/quizzes/${quizId}/submit`, {
@@ -182,7 +189,7 @@ async function submit() {
       body: { name, answers, seconds: Math.round((Date.now() - startedAt) / 1000) }
     });
     showResult(result);
-  } catch (err) { fail('Could not submit: ' + err.message); }
+  } catch (err) { submitting = false; fail('Could not submit: ' + err.message); }
 }
 
 function showResult(result) {
