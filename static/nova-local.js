@@ -199,116 +199,76 @@ Rules:
     return JSON.parse(json[0]);
   }
 
-  /* ── the offline fallback, used when no key is set ─── */
-  const BANK = {
-    math: [
-      ['What is 7 × 8?', ['56', '48', '64', '54'], '7 × 8 = 56.'],
-      ['What is 144 ÷ 12?', ['12', '14', '11', '24'], 'Twelve twelves make 144.'],
-      ['What is 25% of 80?', ['20', '25', '16', '40'], 'A quarter of 80 is 20.'],
-      ['Which number is prime?', ['17', '21', '27', '33'], '17 has no factors except 1 and itself.'],
-      ['Perimeter of a 5cm by 3cm rectangle?', ['16cm', '15cm', '8cm', '18cm'], '2 × (5 + 3) = 16cm.']
-    ],
-    science: [
-      ['What gas do plants take in to photosynthesise?', ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Helium'], 'Plants take in carbon dioxide and give out oxygen.'],
-      ['How many planets are in our solar system?', ['8', '9', '7', '10'], 'Eight, since Pluto was reclassified.'],
-      ['What is the boiling point of water at sea level?', ['100°C', '90°C', '50°C', '120°C'], 'Water boils at 100°C at sea level.'],
-      ['Which organ pumps blood around the body?', ['Heart', 'Lungs', 'Liver', 'Brain'], 'The heart pumps blood through the body.'],
-      ['What force pulls objects towards Earth?', ['Gravity', 'Friction', 'Magnetism', 'Tension'], 'Gravity pulls objects toward the centre of the Earth.']
-    ],
-    english: [
-      ['Which word is a noun?', ['Bicycle', 'Quickly', 'Bright', 'Running'], 'A noun names a person, place or thing.'],
-      ["What is the past tense of 'go'?", ['Went', 'Goed', 'Gone', 'Going'], 'The past tense of go is went.'],
-      ['Which sentence is punctuated correctly?', ['We ate lunch, then we played.', 'we ate lunch then we played', 'We ate lunch then, we played', 'We, ate lunch then we played'], 'The comma separates the two clauses.'],
-      ["What is a synonym for 'happy'?", ['Joyful', 'Tired', 'Angry', 'Cold'], 'Joyful means the same as happy.'],
-      ['Which word is spelled correctly?', ['Necessary', 'Neccessary', 'Necesary', 'Nesessary'], 'Necessary has one c and two s letters.']
-    ],
-    geography: [
-      ['What is the capital of France?', ['Paris', 'Lyon', 'Marseille', 'Nice'], 'Paris is the capital of France.'],
-      ['Which is the longest river in the world?', ['The Nile', 'The Amazon', 'The Danube', 'The Thames'], 'The Nile is generally listed as the longest.'],
-      ['Which continent is Egypt in?', ['Africa', 'Asia', 'Europe', 'Oceania'], 'Egypt is in north east Africa.'],
-      ['What is the largest ocean?', ['Pacific', 'Atlantic', 'Indian', 'Arctic'], 'The Pacific is the largest ocean.'],
-      ['Mount Everest sits on the border of Nepal and…', ['China', 'India', 'Bhutan', 'Pakistan'], 'Everest sits on the Nepal–China border.']
-    ],
-    history: [
-      ['In which year did the Second World War end?', ['1945', '1918', '1939', '1950'], 'It ended in 1945.'],
-      ['Who was the first person on the Moon?', ['Neil Armstrong', 'Buzz Aldrin', 'Yuri Gagarin', 'Michael Collins'], 'Neil Armstrong stepped onto the Moon in 1969.'],
-      ['The Great Fire of London happened in…', ['1666', '1066', '1766', '1566'], 'The Great Fire of London was in 1666.'],
-      ['Who built the pyramids at Giza?', ['The ancient Egyptians', 'The Romans', 'The Greeks', 'The Vikings'], 'The ancient Egyptians built them as royal tombs.'],
-      ["Which empire built Hadrian's Wall?", ['Roman', 'Ottoman', 'Mongol', 'British'], 'The Romans built it in Britain.']
-    ]
-  };
-  const WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, twenty: 20 };
+  /* ── the offline fallback, used when no key is set ───
+   * Backed by quizbank.js: rule-based generators for maths and language
+   * (an unlimited supply, sized to the year group) plus curated banks for
+   * facts. It still refuses to invent questions on a topic it does not hold.
+   */
+  const WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+                  nine: 9, ten: 10, twelve: 12, fifteen: 15, twenty: 20 };
 
-  function offlineBrain(prompt, quiz) {
-    const text = prompt.toLowerCase();
-    let count = 5;
+  function askedCount(text) {
     // "Year 2", "grade 4", "key stage 1" are year groups, not question counts
     const scrubbed = text.replace(/\b(year|grade|class|stage|key stage|ks)\s*\d+/g, ' ');
     const digits = scrubbed.match(/(\d+)\s*(?:more\s*|new\s*|extra\s*)*(?:\w+\s+){0,3}questions?\b/)
                 || scrubbed.match(/\bquestions?\b[^.]{0,12}?(\d+)/);
-    if (digits) count = Math.max(1, Math.min(20, parseInt(digits[1], 10)));
-    else for (const [word, value] of Object.entries(WORDS)) {
-      if (new RegExp(`\\b${word}\\b[^.]{0,24}\\bquestions?\\b`).test(scrubbed)) { count = value; break; }
+    if (digits) return Math.max(1, Math.min(30, parseInt(digits[1], 10)));
+    for (const [word, value] of Object.entries(WORDS)) {
+      if (new RegExp(`\\b${word}\\b[^.]{0,24}\\bquestions?\\b`).test(scrubbed)) return value;
     }
+    return 5;
+  }
 
-    let topic = Object.keys(BANK).find(k => text.includes(k));
-    if (!topic) {
-      const hints = { math: 'maths', english: 'grammar', science: 'biology', geography: 'capital', history: 'war' };
-      topic = Object.keys(hints).find(k => text.includes(hints[k]));
-    }
-    if (!topic) {
-      const blob = ((quiz.title || '') + ' ' + (quiz.description || '')).toLowerCase();
-      topic = Object.keys(BANK).find(k => blob.includes(k));
-    }
+  function offlineBrain(prompt, quiz) {
+    const text = prompt.toLowerCase();
+    const count = askedCount(text);
 
     if (/\b(delete|remove|clear)\b/.test(text)) {
       const targets = (/\ball\b|\bevery\b/.test(text) ? quiz.questions : quiz.questions.slice(-count));
       return { reply: `Removed ${targets.length} question(s).`,
                ops: targets.map(q => ({ op: 'delete_question', id: q.id })) };
     }
-    if (/harder|difficult/.test(text)) {
+    if (/harder|difficult|challeng/.test(text) && !/question/.test(text)) {
       return { reply: 'Tightened the timers and raised the points.',
                ops: quiz.questions.map(q => ({ op: 'update_question', id: q.id,
                  patch: { time: Math.max(8, (q.time || 20) - 5), points: (q.points || 100) + 50 } })) };
     }
-    if (/easier|simpler/.test(text)) {
+    if (/easier|simpler|more time/.test(text) && !/question/.test(text)) {
       return { reply: 'Gave every question 10 extra seconds.',
                ops: quiz.questions.map(q => ({ op: 'update_question', id: q.id, patch: { time: (q.time || 20) + 10 } })) };
     }
-    if (/title|rename/.test(text)) {
-      const title = (prompt.split(':').pop() || '').trim().replace(/^"|"$/g, '') || `${topic} quiz`;
-      return { reply: `Renamed the quiz to “${title}”.`, ops: [{ op: 'update_quiz', patch: { title } }] };
+    if (/rename|change the title|call it/.test(text)) {
+      const title = (prompt.split(/:|"|to /).pop() || '').trim().replace(/^"|"$/g, '');
+      if (title) return { reply: `Renamed the quiz to “${title}”.`, ops: [{ op: 'update_quiz', patch: { title } }] };
     }
 
-    if (!topic) {
-      return { reply: 'Without an API key I only have ready-made questions for maths, science, English, ' +
-                      'geography and history — I will not invent questions on a topic I do not know. ' +
-                      'Add your Claude key (the 🔑 button above) and I can write questions on any topic, ' +
-                      'for any year group.', ops: [] };
+    if (!window.QuizBank) {
+      return { reply: 'My question bank did not load — reload the page and try again.', ops: [] };
     }
 
-    // never hand back the same question twice — neither within this batch nor
-    // against what the quiz already contains
-    const already = new Set(quiz.questions.map(q => (q.text || '').toLowerCase()));
-    const pool = BANK[topic].filter(([stem]) => !already.has(stem.toLowerCase()))
-                            .sort(() => Math.random() - 0.5);
-    const ops = pool.slice(0, count).map(([stem, options, why]) => ({
+    // fall back to the quiz's own title when the request names no topic
+    const context = window.QuizBank.match(prompt).topic || window.QuizBank.match(prompt).subject
+      ? prompt : `${prompt} ${quiz.title || ''} ${quiz.description || ''}`;
+
+    const existing = quiz.questions.map(q => q.text || '');
+    const { topicLabel, questions } = window.QuizBank.generate(context, count, existing);
+
+    if (!topicLabel || !questions.length) {
+      return { reply: 'I could not tell which topic you meant. Try naming it — "times tables", "the water cycle", ' +
+                      '"opposites", "Ancient Egypt" — or add your Claude key (🔑 above) and I can write questions ' +
+                      'on any topic at all.', ops: [] };
+    }
+
+    const ops = questions.map(q => ({
       op: 'add_question',
       question: {
-        type: 'mc', text: stem, points: 100, time: 20, explanation: why,
-        choices: options.slice().sort(() => Math.random() - 0.5)
-                        .map(opt => ({ text: opt, correct: opt === options[0] }))
+        type: 'mc', text: q.text, points: 100, time: 20, explanation: q.why,
+        choices: q.options.slice().sort(() => Math.random() - 0.5)
+                  .map(opt => ({ text: opt, correct: opt === q.correct }))
       }
     }));
-
-    if (!ops.length) {
-      return { reply: `My offline ${topic} questions are all in this quiz already. ` +
-                      'Add your Claude key (🔑 above) for fresh ones on any topic.', ops: [] };
-    }
-    const short = ops.length < count
-      ? ` That is all the ${topic} questions I have offline — add a Claude key for more.`
-      : '';
-    return { reply: `Added ${ops.length} ${topic} question(s) for you.${short}`, ops };
+    const short = ops.length < count ? ` That is all the fresh ${topicLabel} questions I have right now.` : '';
+    return { reply: `Added ${ops.length} ${topicLabel} question(s).${short}`, ops };
   }
 
   /* ── operations, mirroring the server's apply_ops ──── */
