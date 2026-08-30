@@ -55,6 +55,14 @@ quiz, have it hand you a QuizNova code, then press **📥 Import** on the hub �
 quiz lands in your studio complete with answers and explanations. That uses the
 Claude subscription you already have.
 
+**Without any key it covers 38 topics.** Type the way you actually would —
+"take away", "sums", "times tables", "the water cycle", "the Romans", "opposites",
+"telling the time", "online safety" — and it matches. Maths and language questions
+are *generated* to the year group you name ("Year 2" stays within 20, "Year 6"
+does not), so the supply does not run out and never repeats inside a quiz. Facts
+it cannot generate come from 178 curated primary-level questions. Ask for a topic
+it does not hold and it says so rather than inventing.
+
 **Or, on the static edition, add your own Claude key** (the 🔑 button in the co-pilot
 header) and it writes original questions on any topic, at any reading level. The
 key is stored *only in that browser* — never committed, never sent anywhere but
