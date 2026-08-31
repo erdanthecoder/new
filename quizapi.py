@@ -375,6 +375,12 @@ def status():
     })
 
 
+@api.get("/modes")
+def list_modes():
+    """The live game modes, so the pickers stay in step with the server."""
+    return jsonify({"modes": [dict(id=key, **value) for key, value in MODES.items()]})
+
+
 @api.get("/quizzes")
 def list_quizzes():
     with _lock:
@@ -855,6 +861,29 @@ TEAM_HP_FLOOR = 400          # smallest a team's shield pool can be
 TEAM_HP_PER_PLAYER = 250     # …and how much each player adds to it
 MAX_PLAYER_HIT = 40          # damage cap on any one player, so nobody is out in one shot
 
+# ── live game modes ──────────────────────────────────────────
+#
+# Every mode scores into player["score"], so the leaderboard, podium and
+# results screens work unchanged; a mode adds its own extra state on top.
+
+MODES = {
+    "normal":   {"label": "Normal",      "icon": "🎯", "teams": False,
+                 "blurb": "Speed points, streak multipliers, live leaderboard"},
+    "laser":    {"label": "Laser Tag",   "icon": "🔫", "teams": True,
+                 "blurb": "Two teams, real HP, overcharge streaks and revives"},
+    "kart":     {"label": "Kart Race",   "icon": "🏎️", "teams": False,
+                 "blurb": "Every right answer drives you further; streaks boost"},
+    "tower":    {"label": "Tower Build", "icon": "🧱", "teams": False,
+                 "blurb": "Stack a block per answer — a miss wobbles it loose"},
+    "treasure": {"label": "Treasure Run", "icon": "💎", "teams": False,
+                 "blurb": "Coins and lucky chests, so anyone can still win"},
+    "boss":     {"label": "Boss Battle", "icon": "🐉", "teams": False,
+                 "blurb": "The whole class against one boss — win or lose together"},
+}
+
+TRACK_LENGTH = 1000          # kart race distance to the flag
+BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
+
 AVATARS = ["🦊", "🐼", "🦄", "🐙", "🦁", "🐸", "🐧", "🦖", "🐝", "🦈", "🐨", "🦉", "🐢", "🦩", "🐳", "🦋"]
 
 def public_game(game: dict, include_answers: bool = False) -> dict:
@@ -890,9 +919,14 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "question": current,
         "endsAt": game.get("endsAt"),
         "serverNow": now_ms(),
-        "players": [{k: p[k] for k in ("id", "name", "avatar", "team", "score", "hp", "streak",
-                                       "answered", "correct", "down", "lastDamage")} for p in players],
+        "players": [{k: p.get(k) for k in ("id", "name", "avatar", "team", "score", "hp", "streak",
+                                           "answered", "correct", "down", "lastDamage",
+                                           "distance", "blocks", "coins", "chest", "lastGain")}
+                    for p in players],
         "teams": game["teams"],
+        "boss": game.get("boss"),
+        "trackLength": TRACK_LENGTH,
+        "modeInfo": MODES.get(game["mode"], MODES["normal"]),
         "counts": game.get("counts", {}),
         "lastEvents": game.get("lastEvents", []),
     }
@@ -928,7 +962,7 @@ def create_game():
             "pin": new_pin(),
             "hostToken": nid(16),
             "quizId": quiz["id"],
-            "mode": body.get("mode", "normal"),      # normal | laser
+            "mode": body.get("mode") if body.get("mode") in MODES else "normal",
             "state": "lobby",
             "index": -1,
             "questions": questions,
@@ -988,6 +1022,11 @@ def join_game(pin):
             "correct": None,
             "down": False,
             "lastDamage": 0,
+            "distance": 0,      # kart race
+            "blocks": 0,        # tower build
+            "coins": 0,         # treasure run
+            "chest": "",
+            "lastGain": 0,
             "answers": {},
         }
         game["players"][player["id"]] = player
@@ -1029,6 +1068,8 @@ def open_question(game: dict) -> None:
         player["answered"] = False
         player["correct"] = None
         player["lastDamage"] = 0
+        player["lastGain"] = 0
+        player["chest"] = ""
     game["state"] = "question"
     game["endsAt"] = now_ms() + int(question.get("time", 20)) * 1000 + 700
 
@@ -1047,6 +1088,10 @@ def start_game(pin):
                 members = [p for p in game["players"].values() if p["team"] == team]
                 # Enough HP that a match lasts several questions even with a small class.
                 game["teams"][team]["hp"] = max(TEAM_HP_FLOOR, TEAM_HP_PER_PLAYER * len(members))
+        if game["mode"] == "boss":
+            total = max(1, len(game["questions"]))
+            game["boss"] = {"hp": BOSS_HP_PER_QUESTION * total, "max": BOSS_HP_PER_QUESTION * total,
+                            "name": pick_boss_name(), "classHp": 100, "classMax": 100}
         open_question(game)
     broadcast_game(game)
     return jsonify(public_game(game))
@@ -1068,6 +1113,146 @@ def next_question(pin):
             open_question(game)
     broadcast_game(game)
     return jsonify(public_game(game))
+
+
+def pick_boss_name():
+    return random.choice(["Professor Puzzle", "The Grumbling Grammarian", "Baron Blunder",
+                          "Countess Confusion", "The Number Nibbler", "Sir Slipsalot"])
+
+
+def score_normal(game, player, question, ok, speed):
+    if not ok:
+        return
+    base = int(question.get("points", 100))
+    multiplier = 1 + min(player["streak"], 5) * 0.1
+    player["score"] += int(round((base * 0.5 + base * 0.5 * speed) * multiplier))
+
+
+def score_laser(game, player, question, ok, speed):
+    foe = "blue" if player["team"] == "red" else "red"
+    if ok and not player["down"]:
+        damage = int(round(45 + 55 * speed))
+        if player["streak"] >= 3:
+            damage = int(damage * 1.8)                      # overcharge
+        targets = [p for p in game["players"].values() if p["team"] == foe and not p["down"]]
+        hit_name = game["teams"][foe]["name"]
+        if targets:
+            target = max(targets, key=lambda p: p["hp"])
+            # Team shields soak the full shot; a single hit never one-shots a player.
+            player_damage = min(damage, MAX_PLAYER_HIT)
+            target["hp"] = max(0, target["hp"] - player_damage)
+            target["lastDamage"] = player_damage
+            hit_name = target["name"]
+            if target["hp"] == 0:
+                target["down"] = True
+                game["lastEvents"].append(f"💥 {player['name']} knocked out {target['name']}!")
+        game["teams"][foe]["hp"] = max(0, game["teams"][foe]["hp"] - damage)
+        game["teams"][player["team"]]["score"] += damage
+        player["score"] += damage
+        game["lastEvents"].append(
+            f"🔺 {player['name']} hit {hit_name} for {damage}" + (" ⚡OVERCHARGE" if player["streak"] >= 3 else ""))
+    elif ok and player["down"]:
+        mates = [p for p in game["players"].values() if p["team"] == player["team"] and p["hp"] < 100]
+        heal = 25
+        if mates:
+            mate = min(mates, key=lambda p: p["hp"])
+            mate["hp"] = min(100, mate["hp"] + heal)
+            if mate["down"] and mate["hp"] > 0:
+                mate["down"] = False
+            game["lastEvents"].append(f"✚ {player['name']} revived {mate['name']} (+{heal} HP)")
+        player["score"] += heal
+    else:
+        player["hp"] = max(0, player["hp"] - 10)
+        if player["hp"] == 0:
+            player["down"] = True
+        game["lastEvents"].append(f"⚠️ {player['name']} missed and lost shield")
+
+
+def score_kart(game, player, question, ok, speed):
+    """Distance driven. Answering fast is worth roughly double answering slowly."""
+    if not ok:
+        game["lastEvents"].append(f"🛑 {player['name']} span out")
+        return
+    metres = int(round(45 + 55 * speed))
+    boost = player["streak"] >= 3
+    if boost:
+        metres = int(metres * 1.6)
+    player["distance"] = player.get("distance", 0) + metres
+    player["score"] = player["distance"]
+    player["lastGain"] = metres
+    game["lastEvents"].append(f"🏎️ {player['name']} drove {metres}m" + (" 🚀 BOOST" if boost else ""))
+
+
+def score_tower(game, player, question, ok, speed):
+    """One block per correct answer, two if it was quick; a miss knocks one off."""
+    blocks = player.get("blocks", 0)
+    if ok:
+        gain = 2 if speed > 0.55 else 1
+        player["blocks"] = blocks + gain
+        player["lastGain"] = gain
+        game["lastEvents"].append(f"🧱 {player['name']} stacked {gain} block" + ("s" if gain > 1 else ""))
+    else:
+        player["blocks"] = max(0, blocks - 1)
+        player["lastGain"] = -1 if blocks else 0
+        if blocks:
+            game["lastEvents"].append(f"🪨 {player['name']}'s tower wobbled — one block fell")
+    player["score"] = player["blocks"]
+
+
+def score_treasure(game, player, question, ok, speed):
+    """Coins plus a chest: the luck keeps a slower reader in the race."""
+    if not ok:
+        player["chest"] = ""
+        game["lastEvents"].append(f"🕳️ {player['name']} found an empty chest")
+        return
+    coins = int(round(60 + 60 * speed))
+    roll = random.random()
+    chest = ""
+    if roll < 0.12:
+        coins *= 3
+        chest = "💎 JACKPOT ×3"
+    elif roll < 0.32:
+        coins *= 2
+        chest = "✨ Double chest"
+    elif roll < 0.42:
+        leader = max((p for p in game["players"].values() if p is not player),
+                     key=lambda p: p.get("coins", 0), default=None)
+        if leader and leader.get("coins", 0) > 0:
+            stolen = int(leader["coins"] * 0.2)
+            leader["coins"] -= stolen
+            leader["score"] = leader["coins"]
+            coins += stolen
+            chest = f"🏴 Raided {leader['name']} for {stolen}"
+    player["coins"] = player.get("coins", 0) + coins
+    player["score"] = player["coins"]
+    player["chest"] = chest
+    player["lastGain"] = coins
+    game["lastEvents"].append(f"🪙 {player['name']} collected {coins}" + (f" — {chest}" if chest else ""))
+
+
+def score_boss(game, player, question, ok, speed):
+    """Everyone against one boss: right answers wound it, wrong answers let it hit back."""
+    boss = game.setdefault("boss", {"hp": 500, "max": 500, "name": "The Boss", "classHp": 100, "classMax": 100})
+    if ok:
+        damage = int(round(20 + 25 * speed))
+        if player["streak"] >= 3:
+            damage = int(damage * 1.5)
+        boss["hp"] = max(0, boss["hp"] - damage)
+        player["score"] += damage
+        player["lastGain"] = damage
+        game["lastEvents"].append(f"⚔️ {player['name']} hit {boss['name']} for {damage}")
+        if boss["hp"] == 0:
+            game["lastEvents"].append(f"🎉 {boss['name']} is defeated!")
+    else:
+        boss["classHp"] = max(0, boss["classHp"] - 4)
+        player["lastGain"] = 0
+        game["lastEvents"].append(f"🔥 {boss['name']} struck back at the class")
+
+
+SCORERS = {
+    "normal": score_normal, "laser": score_laser, "kart": score_kart,
+    "tower": score_tower, "treasure": score_treasure, "boss": score_boss,
+}
 
 
 @api.post("/games/<pin>/answer")
@@ -1104,60 +1289,24 @@ def answer_question(pin):
         else:
             player["streak"] = 0
 
-        if game["mode"] == "normal":
-            if ok:
-                base = int(question.get("points", 100))
-                multiplier = 1 + min(player["streak"], 5) * 0.1
-                player["score"] += int(round((base * 0.5 + base * 0.5 * speed) * multiplier))
-        else:
-            foe = "blue" if player["team"] == "red" else "red"
-            if ok and not player["down"]:
-                damage = int(round(45 + 55 * speed))
-                if player["streak"] >= 3:
-                    damage = int(damage * 1.8)          # overcharge
-                targets = [p for p in game["players"].values() if p["team"] == foe and not p["down"]]
-                hit_name = game["teams"][foe]["name"]
-                if targets:
-                    target = max(targets, key=lambda p: p["hp"])
-                    # Team shields soak the full shot; a single hit never one-shots a player.
-                    player_damage = min(damage, MAX_PLAYER_HIT)
-                    target["hp"] = max(0, target["hp"] - player_damage)
-                    target["lastDamage"] = player_damage
-                    hit_name = target["name"]
-                    if target["hp"] == 0:
-                        target["down"] = True
-                        game["lastEvents"].append(f"💥 {player['name']} knocked out {target['name']}!")
-                game["teams"][foe]["hp"] = max(0, game["teams"][foe]["hp"] - damage)
-                game["teams"][player["team"]]["score"] += damage
-                player["score"] += damage
-                game["lastEvents"].append(
-                    f"🔺 {player['name']} hit {hit_name} for {damage}" + (" ⚡OVERCHARGE" if player["streak"] >= 3 else "")
-                )
-            elif ok and player["down"]:
-                mates = [p for p in game["players"].values() if p["team"] == player["team"] and p["hp"] < 100]
-                heal = 25
-                if mates:
-                    mate = min(mates, key=lambda p: p["hp"])
-                    mate["hp"] = min(100, mate["hp"] + heal)
-                    if mate["down"] and mate["hp"] > 0:
-                        mate["down"] = False
-                    game["lastEvents"].append(f"✚ {player['name']} revived {mate['name']} (+{heal} HP)")
-                player["score"] += heal
-            else:
-                player["hp"] = max(0, player["hp"] - 10)
-                if player["hp"] == 0:
-                    player["down"] = True
-                game["lastEvents"].append(f"⚠️ {player['name']} missed and lost shield")
+        SCORERS[game["mode"]](game, player, question, ok, speed)
 
         game["lastEvents"] = game["lastEvents"][-6:]
         everyone_in = all(p["answered"] for p in game["players"].values()) and game["players"]
-        if everyone_in:
+        boss = game.get("boss")
+        if game["mode"] == "boss" and boss and (boss["hp"] == 0 or boss["classHp"] == 0):
+            game["state"] = "over"                      # the fight is decided either way
+            game["endsAt"] = None
+        elif everyone_in:
             game["state"] = "reveal"
             game["endsAt"] = None
         snapshot = public_game(game)
     publish(f"game:{pin}", "game:state", snapshot)
     return jsonify({"correct": ok, "score": player["score"], "hp": player["hp"],
-                    "streak": player["streak"], "state": game["state"]})
+                    "streak": player["streak"], "state": game["state"],
+                    "distance": player.get("distance", 0), "blocks": player.get("blocks", 0),
+                    "coins": player.get("coins", 0), "chest": player.get("chest", ""),
+                    "gain": player.get("lastGain", 0)})
 
 
 @api.post("/games/<pin>/end")

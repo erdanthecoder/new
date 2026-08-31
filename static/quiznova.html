@@ -243,21 +243,25 @@ async function hostGame(q) {
   modal(`
     <h2 style="margin-bottom:6px">Host “${esc(q.title)}”</h2>
     <p class="muted tiny" style="margin-bottom:20px">Pick the game mode. Students join with the PIN on their own device.</p>
-    <div class="stack" style="gap:12px">
-      <button class="btn lg block" data-mode="normal" style="justify-content:flex-start;text-align:left;padding:18px 20px">
-        <span style="font-size:26px">🎯</span>
-        <span><strong style="display:block">Normal mode</strong>
-        <span class="tiny muted">Speed points, streak multipliers, live leaderboard</span></span>
-      </button>
-      <button class="btn lg block" data-mode="laser" style="justify-content:flex-start;text-align:left;padding:18px 20px;border-color:rgba(255,77,94,.4)">
-        <span style="font-size:26px">🔫</span>
-        <span><strong style="display:block">Laser Tag mode</strong>
-        <span class="tiny muted">Two teams, HP bars, overcharge streaks, revives</span></span>
-      </button>
+    <div class="stack" style="gap:12px" id="mode-list">
+      <p class="tiny faint">Loading modes…</p>
     </div>
     <div class="row" style="margin-top:20px;justify-content:flex-end"><button class="btn ghost" data-x>Cancel</button></div>`, {
-    onMount(box, close) {
+    async onMount(box, close) {
       box.querySelector('[data-x]').onclick = close;
+      const list = box.querySelector('#mode-list');
+      let modes = [];
+      try { modes = (await api('/modes')).modes; } catch { /* offline */ }
+      if (!modes.length) modes = [{ id: 'normal', icon: '🎯', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
+      list.innerHTML = '';
+      modes.forEach(m => {
+        const btn = el('button', { class: 'btn lg block', 'data-mode': m.id,
+          style: 'justify-content:flex-start;padding:16px 18px;text-align:left' });
+        btn.append(el('span', { style: 'font-size:24px' }, m.icon),
+          el('span', {}, el('strong', { style: 'display:block' }, m.label),
+                         el('span', { class: 'tiny muted' }, m.blurb)));
+        list.append(btn);
+      });
       box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {
         try {
           const game = await api('/games', { method: 'POST', body: { quizId: q.id, mode: btn.dataset.mode } });

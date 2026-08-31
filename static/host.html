@@ -68,6 +68,49 @@
   font-size:.87rem;min-height:52px}
 .feed div{padding:3px 0;animation:fadeUp .3s var(--ease) both;color:var(--muted)}
 
+/* kart race */
+.track{margin-top:18px;padding:18px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(0,0,0,.28)}
+.lane{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.lane .who{width:120px;font-weight:800;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lane .road{position:relative;flex:1;height:34px;border-radius:99px;background:rgba(255,255,255,.07);
+  border:2px dashed rgba(255,255,255,.18);overflow:hidden}
+.lane .road::after{content:'';position:absolute;inset:0 0 0 auto;width:6px;
+  background:repeating-linear-gradient(180deg,#fff 0 6px,#111 6px 12px)}
+.lane .kart{position:absolute;top:3px;font-size:1.5rem;transition:left 1s var(--ease);transform:translateX(-50%)}
+.lane .kart.boost{filter:drop-shadow(0 0 10px #FFC53D)}
+.lane .m{width:64px;text-align:right;font-weight:800;font-size:.82rem;color:var(--muted)}
+
+/* tower build */
+.skyline{display:flex;gap:16px;align-items:flex-end;justify-content:center;margin-top:18px;padding:18px 12px;
+  min-height:220px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(0,0,0,.28)}
+.tower{display:flex;flex-direction:column;align-items:center;gap:5px}
+.tower .stack{display:flex;flex-direction:column-reverse;gap:3px;min-height:8px}
+.tower .blk{width:46px;height:16px;border-radius:5px;border:2px solid rgba(0,0,0,.45);
+  animation:drop .35s var(--bounce) both}
+@keyframes drop{from{transform:translateY(-22px);opacity:0}}
+.tower .cap{font-size:1.3rem}
+.tower .who{font-size:.78rem;font-weight:800;margin-top:4px;max-width:74px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;text-align:center}
+
+/* treasure run */
+.chests{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+.chest{padding:14px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(255,197,61,.12);
+  text-align:center}
+.chest .coins{font-size:1.7rem;font-weight:900;color:#FFC53D}
+.chest .tag{font-size:.72rem;font-weight:800;color:var(--mint);min-height:14px}
+
+/* boss battle */
+.boss{margin-top:18px;padding:22px;border-radius:var(--r-lg);border:2.5px solid var(--line);
+  background:linear-gradient(180deg,rgba(244,54,76,.2),rgba(0,0,0,.35));text-align:center}
+.boss .face{font-size:4rem;animation:bob 3s ease-in-out infinite}
+.boss.hurt .face{animation:shake .4s}
+.boss h2{font-size:1.5rem;margin:6px 0 12px}
+.boss .bar{height:22px;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;border:2px solid rgba(255,255,255,.15)}
+.boss .bar i{display:block;height:100%;background:linear-gradient(90deg,#F4364C,#FF9A3D);transition:width .7s var(--ease)}
+.classbar{height:14px;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;margin-top:14px;
+  border:2px solid rgba(255,255,255,.15)}
+.classbar i{display:block;height:100%;background:var(--grad-mint);transition:width .7s var(--ease)}
+
 /* leaderboard */
 .lb{display:flex;flex-direction:column;gap:8px}
 .lb-row{display:flex;gap:13px;align-items:center;padding:12px 16px;border-radius:14px;background:rgba(255,255,255,.05);
@@ -157,7 +200,7 @@ function renderLobby(stage) {
   panel.innerHTML = `
     <div>
       <span class="mode-badge ${game.mode === 'laser' ? 'mode-laser' : 'mode-normal'}">
-        ${game.mode === 'laser' ? '🔫 Laser Tag mode' : '🎯 Normal mode'}</span>
+        ${esc((game.modeInfo && game.modeInfo.icon) || '🎯')} ${esc((game.modeInfo && game.modeInfo.label) || 'Normal')} mode</span>
       <h1 style="font-size:1.8rem;margin:16px 0 6px">${esc(game.quizTitle)}</h1>
       <p class="muted tiny">${game.total} questions · waiting for players</p>
       <div class="row" style="margin-top:24px;gap:10px;flex-wrap:wrap">
@@ -296,12 +339,86 @@ function renderExtra() {
   const host = document.getElementById('extra');
   if (!host) return;
   host.innerHTML = '';
-  host.append(game.mode === 'laser' ? arena() : leaderboard());
+  const views = { laser: arena, kart: raceTrack, tower: skyline, treasure: treasureBoard, boss: bossArena };
+  host.append((views[game.mode] || leaderboard)());
+  if (game.mode !== 'laser' && game.mode !== 'boss') host.append(leaderboard());
 }
+
+const KART_COLOURS = ['#F4364C', '#4F6BFF', '#FFC53D', '#12BE8E', '#6C4CF1', '#2BA8FF'];
+
+function raceTrack() {
+  const box = el('div', { class: 'track' });
+  const longest = Math.max(game.trackLength || 1000, ...game.players.map(p => p.distance || 0));
+  game.players.forEach((p, i) => {
+    const pct = Math.min(100, (p.distance || 0) / longest * 100);
+    const lane = el('div', { class: 'lane' });
+    lane.append(el('span', { class: 'who' }, `${p.avatar} ${p.name}`));
+    const road = el('div', { class: 'road' });
+    road.append(el('span', { class: 'kart' + (p.streak >= 3 ? ' boost' : ''), style: `left:${pct}%` }, '🏎️'));
+    lane.append(road, el('span', { class: 'm' }, `${p.distance || 0}m`));
+    box.append(lane);
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No racers yet.'));
+  box.append(el('p', { class: 'tiny faint', style: 'margin-top:6px' },
+    'Answer faster to drive further. Three right in a row gives a 🚀 boost.'));
+  return box;
+}
+
+function skyline() {
+  const box = el('div', { class: 'skyline' });
+  game.players.slice(0, 10).forEach((p, i) => {
+    const tower = el('div', { class: 'tower' });
+    const stack = el('div', { class: 'stack' });
+    for (let b = 0; b < Math.min(p.blocks || 0, 14); b++) {
+      stack.append(el('span', { class: 'blk', style: `background:${KART_COLOURS[i % 6]};animation-delay:${b * 25}ms` }));
+    }
+    tower.append(el('span', { class: 'cap' }, (p.blocks || 0) > 0 ? p.avatar : '·'), stack,
+                 el('span', { class: 'who' }, `${p.name} · ${p.blocks || 0}`));
+    box.append(tower);
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No builders yet.'));
+  return box;
+}
+
+function treasureBoard() {
+  const box = el('div', { class: 'chests' });
+  game.players.slice(0, 12).forEach(p => {
+    box.append(el('div', { class: 'chest' },
+      el('div', { style: 'font-size:1.5rem' }, p.avatar),
+      el('div', { class: 'coins' }, String(p.coins || 0)),
+      el('div', { style: 'font-weight:700;font-size:.84rem' }, p.name),
+      el('div', { class: 'tag' }, p.chest || '')));
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No treasure hunters yet.'));
+  return box;
+}
+
+function bossArena() {
+  const boss = game.boss || { hp: 1, max: 1, name: 'The Boss', classHp: 100, classMax: 100 };
+  const hurt = boss.hp < (lastBossHp ?? boss.hp);
+  lastBossHp = boss.hp;
+  const box = el('div', { class: 'boss' + (hurt ? ' hurt' : '') });
+  box.append(el('div', { class: 'face' }, boss.hp > 0 ? '🐉' : '💀'),
+    el('h2', {}, boss.hp > 0 ? boss.name : `${boss.name} is defeated!`),
+    el('div', { class: 'bar' }, el('i', { style: `width:${Math.max(0, boss.hp / boss.max * 100)}%` })),
+    el('p', { class: 'tiny faint', style: 'margin-top:6px' }, `${boss.hp} / ${boss.max} HP`),
+    el('p', { class: 'tiny', style: 'margin-top:14px;font-weight:800' }, `Class health · ${boss.classHp}%`),
+    el('div', { class: 'classbar' }, el('i', { style: `width:${boss.classHp}%` })));
+  const wrap = el('div', {});
+  wrap.append(box, leaderboard());
+  return wrap;
+}
+let lastBossHp = null;
+
+const unitFor = (p) => game.mode === 'kart' ? `${p.distance || 0}m`
+  : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
+  : game.mode === 'treasure' ? `${p.coins || 0} 🪙`
+  : String(p.score);
 
 function leaderboard() {
   const card = el('div', { class: 'card pad', style: 'margin-top:18px' },
-    el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' }, '🏆 Leaderboard'));
+    el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' },
+      game.mode === 'boss' ? '⚔️ Damage dealt' : '🏆 Leaderboard'));
   const lb = el('div', { class: 'lb' });
   game.players.slice(0, 8).forEach((p, i) => {
     lb.append(el('div', { class: 'lb-row' + (i === 0 ? ' top' : '') },
@@ -310,7 +427,7 @@ function leaderboard() {
       el('span', {}, p.name),
       p.streak >= 3 ? el('span', { class: 'chip warn' }, `🔥 ${p.streak}`) : '',
       p.answered && game.state === 'question' ? el('span', { class: 'chip live' }, 'in') : '',
-      el('span', { class: 'score' }, p.score)));
+      el('span', { class: 'score' }, unitFor(p))));
   });
   if (!game.players.length) lb.append(el('p', { class: 'faint tiny' }, 'No players.'));
   card.append(lb);
@@ -371,6 +488,28 @@ function renderOver(stage) {
     card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' },
       winner ? `${winner === red ? '🔴' : '🔵'} ${winner.name} wins!` : '🤝 It is a draw!'),
       el('p', { class: 'muted' }, `${red.name} ${Math.max(0, red.hp)} HP · ${blue.name} ${Math.max(0, blue.hp)} HP`));
+  } else if (game.mode === 'boss') {
+    const boss = game.boss || { hp: 0, classHp: 0, name: 'The Boss' };
+    const won = boss.hp === 0;
+    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' },
+        won ? `The class defeated ${boss.name}!` : `${boss.name} survived this time`),
+      el('p', { class: 'muted' }, won ? 'Every right answer landed a blow.' : `${boss.hp} HP left — closer next lesson.`));
+  } else if (game.mode === 'kart') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '🏁'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} takes the flag!` : 'Race over'),
+      el('p', { class: 'muted' }, first ? `${first.distance}m driven` : ''));
+  } else if (game.mode === 'tower') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '🏗️'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} built the tallest tower!` : 'Building over'),
+      el('p', { class: 'muted' }, first ? `${first.blocks} blocks high` : ''));
+  } else if (game.mode === 'treasure') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '💎'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} is the richest!` : 'Hunt over'),
+      el('p', { class: 'muted' }, first ? `${first.coins} coins` : ''));
   } else {
     card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' }, '🏁 Final results'),
                 el('p', { class: 'muted' }, esc(game.quizTitle)));
@@ -384,7 +523,7 @@ function renderOver(stage) {
     podium.append(el('div', { class: 'stand p' + place, style: `animation-delay:${i * 140}ms` },
       el('div', { style: 'font-size:2.2rem' }, p.avatar),
       el('strong', { style: 'margin-top:6px' }, p.name),
-      el('span', { class: 'tiny faint' }, (game.mode === 'laser' ? p.score + ' dmg' : p.score + ' pts')),
+      el('span', { class: 'tiny faint' }, game.mode === 'laser' ? p.score + ' dmg' : unitFor(p)),
       el('div', { style: 'font-size:1.4rem;margin-top:8px' }, place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉')));
   });
   card.append(podium);

@@ -162,7 +162,10 @@ function hud() {
       me.team === 'red' ? '🔴 Crimson' : '🔵 Cobalt'));
     node.append(el('div', { class: 'stat' }, el('b', {}, me.down ? 'DOWN' : me.hp + ' HP'), el('span', {}, 'shield')));
   } else {
-    node.append(el('div', { class: 'stat' }, el('b', {}, me.score), el('span', {}, 'points')));
+    const unit = { kart: ['distance', (me.distance || 0) + 'm'], tower: ['blocks', String(me.blocks || 0)],
+                   treasure: ['coins', String(me.coins || 0)], boss: ['damage', String(me.score)] }[game.mode]
+                 || ['points', String(me.score)];
+    node.append(el('div', { class: 'stat' }, el('b', {}, unit[1]), el('span', {}, unit[0])));
   }
   if (me.streak >= 2) node.append(el('span', { class: 'chip warn' }, '🔥 ' + me.streak));
   return node;
@@ -187,7 +190,8 @@ function lobbyCard() {
     <div class="waiting"><div class="pulse"></div></div>
     <h1 style="font-size:1.45rem;margin-bottom:6px">You are in!</h1>
     <p class="muted tiny">${esc(game.quizTitle)} · ${game.total} questions</p>
-    <p class="muted" style="margin-top:16px">Waiting for your teacher to start…</p>
+    <p class="muted" style="margin-top:16px">${esc((game.modeInfo && game.modeInfo.blurb) || 'Waiting for your teacher to start…')}</p>
+    <p class="tiny faint" style="margin-top:6px">Waiting for your teacher to start…</p>
     <p class="tiny faint" style="margin-top:8px">${game.players.length} player${game.players.length === 1 ? '' : 's'} in the lobby</p>`;
 
   if (game.mode === 'laser') {
@@ -274,8 +278,13 @@ function revealCard() {
       el('span', { class: 'em' }, '⌛'), el('h2', {}, 'Too slow!'),
       el('p', { class: 'muted tiny', style: 'margin-top:6px' }, 'No answer this round.')));
   } else {
+    const g = me.lastGain || 0;
     const gained = game.mode === 'laser'
-      ? (me.down ? 'Teammate healed' : ok ? 'Laser fired!' : 'Shield hit')
+        ? (me.down ? 'Teammate healed' : ok ? 'Laser fired!' : 'Shield hit')
+      : game.mode === 'kart' ? (ok ? `🏎️ Drove ${g}m further` : '🛑 You span out')
+      : game.mode === 'tower' ? (ok ? `🧱 Stacked ${g} block${g > 1 ? 's' : ''}` : '🪨 A block fell off')
+      : game.mode === 'treasure' ? (ok ? `🪙 ${g} coins${me.chest ? ' — ' + me.chest : ''}` : '🕳️ Empty chest')
+      : game.mode === 'boss' ? (ok ? `⚔️ ${g} damage to the boss` : '🔥 The boss struck back')
       : (ok ? '+ points' : 'no points');
     card.append(el('div', { class: 'verdict ' + (ok ? 'good' : 'bad') },
       el('span', { class: 'em' }, ok ? (me.streak >= 3 ? '⚡' : '✅') : '❌'),
@@ -291,7 +300,15 @@ function revealCard() {
   if (q.explanation) info.append(el('p', { class: 'tiny muted', style: 'margin-top:8px;font-style:italic' }, q.explanation));
   card.append(info);
 
-  if (game.mode === 'laser') {
+  if (game.mode === 'boss' && game.boss) {
+    const b = game.boss;
+    card.append(el('div', { class: 'card pad', style: 'margin-top:14px;text-align:center' },
+      el('p', { class: 'tiny faint' }, b.name),
+      el('h2', { style: 'font-size:1.6rem' }, `${b.hp} HP left`),
+      el('div', { style: 'height:12px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;margin-top:8px' },
+        el('i', { style: `display:block;height:100%;width:${Math.max(0, b.hp / b.max * 100)}%;background:linear-gradient(90deg,#F4364C,#FF9A3D)` })),
+      el('p', { class: 'tiny muted', style: 'margin-top:10px' }, `Class health ${b.classHp}%`)));
+  } else if (game.mode === 'laser') {
     const maxHp = (side) => Math.max(100, 100 * game.players.filter(p => p.team === side).length);
     const box = el('div', { class: 'card pad hpwrap', style: 'margin-top:14px' });
     ['red', 'blue'].forEach(side => {
@@ -332,11 +349,20 @@ function overCard() {
         el('span', { class: 'chip' }, me.score + ' damage dealt'),
         el('span', { class: 'chip' }, 'Best streak ' + (me.streak || 0))));
     if (won || draw) confetti(120);
+  } else if (game.mode === 'boss' && game.boss) {
+    const won = game.boss.hp === 0;
+    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
+      el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, won ? 'The boss is beaten!' : 'The boss survived'),
+      el('p', { class: 'muted' }, `You dealt ${me.score} damage`));
+    if (won) confetti(120);
   } else {
     const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎓';
     card.append(el('div', { style: 'font-size:3.4rem' }, medal),
       el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, rank === 1 ? 'You won!' : `You finished #${rank}`),
-      el('p', { class: 'muted' }, me.score + ' points'));
+      el('p', { class: 'muted' }, game.mode === 'kart' ? `${me.distance || 0}m driven`
+        : game.mode === 'tower' ? `${me.blocks || 0} blocks high`
+        : game.mode === 'treasure' ? `${me.coins || 0} coins`
+        : me.score + ' points'));
     if (rank <= 3) confetti(120);
   }
 
@@ -344,7 +370,9 @@ function overCard() {
     el('h3', { style: 'font-size:1rem;margin-bottom:10px' }, 'Final standings'));
   game.players.slice(0, 5).forEach((p, i) => lb.append(el('div', { class: 'spread', style: 'padding:7px 0' },
     el('span', {}, `#${i + 1} ${p.avatar} ${p.name}${p.id === me.id ? ' (you)' : ''}`),
-    el('strong', {}, String(p.score)))));
+    el('strong', {}, game.mode === 'kart' ? `${p.distance || 0}m`
+      : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
+      : game.mode === 'treasure' ? `${p.coins || 0} 🪙` : String(p.score)))));
   card.append(lb);
   card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: '/play' }, 'Play another game'));
   return card;

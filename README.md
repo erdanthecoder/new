@@ -102,23 +102,26 @@ studio’s **Responses** tab: average, top score, a per-question success bar, an
 student’s paper.
 
 ### Live games (`/host` + `/play`)
-Press **▶ Play live**, pick a mode, and the board shows a six-digit PIN. Students join at
-`yoursite/play`. Scoring is done on the server, so nobody can fake a score.
 
-**🎯 Normal mode** — answer fast for more points, streaks add up to a ×1.5 multiplier,
-and the leaderboard reshuffles after every question. Ends on a podium.
+Press **▶ Play live**, pick a mode, and the board shows a six-digit PIN and a QR
+code. Students join at `yoursite/play`. Scoring is done on the server, so nobody
+can fake a score. **Six ways to play the same quiz:**
 
-**🔫 Laser Tag mode** — two auto-balanced teams (Crimson vs Cobalt), each with a shield
-pool and every player on 100 HP:
+| Mode | How it works |
+|------|--------------|
+| 🎯 **Normal** | Speed points, streak multipliers to ×1.5, a leaderboard that reshuffles every question. |
+| 🔫 **Laser Tag** | Two auto-balanced teams with shield pools. A right answer fires at the strongest opponent still standing; three in a row is ⚡OVERCHARGE at 1.8× damage; a wrong answer costs 10 shield. At 0 HP you are **down but not out** — your correct answers now revive and heal teammates. No single shot can knock a player out. |
+| 🏎️ **Kart Race** | Every right answer drives you further down the track — 45–100m depending on how fast you answered, ×1.6 on a 🚀 boost streak. A wrong answer spins you out. First past the flag wins. |
+| 🧱 **Tower Build** | Stack a block per correct answer, two if you were quick. A miss wobbles one loose. Tallest tower wins — and because blocks fall rather than points vanish, a slow starter can still catch up. |
+| 💎 **Treasure Run** | Coins plus a chest on every correct answer: 12% jackpot ×3, 20% double, 10% raid the leader for a fifth of their coins. The luck keeps a slower reader genuinely in the race. |
+| 🐉 **Boss Battle** | Co-operative — the whole class against one boss with HP scaled to the quiz length. Right answers wound it, wrong answers let it strike the class. You win or lose together, so nobody is singled out. |
 
-* A correct answer **fires at the strongest opponent still standing** — faster answers hit harder.
-* **Three correct in a row = ⚡ OVERCHARGE**, 1.8× damage.
-* A wrong answer costs you 10 shield.
-* At 0 HP you are **down** — but not out: your correct answers now **revive and heal teammates**.
-* No single shot can knock a player out, so nobody sits idle.
-* The team with shields left when the questions run out wins.
+The host board draws each mode properly: a race track with karts, a skyline of
+towers, a treasure board, or the boss with its health bar — plus a live feed of
+what just happened.
 
-The host board shows both HP bars, every fighter’s health, and a live kill feed.
+Adding another mode means one entry in `MODES`, one scoring function, and one
+render function; the leaderboard, podium and results screens need no changes.
 
 ---
 

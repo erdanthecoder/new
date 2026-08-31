@@ -64,7 +64,12 @@
     try {
       source = new EventSource('/api' + path);
       source.onmessage = (evt) => {
-        try { onMessage(JSON.parse(evt.data)); } catch { /* heartbeat */ }
+        let msg;
+        try { msg = JSON.parse(evt.data); } catch { return; }   // heartbeat or comment
+        // Errors thrown while rendering must not kill the stream, but swallowing
+        // them silently turns a bug into a blank screen — report and carry on.
+        try { onMessage(msg); }
+        catch (err) { console.error('[nova] realtime handler failed:', err); }
       };
       source.onerror = () => { if (alive) startPolling(); };
     } catch { startPolling(); }
