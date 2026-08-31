@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova — take the quiz</title>
+<title>QuizNova quiz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="nova.css?v=8168e7f7">
+<link rel="stylesheet" href="nova.css?v=bcdd0d0d">
 <style>
 .shell{max-width:740px;margin:0 auto;padding:28px 20px 90px}
 .progress{position:fixed;top:0;left:0;right:0;height:8px;background:var(--paper);z-index:80;border-bottom:2px solid var(--line)}
@@ -56,10 +56,11 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
-<script src="nova.js?v=ae1e0f3f"></script>
+<script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="live.js?v=43482720"></script>
-<script src="nova-local.js?v=ba11c601"></script>
+<script src="realtime.js?v=860b888e"></script>
+<script src="live.js?v=eda5027d"></script>
+<script src="nova-local.js?v=852b3257"></script>
 <script>
 const { $, api, el, esc, qs, toast, confetti } = Nova;
 // A quiz reaches a student either as ?id= (server edition) or as a #d= payload

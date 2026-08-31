@@ -868,17 +868,17 @@ MAX_PLAYER_HIT = 40          # damage cap on any one player, so nobody is out in
 
 MODES = {
     "normal":   {"label": "Normal",      "icon": "🎯", "teams": False,
-                 "blurb": "Speed points, streak multipliers, live leaderboard"},
+                 "blurb": "Fastest right answer scores the most"},
     "laser":    {"label": "Laser Tag",   "icon": "🔫", "teams": True,
-                 "blurb": "Two teams, real HP, overcharge streaks and revives"},
+                 "blurb": "Two teams. Right answers fire, wrong ones cost shield"},
     "kart":     {"label": "Kart Race",   "icon": "🏎️", "teams": False,
-                 "blurb": "Every right answer drives you further; streaks boost"},
+                 "blurb": "Every right answer drives your kart further"},
     "tower":    {"label": "Tower Build", "icon": "🧱", "teams": False,
-                 "blurb": "Stack a block per answer — a miss wobbles it loose"},
+                 "blurb": "Stack a block for each right answer"},
     "treasure": {"label": "Treasure Run", "icon": "💎", "teams": False,
-                 "blurb": "Coins and lucky chests, so anyone can still win"},
+                 "blurb": "Collect coins and open lucky chests"},
     "boss":     {"label": "Boss Battle", "icon": "🐉", "teams": False,
-                 "blurb": "The whole class against one boss — win or lose together"},
+                 "blurb": "The whole class fights one boss together"},
 }
 
 TRACK_LENGTH = 1000          # kart race distance to the flag
@@ -1122,10 +1122,13 @@ def pick_boss_name():
 
 def score_normal(game, player, question, ok, speed):
     if not ok:
+        player["lastGain"] = 0
         return
     base = int(question.get("points", 100))
     multiplier = 1 + min(player["streak"], 5) * 0.1
-    player["score"] += int(round((base * 0.5 + base * 0.5 * speed) * multiplier))
+    gain = int(round((base * 0.5 + base * 0.5 * speed) * multiplier))
+    player["score"] += gain
+    player["lastGain"] = gain
 
 
 def score_laser(game, player, question, ok, speed):

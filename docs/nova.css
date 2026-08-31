@@ -262,8 +262,10 @@ body.dark .toast{color:var(--text)}
 /* ── modal ──────────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;z-index:300;background:rgba(30,19,56,.55);backdrop-filter:blur(6px);display:grid;place-items:center;padding:22px;animation:fade .2s}
 @keyframes fade{from{opacity:0}}
-.modal{width:min(560px,100%);background:var(--card);border:var(--line-w) solid var(--line);border-radius:var(--r-xl);
+.modal{width:min(560px,100%);max-height:min(88vh,900px);overflow:auto;background:var(--card);
+  border:var(--line-w) solid var(--line);border-radius:var(--r-xl);
   padding:28px;box-shadow:var(--pop-3);animation:pop .32s var(--bounce)}
+.modal.wide{width:min(880px,100%)}
 @keyframes pop{from{opacity:0;transform:translateY(20px) scale(.94)}}
 
 /* ── misc ───────────────────────────────────────────────── */

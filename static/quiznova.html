@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova — realtime quizzes, live games & an AI co-pilot</title>
+<title>QuizNova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="/nova.css">
@@ -108,7 +108,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
       <span class="eyebrow">🎈 Made for primary classrooms</span>
       <h1>Quizzes your class <span class="pop">begs</span> to play.</h1>
       <p class="lede">Write a quiz in minutes, let the co-pilot draft the questions, then send it to Google
-        Classroom — the link carries the whole quiz, so students need no account and nothing to install.</p>
+        Classroom. The link carries the whole quiz, so students need no account and nothing to install.</p>
       <div class="hero-actions">
         <button class="btn primary lg" id="hero-new">✏️ Create a quiz</button>
         <div class="join-box">
@@ -138,7 +138,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
       <div class="pillar"><div class="ic">✨</div><h3>AI co-pilot, on a leash</h3>
         <p>Ask for ten harder fractions questions, then approve or reject every single change it proposes.</p></div>
       <div class="pillar"><div class="ic">🎯</div><h3>Marks itself</h3>
-        <p>Instant marking with explanations, so children find out why — not just whether — they were right.</p></div>
+        <p>Marked the moment they finish, with an explanation for every question.</p></div>
       <div class="pillar"><div class="ic">🔫</div><h3>Laser Tag mode</h3>
         <p>Two teams, real HP. Right answers fire, streaks overcharge, downed players revive their team.</p></div>
     </div>
@@ -146,7 +146,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 
   <section>
     <div class="section-head">
-      <div><h2>Your quizzes</h2><p>Stored on the server — open one on any device and keep editing.</p></div>
+      <div><h2>Your quizzes</h2><p>Open one on any device and carry on where you left off.</p></div>
       <div class="row">
         <input class="input" id="search" placeholder="Search…" style="width:190px">
       </div>
@@ -217,7 +217,7 @@ function render() {
 async function newQuiz() {
   modal(`
     <h2 style="margin-bottom:6px">New quiz</h2>
-    <p class="muted tiny" style="margin-bottom:20px">Give it a name — you can change everything later.</p>
+    <p class="muted tiny" style="margin-bottom:20px">Give it a name. You can change everything later.</p>
     <div class="field"><label class="label" for="t">Title</label>
       <input class="input" id="t" placeholder="e.g. Year 4 fractions check-in" autofocus></div>
     <div class="row" style="margin-top:22px;justify-content:flex-end">
@@ -292,7 +292,7 @@ function share(q) {
       box.querySelector('#qrbox').innerHTML = code
         ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
         : `<p class="tiny faint" style="text-align:center;max-width:34ch">This link carries the whole quiz inside it, so it is too
-           long for a QR code — use Copy or the Classroom button below.</p>`;
+           long for a QR code. Use Copy or the Classroom button below.</p>`;
     }
   });
 }
@@ -326,9 +326,9 @@ api('/status').then(s => {
   const look = { browser: ['live', '💾 Saved in this browser',
                    'Quizzes are stored on this device. Share links carry the quiz inside the link, so students need nothing.'],
                  database: ['live', '💾 Saved to your database',
-                   'Quizzes live in Postgres — they survive the site sleeping or redeploying.'],
+                   'Quizzes live in Postgres. They survive the site sleeping or being redeployed.'],
                  server: ['warn', '💾 Saved on this server',
-                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps — connect a database to keep them.'] };
+                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps. Connect a database to keep them.'] };
   const [cls, label, why] = look[s.storage === 'browser' ? 'browser' : s.durable ? 'database' : 'server'];
   pill.className = 'chip hide-sm ' + cls;
   pill.textContent = label;

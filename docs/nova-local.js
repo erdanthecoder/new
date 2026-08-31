@@ -188,7 +188,7 @@ Rules:
       const detail = await res.text();
       let message = `Claude returned ${res.status}`;
       try { message = JSON.parse(detail).error?.message || message; } catch { /* not json */ }
-      if (res.status === 401) message = 'That API key was rejected — check it and try again.';
+      if (res.status === 401) message = 'That key was rejected. Check it and try again.';
       throw new Error(message);
     }
 
@@ -243,7 +243,7 @@ Rules:
     }
 
     if (!window.QuizBank) {
-      return { reply: 'My question bank did not load — reload the page and try again.', ops: [] };
+      return { reply: 'My question bank did not load. Reload the page and try again.', ops: [] };
     }
 
     // fall back to the quiz's own title when the request names no topic
@@ -254,9 +254,8 @@ Rules:
     const { topicLabel, questions } = window.QuizBank.generate(context, count, existing);
 
     if (!topicLabel || !questions.length) {
-      return { reply: 'I could not tell which topic you meant. Try naming it — "times tables", "the water cycle", ' +
-                      '"opposites", "Ancient Egypt" — or add your Claude key (🔑 above) and I can write questions ' +
-                      'on any topic at all.', ops: [] };
+      return { reply: 'I am not sure which topic you mean. Try naming it: "times tables", "the water cycle", ' +
+                      '"opposites", "Ancient Egypt". Or add a Claude key (🔑 above) for any topic at all.', ops: [] };
     }
 
     const ops = questions.map(q => ({
@@ -435,7 +434,7 @@ Rules:
       result.ops = result.ops || [];
       if (body.permission === 'read') {
         return { reply: result.reply, ops: [], applied: false, source,
-                 note: 'Read only mode — I did not change anything.' };
+                 note: 'Read-only mode, so nothing was changed.' };
       }
       if (body.permission === 'auto' && result.ops.length) {
         const log = applyOps(quiz, result.ops);
@@ -447,7 +446,7 @@ Rules:
 
     // live games run through Supabase (live.js); the pages themselves are unchanged
     if (clean === '/modes' || clean.startsWith('/games')) {
-      if (!window.NovaLive) fail('Live games did not load — reload the page.', 503);
+      if (!window.NovaLive) fail('Live games did not load. Reload the page.', 503);
       if (clean.startsWith('/games') && method === 'POST' && clean === '/games') {
         body.quiz = all[body.quizId];                 // the quiz lives in this browser
       }
@@ -472,9 +471,9 @@ Rules:
     if (!header || !mode || document.getElementById('ai-key')) return;
 
     const paint = () => {
-      mode.textContent = getKey() ? 'Claude · claude-opus-5' : 'Built-in question bank — add a key for any topic';
+      mode.textContent = getKey() ? 'Claude · claude-opus-5' : 'Built-in question bank';
       button.textContent = getKey() ? '🔑' : '🔑';
-      button.title = getKey() ? 'Claude is connected — click to change or remove the key'
+      button.title = getKey() ? 'Claude is connected. Click to change or remove the key.'
                               : 'Connect your Claude API key for questions on any topic';
       button.style.opacity = getKey() ? '1' : '.6';
     };
@@ -504,14 +503,14 @@ Rules:
         onMount(box, close) {
           box.querySelector('#cancel').onclick = close;
           box.querySelector('#forget-key')?.addEventListener('click', () => {
-            setKey(''); paint(); close(); Nova.toast('Key removed — back to the built-in bank');
+            setKey(''); paint(); close(); Nova.toast('Key removed. Back to the built-in bank.');
           });
           box.querySelector('#save-key').onclick = () => {
             const value = box.querySelector('#k').value.trim();
             if (!value || value.endsWith('…')) return Nova.toast('Paste the whole key', 'bad');
             if (!value.startsWith('sk-ant-')) return Nova.toast('That does not look like an Anthropic key', 'bad');
             setKey(value); paint(); close();
-            Nova.toast('Claude connected — ask for any topic now', 'good');
+            Nova.toast('Claude connected. Ask for any topic.', 'good');
           };
         }
       });
@@ -566,7 +565,7 @@ Rules:
       button.id = 'import-top';
       button.className = 'btn sm';
       button.textContent = '📥 Import';
-      button.title = 'Paste a quiz code — including one Claude wrote for you in a chat';
+      button.title = 'Paste a quiz code or share link';
       button.onclick = openImportDialog;
       top.insertBefore(button, newBtn);
     }
@@ -602,9 +601,10 @@ Rules:
     const game = path.match(/^\/games\/([^/]+)\/events$/);
     if (game) {
       const pin = game[1];
-      let stop = false, busy = false;
+      let stop = false, busy = false, connected = false, again = false;
       const tick = async () => {
-        if (stop || busy) return;
+        if (stop) return;
+        if (busy) { again = true; return; }   // a change landed mid-read: read once more after
         busy = true;
         clearTimeout(timer);
         try {
@@ -612,15 +612,33 @@ Rules:
           onMessage({ event: 'game:state', data: state });
         } catch { /* between questions the row may briefly be busy */ }
         busy = false;
-        // an open question is the part of the game people watch, so look more often
-        const wait = liveGamePace === 'question' ? 700 : 1500;
-        if (!stop) timer = setTimeout(tick, wait);
+        if (stop) return;
+        if (again) { again = false; return tick(); }
+        // With a live connection the game tells us when it changes, so this is only
+        // a safety net. Without one, it is the whole mechanism.
+        const wait = connected ? 5000 : (liveGamePace === 'question' ? 700 : 1500);
+        timer = setTimeout(tick, wait);
       };
+
+      // changes arrive in bursts (three phones answering at once); coalesce them
+      let soon = null;
+      const nudge = () => { if (soon || stop) return; soon = setTimeout(() => { soon = null; tick(); }, 60); };
+      const realtime = window.NovaRealtime && window.NovaRealtime.available
+        ? window.NovaRealtime.watch(pin, nudge, (status) => {
+            connected = status === 'live';
+            if (connected) tick();   // catch up on whatever happened while connecting
+          })
+        : null;
+
       let timer = setTimeout(tick, 60);
       // this device just did something (answered, started, advanced): do not make it
       // wait out the poll interval to see the result
       gameKicks.add(tick);
-      return { close() { stop = true; clearTimeout(timer); gameKicks.delete(tick); } };
+      return { close() {
+        stop = true; clearTimeout(timer); clearTimeout(soon);
+        gameKicks.delete(tick);
+        if (realtime) realtime.close();
+      } };
     }
 
     const handler = (evt) => { if (evt.key === KEY) onMessage({ event: 'poll', data: {} }); };

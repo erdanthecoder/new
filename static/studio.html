@@ -130,6 +130,19 @@ tr:hover td{background:var(--paper)}
   aside.ai{height:auto;max-height:640px}
   #rail{order:3}
 }
+
+/* live game picker */
+.modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.modecard{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 16px 18px;cursor:pointer;
+  border-radius:18px;border:var(--line-w) solid var(--line);background:var(--card);color:var(--ink);
+  text-align:left;font:inherit;box-shadow:var(--pop-1);transition:transform .14s var(--ease),box-shadow .14s}
+.modecard:hover{transform:translate(-2px,-2px);box-shadow:var(--pop-2)}
+.modecard:active{transform:translate(1px,1px);box-shadow:var(--pop-1)}
+.modecard .ic{font-size:30px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.12))}
+.modecard strong{font-size:1.05rem}
+.modecard .sub{font-size:.82rem;color:var(--ink-soft);line-height:1.32}
+.modecard.c0{background:#FFE9EC}.modecard.c1{background:#E7ECFF}.modecard.c2{background:#FFF4D6}
+.modecard.c3{background:#DEF7EE}.modecard.c4{background:#EFE8FF}.modecard.c5{background:#E3F4FF}
 </style>
 </head>
 <body>
@@ -368,7 +381,7 @@ function renderQuestions() {
   if (!quiz.questions.length) {
     host.append(el('div', { class: 'card pad empty' },
       el('span', { class: 'em' }, '🧩'),
-      el('div', {}, 'No questions yet — add one below, or ask the co-pilot to draft the whole quiz.')));
+      el('div', {}, 'No questions yet. Add one below, or ask the co-pilot to write the quiz.')));
     return;
   }
   quiz.questions.forEach((q, i) => host.append(questionCard(q, i)));
@@ -591,9 +604,9 @@ function addBubble(kind, html) {
 }
 
 function greet() {
-  addBubble('ai', `Hi! I can add, rewrite, reorder and delete questions in this quiz.<br>
-    You are in <strong>${permission === 'auto' ? 'Auto-edit' : permission === 'read' ? 'Read-only' : 'Ask me'}</strong> mode —
-    ${permission === 'auto' ? 'I will apply changes straight away.' : permission === 'read' ? 'I will only suggest, never change anything.' : 'I will show you every change and wait for your approval.'}`);
+  addBubble('ai', `I can add, rewrite, reorder and delete questions in this quiz.<br>
+    <strong>${permission === 'auto' ? 'Auto-edit' : permission === 'read' ? 'Read-only' : 'Ask me'}</strong> mode:
+    ${permission === 'auto' ? 'changes are applied straight away.' : permission === 'read' ? 'nothing gets changed, only suggested.' : 'every change waits for your approval.'}`);
   renderPrompts();
 }
 
@@ -610,9 +623,9 @@ $$('#perm button').forEach(btn => {
     permission = btn.dataset.p;
     store.set('permission', permission);
     $$('#perm button').forEach(b => b.classList.toggle('on', b === btn));
-    addBubble('sys', permission === 'auto' ? '🔓 Auto-edit on — I will apply changes immediately'
-            : permission === 'read' ? '🔒 Read-only — I will not touch the quiz'
-            : '🛡 Ask me — you approve every change');
+    addBubble('sys', permission === 'auto' ? '🔓 Auto-edit on. Changes are applied straight away.'
+            : permission === 'read' ? '🔒 Read-only. The quiz will not be changed.'
+            : '🛡 Ask me. You approve every change.');
   };
 });
 
@@ -731,7 +744,7 @@ $('#share').onclick = () => {
   const link = location.origin + '/take?id=' + quizId;
   modal(`
     <h2 style="margin-bottom:6px">Share with your class</h2>
-    <p class="muted tiny" style="margin-bottom:18px">Perfect for homework — responses appear live in your Responses tab.</p>
+    <p class="muted tiny" style="margin-bottom:18px">Good for homework. Answers appear in your Responses tab as they come in.</p>
     <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
     <div class="field"><label class="label">Student link</label><input class="input mono" value="${esc(link)}" readonly></div>
     <div class="row" style="margin-top:18px;gap:10px">
@@ -744,30 +757,30 @@ $('#share').onclick = () => {
       box.querySelector('#qrbox').innerHTML = code
         ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
         : `<p class="tiny faint" style="text-align:center;max-width:34ch">This link carries the whole quiz inside it, so it is too
-           long for a QR code — use Copy or the Classroom button below.</p>`;
+           long for a QR code. Use Copy or the Classroom button below.</p>`;
     } });
 };
 
 $('#present').onclick = () => {
   if (!quiz.questions.length) return toast('Add a question first', 'bad');
   modal(`
-    <h2 style="margin-bottom:6px">Start a live game</h2>
-    <p class="muted tiny" style="margin-bottom:18px">Six ways to play the same quiz — students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
-    <div class="stack" style="gap:12px" id="mode-list">
-      <p class="tiny faint">Loading modes…</p>
+    <h2 style="margin-bottom:6px">Pick how the class plays</h2>
+    <p class="muted tiny" style="margin-bottom:18px">Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
+    <div class="modegrid" id="mode-list">
+      <p class="tiny faint">Loading…</p>
     </div>`, {
+    wide: true,
     async onMount(box, close) {
       const list = box.querySelector('#mode-list');
       let modes = [];
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
       if (!modes.length) modes = [{ id: 'normal', icon: '🎯', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
       list.innerHTML = '';
-      modes.forEach(m => {
-        const btn = el('button', { class: 'btn lg block', 'data-mode': m.id,
-          style: 'justify-content:flex-start;padding:16px 18px;text-align:left' });
-        btn.append(el('span', { style: 'font-size:24px' }, m.icon),
-          el('span', {}, el('strong', { style: 'display:block' }, m.label),
-                         el('span', { class: 'tiny muted' }, m.blurb)));
+      modes.forEach((m, i) => {
+        const btn = el('button', { class: 'modecard c' + (i % 6), 'data-mode': m.id });
+        btn.append(el('span', { class: 'ic' }, m.icon),
+                   el('strong', {}, m.label),
+                   el('span', { class: 'sub' }, m.blurb));
         list.append(btn);
       });
       box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova — live game host</title>
+<title>QuizNova live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="/nova.css">
@@ -27,22 +27,61 @@
 .pchip.blue{border-color:rgba(79,107,255,.5);background:rgba(79,107,255,.12)}
 .pchip .av{font-size:1.15rem}
 
-/* question stage */
-.qstage{padding:34px;text-align:center}
-.qstage h1{font-size:clamp(1.5rem,3.8vw,2.7rem);line-height:1.22;margin:16px 0 26px}
-.timer{width:96px;height:96px;position:relative;margin:0 auto}
-.timer .num{position:absolute;inset:0;display:grid;place-items:center;font-size:2.1rem;font-weight:800}
-.timer.low .num{color:var(--red);animation:tick .5s infinite}
-@keyframes tick{50%{transform:scale(1.12)}}
-.answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:8px}
-.ans{display:flex;gap:14px;align-items:center;padding:20px 22px;border-radius:var(--r-lg);font-weight:700;font-size:1.1rem;
-  text-align:left;border:2px solid transparent;position:relative;overflow:hidden;transition:.3s var(--ease)}
-.ans .fill{position:absolute;inset:0;background:var(--c);opacity:.16;width:0;transition:width .7s var(--ease)}
-.ans .txt{position:relative;z-index:2}
-.ans .cnt{position:relative;z-index:2;margin-left:auto;font-size:.9rem;opacity:.75}
-.ans{background:rgba(255,255,255,.05);border-color:var(--line)}
-.ans.reveal-right{border-color:var(--mint);background:rgba(52,224,161,.14);box-shadow:0 0 0 4px rgba(52,224,161,.15)}
-.ans.reveal-wrong{opacity:.42}
+/* the board, sized for the back row of a classroom */
+.board,.lobby{display:flex;flex-direction:column;gap:14px;height:calc(100vh - 128px);min-height:520px}
+.joinbar{flex:none;display:flex;align-items:center;gap:30px;background:#fff;color:#161036;border:3px solid #0b0718;
+  border-radius:24px;padding:16px 26px;box-shadow:0 13px 0 -3px rgba(0,0,0,.5)}
+.joinbar .lab{font-size:.66rem;letter-spacing:.17em;text-transform:uppercase;font-weight:800;opacity:.5}
+.joinbar .where{font-size:clamp(1rem,1.9vw,1.6rem);font-weight:850;line-height:1.15;word-break:break-word}
+.pinhuge{font-size:clamp(2.4rem,6.6vw,5rem);font-weight:900;letter-spacing:.1em;line-height:1.05}
+.qrbox{flex:none;background:#fff;border-radius:12px}
+.crowd{flex:1;min-height:0;overflow:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:12px}
+.face{display:flex;align-items:center;gap:10px;padding:11px 20px;border-radius:99px;font-weight:800;
+  font-size:clamp(1rem,1.4vw,1.3rem);background:rgba(255,255,255,.08);border:2px solid var(--line);
+  animation:popIn .35s var(--ease) both}
+.face.red{border-color:rgba(255,77,94,.55);background:rgba(255,77,94,.14)}
+.face.blue{border-color:rgba(79,107,255,.55);background:rgba(79,107,255,.14)}
+.face .av{font-size:1.5rem}
+.nobody{margin:auto;text-align:center;opacity:.6;font-size:1.1rem}
+.lobbybar{flex:none;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ask{background:#fff;color:#161036;border:3px solid #0b0718;border-radius:24px;padding:20px 28px;
+  display:flex;align-items:center;gap:24px;box-shadow:0 13px 0 -3px rgba(0,0,0,.5)}
+.ask h1{flex:1;text-align:center;font-size:clamp(1.6rem,4.2vw,3.4rem);line-height:1.14;
+  font-weight:850;letter-spacing:-.02em;margin:0}
+.dial{position:relative;flex:none;width:clamp(80px,7.4vw,116px);aspect-ratio:1}
+.dial svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dial .num{position:absolute;inset:0;display:grid;place-items:center;
+  font-size:clamp(1.7rem,2.6vw,2.6rem);font-weight:900;color:#161036}
+.dial.low .num{color:#F4364C}
+.dial.low{animation:pulseLow .9s infinite}
+@keyframes pulseLow{50%{transform:scale(1.06)}}
+.tally{flex:none;text-align:center;min-width:88px}
+.tally b{display:block;font-size:clamp(1.6rem,2.4vw,2.4rem);font-weight:900;line-height:1}
+.tally span{font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;opacity:.5;font-weight:800}
+
+.grid4{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:15px;min-height:0}
+.grid4.one{grid-template-columns:1fr}
+.tile{position:relative;display:flex;align-items:center;gap:20px;padding:18px 26px;border-radius:22px;
+  background:var(--c);color:#fff;border:3px solid rgba(0,0,0,.42);overflow:hidden;
+  box-shadow:0 11px 0 -3px rgba(0,0,0,.45);transition:opacity .4s,transform .4s,filter .4s;
+  animation:tileIn .34s var(--ease) both}
+@keyframes tileIn{from{opacity:0;transform:translateY(14px) scale(.97)}}
+.tile .sh{flex:none;width:clamp(34px,3vw,52px);display:grid;place-items:center}
+.tile .sh svg{width:100%;height:auto;fill:#fff;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.tile .lbl{flex:1;font-size:clamp(1.05rem,2.1vw,2rem);font-weight:800;line-height:1.16}
+.tile .n{flex:none;font-size:clamp(.95rem,1.5vw,1.5rem);font-weight:900;opacity:.92}
+.tile .fill{position:absolute;left:0;bottom:0;height:9px;width:0;background:rgba(255,255,255,.9);
+  transition:width .85s var(--ease)}
+.tile .tick{flex:none;font-size:clamp(1.1rem,1.7vw,1.7rem);opacity:0;transform:scale(.4);transition:.4s var(--ease)}
+.tile.miss{opacity:.26;transform:scale(.975);filter:saturate(.35)}
+.tile.hit{animation:hitPop .55s var(--ease)}
+.tile.hit .tick{opacity:1;transform:scale(1)}
+@keyframes hitPop{45%{transform:scale(1.03)}}
+.board.result .grid4{flex:none;grid-auto-rows:minmax(58px,auto)}
+.board.result .tile{padding:12px 22px}
+.board .rest{flex:none}
+.board.result .rest{flex:1;min-height:0;overflow:auto;padding-bottom:4px}
+.why{margin:0;font-size:1rem;font-weight:600;opacity:.8;text-align:center}
 
 /* laser arena */
 .arena{display:grid;grid-template-columns:1fr 74px 1fr;gap:14px;align-items:stretch;margin-top:18px}
@@ -164,7 +203,7 @@ const joinUrl = () => location.origin + '/play?pin=' + pin;
 const joinLabel = () => location.host + '/play';
 
 if (!pin) location.href = '/quiz';
-if (!hostToken) toast('You are watching this game — only the host device can control it.', 'bad');
+if (!hostToken) toast('You are watching this game. Only the teacher device can control it.', 'bad');
 
 function connect() {
   stream(`/games/${pin}/events`, (msg) => {
@@ -225,45 +264,49 @@ function paint(host, build, fresh) {
 function render(fresh) {
   const stage = $('#stage');
   if (game.state === 'lobby') { if (paint(stage, lobbyView, fresh)) bindLobby(); return; }
-  if (game.state === 'over')  { if (paint(stage, overView, fresh)) { clearInterval(ticker); confetti(140); } return; }
+  if (game.state === 'over')  { if (paint(stage, overView, fresh)) { cancelAnimationFrame(ticker); confetti(140); } return; }
   if (!game.question) return;
   if (paint(stage, () => questionView(fresh), fresh)) { bindQuestion(); runTimer(); }
 }
 
 /* ── lobby ─────────────────────────────────────── */
 function lobbyView() {
-  const root = el('div', {});
-  const panel = el('div', { class: 'card pin-panel' });
-  panel.innerHTML = `
-    <div>
-      <span class="mode-badge ${game.mode === 'laser' ? 'mode-laser' : 'mode-normal'}">
-        ${esc((game.modeInfo && game.modeInfo.icon) || '🎯')} ${esc((game.modeInfo && game.modeInfo.label) || 'Normal')} mode</span>
-      <h1 style="font-size:1.8rem;margin:16px 0 6px">${esc(game.quizTitle)}</h1>
-      <p class="muted tiny">${game.total} questions · waiting for players</p>
-      <div class="row" style="margin-top:24px;gap:10px;flex-wrap:wrap">
-        <button class="btn primary lg" id="start" ${hostToken ? '' : 'disabled'}>▶ Start game</button>
-        <button class="btn" id="cp">📋 Copy join link</button>
-      </div>
+  const root = el('div', { class: 'lobby' });
+
+  const bar = el('div', { class: 'joinbar' });
+  bar.innerHTML = `
+    <div style="flex:1">
+      <div class="lab">Join at</div>
+      <div class="where">${esc(joinLabel())}</div>
     </div>
     <div style="text-align:center">
-      <p class="label" style="margin-bottom:8px">Join at</p>
-      <p class="join-url gradient-text">${esc(joinLabel())}</p>
-      <p class="label" style="margin:18px 0 6px">Game PIN</p>
-      <div class="pin-big">${esc(pin)}</div>
-      <div id="qr" data-static style="margin-top:16px;display:inline-block;padding:10px;background:#fff;border-radius:14px"></div>
-    </div>`;
-  root.append(panel);
+      <div class="lab">Game PIN</div>
+      <div class="pinhuge">${esc(pin)}</div>
+    </div>
+    <div class="qrbox" id="qr" data-static></div>`;
+  root.append(bar);
 
-  const roster = el('div', { class: 'card pad', style: 'margin-top:18px' });
-  roster.append(el('div', { class: 'spread' },
-    el('h3', { style: 'font-size:1.05rem' }, `Players (${game.players.length})`),
-    el('span', { class: 'tiny faint' }, game.mode === 'laser' ? 'Teams are balanced automatically — players can swap in the lobby' : 'Everyone plays for themselves')));
-  const list = el('div', { class: 'players' });
-  if (!game.players.length) list.append(el('p', { class: 'faint tiny', style: 'padding:14px 0' }, 'Nobody has joined yet…'));
-  game.players.forEach(p => list.append(el('div', { class: 'pchip ' + (game.mode === 'laser' ? p.team : '') },
-    el('span', { class: 'av' }, p.avatar), p.name)));
-  roster.append(list);
-  root.append(roster);
+  const crowd = el('div', { class: 'crowd' });
+  if (!game.players.length) {
+    crowd.append(el('div', { class: 'nobody' },
+      el('div', { style: 'font-size:2.6rem' }, '👋'),
+      el('div', { style: 'margin-top:8px' }, 'Waiting for the class to join')));
+  } else {
+    game.players.forEach(p => crowd.append(el('div', { class: 'face ' + (game.mode === 'laser' ? p.team : '') },
+      el('span', { class: 'av' }, p.avatar), p.name)));
+  }
+  root.append(crowd);
+
+  root.append(el('div', { class: 'lobbybar' },
+    el('button', { class: 'btn primary lg', id: 'start', disabled: hostToken ? null : true }, 'Start game'),
+    el('button', { class: 'btn', id: 'cp' }, 'Copy join link'),
+    el('span', { class: 'mode-badge ' + (game.mode === 'laser' ? 'mode-laser' : 'mode-normal') },
+       `${(game.modeInfo && game.modeInfo.icon) || '🎯'} ${(game.modeInfo && game.modeInfo.label) || 'Normal'}`),
+    el('span', { class: 'muted' },
+       `${game.players.length} player${game.players.length === 1 ? '' : 's'} · ${game.total} questions`),
+    game.mode === 'laser'
+      ? el('span', { class: 'tiny faint' }, 'Teams are balanced automatically. Players can swap before the start.')
+      : ''));
   return root;
 }
 
@@ -296,55 +339,57 @@ function drawQR(url) {
 /* ── question ──────────────────────────────────── */
 function questionView(fresh) {
   const q = game.question;
-  const root = el('div', {});
-  const box = el('div', { class: 'card qstage', id: 'qbox' });
-  root.append(box, el('div', { id: 'extra' }));
-
-  const answered = game.players.filter(p => p.answered).length;
   const revealing = game.state === 'reveal';
+  const answered = game.players.filter(p => p.answered).length;
+  const root = el('div', { class: 'board' + (revealing ? ' result' : '') });
 
-  box.innerHTML = `
-    <div class="spread" style="align-items:flex-start">
-      <span class="chip">Question ${game.index + 1} / ${game.total}</span>
-      <div class="timer" id="timer" data-static>
-        <svg width="96" height="96" style="transform:rotate(-90deg)">
-          <circle cx="48" cy="48" r="42" stroke="rgba(255,255,255,.09)" stroke-width="8" fill="none"></circle>
-          <circle cx="48" cy="48" r="42" stroke="#7c5cff" stroke-width="8" fill="none" stroke-linecap="round"
-                  id="tring" stroke-dasharray="264" stroke-dashoffset="0"></circle>
-        </svg>
-        <div class="num" id="tnum">–</div>
-      </div>
-      <span class="chip ${answered === game.players.length && game.players.length ? 'live' : ''}">
-        ${answered}/${game.players.length} answered</span>
+  const ask = el('div', { class: 'ask' });
+  ask.innerHTML = `
+    <div class="dial" id="timer" data-static>
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" stroke="rgba(22,16,54,.12)" stroke-width="9" fill="none"></circle>
+        <circle cx="50" cy="50" r="44" stroke="#6C4CF1" stroke-width="9" fill="none" stroke-linecap="round"
+                id="tring" stroke-dasharray="276.5" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="num" id="tnum">&ndash;</div>
     </div>
     <h1>${esc(q.text || 'Question')}</h1>
-    <div class="answers" id="answers"></div>
-    ${revealing && q.explanation ? `<p class="muted" style="margin-top:20px;font-style:italic">${esc(q.explanation)}</p>` : ''}
-    <div class="row" style="justify-content:center;margin-top:26px;gap:10px">
-      ${hostToken ? `<button class="btn ${revealing ? 'primary' : ''}" id="advance">
-        ${revealing ? (game.index + 1 >= game.total ? 'Show final results →' : 'Next question →') : 'Skip to answer'}</button>` : ''}
-    </div>`;
+    <div class="tally"><b>${answered}/${game.players.length}</b><span>answered</span></div>`;
+  root.append(ask);
 
-  const wrap = box.querySelector('#answers');
+  const grid = el('div', { class: 'grid4' });
   if (q.type === 'short') {
-    wrap.style.gridTemplateColumns = '1fr';
-    wrap.append(el('div', { class: 'ans a3' },
-      el('span', { class: 'txt' }, revealing ? `Answer: ${q.answer || '—'}` : 'Type-in answer — students are typing…')));
+    grid.classList.add('one');
+    const tile = el('div', { class: 'tile a2', style: '--c:var(--sun)' });
+    tile.innerHTML = `<span class="lbl">${revealing ? 'Answer: ' + esc(q.answer || '') : 'Everyone is typing an answer'}</span>`;
+    grid.append(tile);
   } else {
     const total = Object.values(game.counts || {}).reduce((a, b) => a + b, 0) || 1;
     q.choices.forEach((c, i) => {
       const count = (game.counts || {})[c.id] || 0;
-      const node = el('div', { class: `ans a${i % 6}` + (revealing ? (c.correct ? ' reveal-right' : ' reveal-wrong') : '') });
       const pct = revealing ? (count / total * 100) : 0;
-      node.innerHTML = `<span class="fill" style="width:${fresh ? 0 : pct}%"></span>${SHAPES[i % 6]}
-        <span class="txt">${esc(c.text || '—')}</span>
-        <span class="cnt">${revealing ? count + (count === 1 ? ' answer' : ' answers') : ''}</span>`;
-      wrap.append(node);
-      if (revealing && fresh) requestAnimationFrame(() => node.querySelector('.fill').style.width = pct + '%');
+      const tile = el('div', { class: `tile a${i % 6}` + (revealing ? (c.correct ? ' hit' : ' miss') : ''),
+                               style: `animation-delay:${i * 55}ms` });
+      tile.innerHTML = `<span class="sh">${SHAPES[i % 6]}</span>
+        <span class="lbl">${esc(c.text || '')}</span>
+        ${revealing ? `<span class="tick">&#10004;</span><span class="n">${count}</span>` : ''}
+        <span class="fill" style="width:${fresh ? 0 : pct}%"></span>`;
+      grid.append(tile);
+      if (revealing && fresh) requestAnimationFrame(() => tile.querySelector('.fill').style.width = pct + '%');
     });
   }
+  root.append(grid);
 
-  extraInto(root.querySelector('#extra'));
+  if (revealing && q.explanation) root.append(el('p', { class: 'why' }, q.explanation));
+
+  // the arena and the table belong to the moment the scores move, not to the question
+  const rest = el('div', { class: 'rest', id: 'extra' });
+  if (revealing) extraInto(rest);
+  root.append(rest);
+
+  if (hostToken) root.append(el('div', { class: 'row', style: 'justify-content:center;flex:none' },
+    el('button', { class: 'btn lg' + (revealing ? ' primary' : ''), id: 'advance' },
+       revealing ? (game.index + 1 >= game.total ? 'Final scores' : 'Next question') : 'Show the answer')));
   return root;
 }
 
@@ -353,33 +398,43 @@ function bindQuestion() {
   if (advance) advance.onclick = () => api(`/games/${pin}/next`, { method: 'POST', body: { hostToken } }).catch(e => toast(e.message, 'bad'));
 }
 
+/* The ring is redrawn every frame rather than five times a second: at a distance a
+ * stepping ring is the most obvious thing on the screen. */
 function runTimer() {
-  clearInterval(ticker);
+  cancelAnimationFrame(ticker); clearInterval(ticker);
   const num = document.getElementById('tnum');
   const ring = document.getElementById('tring');
+  const dial = document.getElementById('timer');
   if (!num) return;
-  if (game.state !== 'question' || !game.endsAt) { num.textContent = '✓'; if (ring) ring.style.strokeDashoffset = 264; return; }
+  if (game.state !== 'question' || !game.endsAt) {
+    num.textContent = '✓'; dial?.classList.remove('low');
+    if (ring) ring.style.strokeDashoffset = 276.5;
+    return;
+  }
   const limit = (game.question.time || 20) * 1000;
-  const paint = () => {
+  let fired = false;
+  const frame = () => {
     const left = Math.max(0, game.endsAt - (Date.now() + drift));
     num.textContent = Math.ceil(left / 1000);
-    document.getElementById('timer')?.classList.toggle('low', left < 5200);
-    if (ring) ring.style.strokeDashoffset = 264 * (1 - left / limit);
+    dial?.classList.toggle('low', left < 5200);
+    if (ring) ring.style.strokeDashoffset = 276.5 * (1 - left / limit);
     if (left <= 0) {
-      clearInterval(ticker);
-      if (hostToken) api(`/games/${pin}/tick`, { method: 'POST', body: { hostToken } }).catch(() => {});
+      if (!fired && hostToken) { fired = true; api(`/games/${pin}/tick`, { method: 'POST', body: { hostToken } }).catch(() => {}); }
+      return;
     }
+    ticker = requestAnimationFrame(frame);
   };
-  paint();
-  ticker = setInterval(paint, 200);
+  frame();
 }
 
 /* ── leaderboard / arena under the question ────── */
 function extraInto(host) {
   if (!host) return;
   const views = { laser: arena, kart: raceTrack, tower: skyline, treasure: treasureBoard, boss: bossArena };
-  host.append((views[game.mode] || leaderboard)());
-  if (game.mode !== 'laser' && game.mode !== 'boss') host.append(leaderboard());
+  const view = views[game.mode];
+  // laser and boss carry their own standings, so a table underneath would repeat them
+  if (view) host.append(view());
+  if (!view || (game.mode !== 'laser' && game.mode !== 'boss')) host.append(leaderboard());
 }
 
 const KART_COLOURS = ['#F4364C', '#4F6BFF', '#FFC53D', '#12BE8E', '#6C4CF1', '#2BA8FF'];
@@ -530,7 +585,7 @@ function overView() {
     card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
       el('h1', { style: 'font-size:2.1rem;margin:8px 0' },
         won ? `The class defeated ${boss.name}!` : `${boss.name} survived this time`),
-      el('p', { class: 'muted' }, won ? 'Every right answer landed a blow.' : `${boss.hp} HP left — closer next lesson.`));
+      el('p', { class: 'muted' }, won ? 'Every right answer landed a blow.' : `${boss.hp} HP left. Closer next lesson.`));
   } else if (game.mode === 'kart') {
     const first = game.players[0];
     card.append(el('div', { style: 'font-size:3.4rem' }, '🏁'),

@@ -96,9 +96,9 @@
     }, 2800);
   }
 
-  function modal(html, { onMount } = {}) {
+  function modal(html, { onMount, wide } = {}) {
     const overlay = el('div', { class: 'overlay' });
-    const box = el('div', { class: 'modal', html });
+    const box = el('div', { class: 'modal' + (wide ? ' wide' : ''), html });
     overlay.append(box);
     overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
     const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -111,7 +111,7 @@
 
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); toast('Copied to clipboard', 'good'); }
-    catch { toast('Copy failed — select the link manually', 'bad'); }
+    catch { toast('Copy failed. Select the link and copy it.', 'bad'); }
   }
 
   /* Google Classroom share — the official share endpoint. */

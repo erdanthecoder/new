@@ -42,12 +42,12 @@
   const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
 
   const MODES = {
-    normal:   { label: 'Normal',       icon: '🎯', blurb: 'Speed points, streak multipliers, live leaderboard' },
-    laser:    { label: 'Laser Tag',    icon: '🔫', blurb: 'Two teams, real HP, overcharge streaks and revives' },
-    kart:     { label: 'Kart Race',    icon: '🏎️', blurb: 'Every right answer drives you further; streaks boost' },
-    tower:    { label: 'Tower Build',  icon: '🧱', blurb: 'Stack a block per answer — a miss wobbles it loose' },
-    treasure: { label: 'Treasure Run', icon: '💎', blurb: 'Coins and lucky chests, so anyone can still win' },
-    boss:     { label: 'Boss Battle',  icon: '🐉', blurb: 'The whole class against one boss — win or lose together' }
+    normal:   { label: 'Normal',       icon: '🎯', blurb: 'Fastest right answer scores the most' },
+    laser:    { label: 'Laser Tag',    icon: '🔫', blurb: 'Two teams. Right answers fire, wrong ones cost shield' },
+    kart:     { label: 'Kart Race',    icon: '🏎️', blurb: 'Every right answer drives your kart further' },
+    tower:    { label: 'Tower Build',  icon: '🧱', blurb: 'Stack a block for each right answer' },
+    treasure: { label: 'Treasure Run', icon: '💎', blurb: 'Collect coins and open lucky chests' },
+    boss:     { label: 'Boss Battle',  icon: '🐉', blurb: 'The whole class fights one boss together' }
   };
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
   const TEAM_HP_FLOOR = 400, TEAM_HP_PER_PLAYER = 250, MAX_PLAYER_HIT = 40;
@@ -71,9 +71,10 @@
   /* ── the six modes, same rules as the server edition ─── */
   const SCORERS = {
     normal(game, p, q, ok, speed) {
-      if (!ok) return;
+      if (!ok) { p.lastGain = 0; return; }
       const base = q.points || 100;
-      p.score += Math.round((base * 0.5 + base * 0.5 * speed) * (1 + Math.min(p.streak, 5) * 0.1));
+      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (1 + Math.min(p.streak, 5) * 0.1));
+      p.score += gain; p.lastGain = gain;
     },
     laser(game, p, q, ok, speed) {
       const foe = p.team === 'red' ? 'blue' : 'red';

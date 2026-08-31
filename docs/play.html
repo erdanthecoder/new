@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>QuizNova — play</title>
+<title>QuizNova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="nova.css?v=8168e7f7">
+<link rel="stylesheet" href="nova.css?v=bcdd0d0d">
 <style>
 .shell{max-width:640px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;display:flex;flex-direction:column}
 .hud{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:16px;background:rgba(255,255,255,.05);
@@ -22,15 +22,37 @@
 .av-pick:hover{background:rgba(255,255,255,.1);transform:scale(1.07)}
 .av-pick.on{border-color:var(--violet);background:rgba(124,92,255,.22)}
 
-.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.opt-btn{display:flex;gap:12px;align-items:center;padding:22px 18px;border-radius:var(--r-lg);border:none;cursor:pointer;
-  font-weight:750;font-size:1.05rem;text-align:left;color:#fff;background:var(--c);min-height:clamp(104px,17vh,168px);
-  transition:transform .16s var(--ease),filter .2s,opacity .2s;box-shadow:0 12px 26px -14px var(--c)}
-.opt-btn:active{transform:scale(.96)}
+/* the phone is the controller: the buttons get the whole screen */
+.play{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+#app{display:flex;flex-direction:column;min-height:100dvh}
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.qtext{font-size:clamp(1.25rem,5.6vw,1.8rem);font-weight:850;line-height:1.24;margin:2px 0 6px}
+.opts{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:11px;min-height:0}
+.opt-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;
+  padding:14px;border-radius:20px;border:none;
+  cursor:pointer;font-weight:850;font-size:clamp(1.3rem,6vw,2rem);color:#fff;background:var(--c);
+  transition:transform .14s var(--ease),filter .2s,opacity .2s;box-shadow:0 10px 0 -3px rgba(0,0,0,.32);
+  animation:tileIn .3s var(--ease) both}
+@keyframes tileIn{from{opacity:0;transform:translateY(12px)}}
+.opt-btn .shape{width:clamp(36px,10vw,52px);height:clamp(36px,10vw,52px);fill:#fff;filter:drop-shadow(0 2px 0 rgba(0,0,0,.2))}
+.opt-btn:active{transform:translateY(4px);box-shadow:0 5px 0 -3px rgba(0,0,0,.32)}
 .opt-btn:disabled{opacity:.4}
 .opt-btn.chosen{outline:4px solid #fff;transform:scale(1.02)}
-.opt-btn .lbl{flex:1}
+.opt-btn .lbl{line-height:1.2}
 .opts.one{grid-template-columns:1fr}
+
+/* the result takes over the screen, the way it does on a games console */
+.big{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  border-radius:26px;padding:30px 20px;text-align:center;animation:swell .34s var(--ease) both}
+@keyframes swell{from{opacity:0;transform:scale(.94)}}
+.big .mark{font-size:clamp(3.4rem,20vw,5.5rem);line-height:1;animation:pop .45s var(--ease) both}
+.big h2{font-size:clamp(1.5rem,7vw,2.2rem);font-weight:900;margin:6px 0 0}
+.big .gain{font-size:clamp(1.6rem,8vw,2.4rem);font-weight:900;margin-top:4px}
+.big .sub{opacity:.85;font-weight:600}
+.big.good{background:linear-gradient(165deg,#12BE8E,#0B8F6B);color:#fff}
+.big.bad{background:linear-gradient(165deg,#F4364C,#B31F32);color:#fff}
+.big.wait{background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.big.late{background:linear-gradient(165deg,#5A5170,#3A3350);color:#fff}
 
 .verdict{padding:44px 24px;text-align:center;border-radius:var(--r-xl);animation:fadeUp .4s var(--ease) both}
 .verdict.good{background:linear-gradient(160deg,rgba(52,224,161,.24),rgba(52,224,161,.05));border:1px solid rgba(52,224,161,.45)}
@@ -55,10 +77,11 @@
 <body class="dark">
 <main class="shell" id="app"></main>
 
-<script src="nova.js?v=ae1e0f3f"></script>
+<script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="live.js?v=43482720"></script>
-<script src="nova-local.js?v=ba11c601"></script>
+<script src="realtime.js?v=860b888e"></script>
+<script src="live.js?v=eda5027d"></script>
+<script src="nova-local.js?v=852b3257"></script>
 <script>
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
 const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
@@ -236,28 +259,29 @@ function lobbyCard() {
 
 function questionCard(fresh) {
   const q = game.question;
-  const card = el('div', { class: 'card pad fade-up' });
-  card.append(el('div', { class: 'spread' },
-    el('span', { class: 'chip' }, `Q${game.index + 1} / ${game.total}`),
-    el('span', { class: 'chip', id: 'ptimer' }, '…')));
+  const card = el('div', { class: 'play' });
 
   if (me.answered) {
-    card.append(el('div', { class: 'verdict', style: 'background:rgba(255,255,255,.04);border:1px solid var(--line)' },
-      el('span', { class: 'em' }, '⏳'),
-      el('h2', {}, 'Answer locked in'),
-      el('p', { class: 'muted tiny', style: 'margin-top:6px' }, 'Waiting for everyone else…')));
+    const shape = SHAPES[(picked && (q.choices || []).findIndex(c => c.id === picked)) % 6] || '';
+    card.append(el('div', { class: 'big wait' },
+      el('div', { class: 'mark', html: shape ? shape.replace('class="shape"', 'class="shape" style="width:74px;height:74px;fill:#fff"') : '⏳' }),
+      el('h2', {}, 'Answer sent'),
+      el('p', { class: 'sub' }, 'Eyes on the board')));
     return card;
   }
 
-  card.append(el('h2', { style: 'font-size:1.2rem;margin:16px 0 4px;line-height:1.35' }, q.text || 'Question'));
+  card.append(el('div', { class: 'qhead' },
+    el('span', { class: 'chip' }, `Q${game.index + 1} / ${game.total}`),
+    el('span', { class: 'chip', id: 'ptimer' }, '')));
+  card.append(el('h2', { class: 'qtext' }, q.text || 'Question'));
   if (game.mode === 'laser' && me.down)
-    card.append(el('p', { class: 'tiny', style: 'color:var(--amber);margin-top:6px' },
-      '💫 You are down — a correct answer now heals a teammate instead of firing.'));
+    card.append(el('p', { class: 'tiny', style: 'color:var(--amber)' },
+      'You are down. A right answer heals a teammate.'));
 
   if (q.type === 'short') {
-    const input = el('input', { class: 'input', style: 'font-size:1.1rem;padding:16px;margin-top:16px', placeholder: 'Type your answer…' });
+    const input = el('input', { class: 'input', style: 'font-size:1.15rem;padding:16px', placeholder: 'Type your answer' });
     const send = el('button', { class: 'btn primary lg block', style: 'margin-top:12px',
-      onclick: () => answer(input.value.trim()) }, 'Submit answer');
+      onclick: () => answer(input.value.trim()) }, 'Send');
     input.onkeydown = e => { if (e.key === 'Enter') answer(input.value.trim()); };
     card.append(input, send);
     setTimeout(() => input.focus(), 80);
@@ -266,18 +290,18 @@ function questionCard(fresh) {
     const chosen = new Set();
     const wrap = el('div', { class: 'opts' + (q.choices.length <= 2 ? ' one' : '') });
     q.choices.forEach((c, i) => {
-      const btn = el('button', { class: `opt-btn a${i % 6}`, onclick: () => {
+      const btn = el('button', { class: `opt-btn a${i % 6}`, style: `animation-delay:${i * 50}ms`, onclick: () => {
         if (isMulti) {
           chosen.has(c.id) ? chosen.delete(c.id) : chosen.add(c.id);
           btn.classList.toggle('chosen', chosen.has(c.id));
         } else answer(c.id);
       } });
-      btn.innerHTML = `${SHAPES[i % 6].replace('var(--c)', '#fff')}<span class="lbl">${esc(c.text || '—')}</span>`;
+      btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl">${esc(c.text || '')}</span>`;
       wrap.append(btn);
     });
     card.append(wrap);
-    if (isMulti) card.append(el('button', { class: 'btn primary lg block', style: 'margin-top:14px',
-      onclick: () => answer(Array.from(chosen)) }, 'Lock in my answers'));
+    if (isMulti) card.append(el('button', { class: 'btn primary lg block',
+      onclick: () => answer(Array.from(chosen)) }, 'Send my answers'));
   }
   return card;
 }
@@ -297,38 +321,39 @@ async function answer(value) {
 function revealCard() {
   const q = game.question;
   const ok = me.correct;
-  const card = el('div', { class: 'card pad fade-up', style: 'padding:0;background:none;border:none;box-shadow:none' });
+  const card = el('div', { class: 'play' });
+  const g = me.lastGain || 0;
 
   if (me.correct === null || me.correct === undefined) {
-    card.append(el('div', { class: 'verdict', style: 'background:rgba(255,255,255,.04);border:1px solid var(--line)' },
-      el('span', { class: 'em' }, '⌛'), el('h2', {}, 'Too slow!'),
-      el('p', { class: 'muted tiny', style: 'margin-top:6px' }, 'No answer this round.')));
+    card.append(el('div', { class: 'big late' },
+      el('div', { class: 'mark' }, '⌛'),
+      el('h2', {}, 'Too slow'),
+      el('p', { class: 'sub' }, 'Be quicker next round')));
   } else {
-    const g = me.lastGain || 0;
-    const gained = game.mode === 'laser'
-        ? (me.down ? 'Teammate healed' : ok ? 'Laser fired!' : 'Shield hit')
-      : game.mode === 'kart' ? (ok ? `🏎️ Drove ${g}m further` : '🛑 You span out')
-      : game.mode === 'tower' ? (ok ? `🧱 Stacked ${g} block${g > 1 ? 's' : ''}` : '🪨 A block fell off')
-      : game.mode === 'treasure' ? (ok ? `🪙 ${g} coins${me.chest ? ' — ' + me.chest : ''}` : '🕳️ Empty chest')
-      : game.mode === 'boss' ? (ok ? `⚔️ ${g} damage to the boss` : '🔥 The boss struck back')
-      : (ok ? '+ points' : 'no points');
-    card.append(el('div', { class: 'verdict ' + (ok ? 'good' : 'bad') },
-      el('span', { class: 'em' }, ok ? (me.streak >= 3 ? '⚡' : '✅') : '❌'),
-      el('h2', { style: 'font-size:1.6rem' }, ok ? (me.streak >= 3 ? 'OVERCHARGE!' : 'Correct!') : 'Not this time'),
-      el('p', { class: 'muted', style: 'margin-top:6px' }, gained),
-      me.streak >= 2 ? el('p', { class: 'chip warn', style: 'margin-top:12px;display:inline-flex' }, `🔥 ${me.streak} in a row`) : ''));
+    const line = game.mode === 'laser' ? (me.down ? 'Teammate healed' : ok ? 'Laser fired' : 'Shield hit')
+      : game.mode === 'kart'     ? (ok ? `+${g} metres` : 'Spun out')
+      : game.mode === 'tower'    ? (ok ? `+${g} block${g > 1 ? 's' : ''}` : 'A block fell')
+      : game.mode === 'treasure' ? (ok ? `+${g} coins` : 'Empty chest')
+      : game.mode === 'boss'     ? (ok ? `${g} damage` : 'The boss hit back')
+      :                            (ok ? `+${g || 0}` : 'No points');
+    card.append(el('div', { class: 'big ' + (ok ? 'good' : 'bad') },
+      el('div', { class: 'mark' }, ok ? (me.streak >= 3 ? '⚡' : '✓') : '✕'),
+      el('h2', {}, ok ? (me.streak >= 3 ? 'On fire' : 'Correct') : 'Not this time'),
+      el('p', { class: 'gain' }, line),
+      me.chest ? el('p', { class: 'sub' }, me.chest) : '',
+      me.streak >= 2 ? el('p', { class: 'sub' }, `${me.streak} in a row`) : ''));
   }
 
   const right = q.type === 'short' ? q.answer : (q.choices || []).filter(c => c.correct).map(c => c.text).join(', ');
-  const info = el('div', { class: 'card pad', style: 'margin-top:14px' },
-    el('p', { class: 'tiny faint' }, 'Correct answer'),
-    el('p', { style: 'font-weight:700;margin-top:2px' }, right || '—'));
-  if (q.explanation) info.append(el('p', { class: 'tiny muted', style: 'margin-top:8px;font-style:italic' }, q.explanation));
+  const info = el('div', { class: 'card pad', style: 'margin-top:12px;flex:none' },
+    el('p', { class: 'tiny faint' }, 'Answer'),
+    el('p', { style: 'font-weight:800;font-size:1.15rem;margin-top:2px' }, right || ''));
+  if (q.explanation) info.append(el('p', { class: 'tiny muted', style: 'margin-top:6px' }, q.explanation));
   card.append(info);
 
   if (game.mode === 'boss' && game.boss) {
     const b = game.boss;
-    card.append(el('div', { class: 'card pad', style: 'margin-top:14px;text-align:center' },
+    card.append(el('div', { class: 'card pad', style: 'margin-top:12px;flex:none;text-align:center' },
       el('p', { class: 'tiny faint' }, b.name),
       el('h2', { style: 'font-size:1.6rem' }, `${b.hp} HP left`),
       el('div', { style: 'height:12px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;margin-top:8px' },
@@ -346,15 +371,16 @@ function revealCard() {
         style: `width:${Math.max(0, t.hp / maxHp(side) * 100)}%;background:${side === 'red' ? 'linear-gradient(90deg,#ff4d5e,#ff9b6a)' : 'linear-gradient(90deg,#4f6bff,#22d3ee)'}`
       })));
     });
+    box.style.flex = 'none';
     card.append(box);
   } else {
     const rank = game.players.findIndex(p => p.id === me.id) + 1;
-    card.append(el('div', { class: 'card pad', style: 'margin-top:14px;text-align:center' },
+    card.append(el('div', { class: 'card pad', style: 'margin-top:12px;flex:none;text-align:center' },
       el('p', { class: 'tiny faint' }, 'Your position'),
       el('h2', { style: 'font-size:2rem' }, '#' + (rank || '–')),
       el('p', { class: 'tiny muted' }, me.score + ' points')));
   }
-  card.append(el('p', { class: 'tiny faint', style: 'text-align:center;margin-top:16px' }, 'Look up at the board…'));
+  card.append(el('p', { class: 'tiny faint', style: 'text-align:center;margin-top:14px' }, 'Look up at the board'));
   return card;
 }
 
