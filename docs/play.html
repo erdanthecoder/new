@@ -57,13 +57,14 @@
 
 <script src="nova.js?v=ae1e0f3f"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="live.js?v=b685837e"></script>
-<script src="nova-local.js?v=54e4f76d"></script>
+<script src="live.js?v=43482720"></script>
+<script src="nova-local.js?v=ba11c601"></script>
 <script>
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
 const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
 
 let pin = qs('pin'), me = null, game = null, drift = 0, ticker = null, picked = null, lastKey = '';
+let answeredIndex = -1;   // the question this device has already sent — sticky until the next one
 let avatar = store.get('avatar') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
 if (pin) { const saved = store.get('player:' + pin); if (saved) me = saved; }
@@ -150,10 +151,30 @@ function apply(state) {
   const mine = state.players.find(p => p.id === me?.id);
   if (mine) me = { ...me, ...mine };
   else if (state.state !== 'lobby') { /* removed */ }
+  // our own answer reaches the host a moment before the host scores it: until then
+  // the state still says answered:false, and believing it would flash the question back
+  if (state.state === 'question' && answeredIndex === state.index && me) me.answered = true;
   document.body.classList.toggle('laser', state.mode === 'laser');
   const key = state.state + ':' + state.index + ':' + (me?.answered ? 'a' : 'w');
-  render(key !== lastKey);
+  const fresh = key !== lastKey;
   lastKey = key;
+  if (fresh) render(true); else patch();
+}
+
+/* Between two states nothing structural changes — only numbers do. Updating them in
+ * place keeps the cards, their entry animations and the answer buttons alive; rebuilding
+ * the screen every poll is what made the game look like it was stuttering. */
+function patch() {
+  if (!me) return;
+  const hudNode = document.querySelector('#app .hud');
+  if (hudNode) hudNode.replaceWith(hud());
+  const players = document.getElementById('lobby-count');
+  if (players) players.textContent = game.players.length + ' player' + (game.players.length === 1 ? '' : 's') + ' in the lobby';
+  const counts = document.querySelectorAll('[data-team-count]');
+  counts.forEach(node => {
+    const side = node.getAttribute('data-team-count');
+    node.textContent = game.players.filter(p => p.team === side).length + ' players';
+  });
 }
 
 function hud() {
@@ -184,7 +205,7 @@ function render(fresh) {
   if (game.state === 'over') return app.append(overCard());
   if (game.state === 'reveal') return app.append(revealCard());
   app.append(questionCard(fresh));
-  runTimer();
+  runTimer();   // only reached on a structural change, so the countdown is not restarted
 }
 
 function lobbyCard() {
@@ -195,7 +216,7 @@ function lobbyCard() {
     <p class="muted tiny">${esc(game.quizTitle)} · ${game.total} questions</p>
     <p class="muted" style="margin-top:16px">${esc((game.modeInfo && game.modeInfo.blurb) || 'Waiting for your teacher to start…')}</p>
     <p class="tiny faint" style="margin-top:6px">Waiting for your teacher to start…</p>
-    <p class="tiny faint" style="margin-top:8px">${game.players.length} player${game.players.length === 1 ? '' : 's'} in the lobby</p>`;
+    <p class="tiny faint" style="margin-top:8px" id="lobby-count">${game.players.length} player${game.players.length === 1 ? '' : 's'} in the lobby</p>`;
 
   if (game.mode === 'laser') {
     const pick = el('div', { class: 'team-pick' });
@@ -205,7 +226,8 @@ function lobbyCard() {
         if (me.team === side) return;
         try { await api(`/games/${pin}/team`, { method: 'POST', body: { playerId: me.id } }); }
         catch (err) { toast(err.message, 'bad'); }
-      } }, (side === 'red' ? '🔴 Crimson' : '🔵 Cobalt'), el('div', { class: 'tiny faint' }, count + ' players')));
+      } }, (side === 'red' ? '🔴 Crimson' : '🔵 Cobalt'),
+         el('div', { class: 'tiny faint', 'data-team-count': side }, count + ' players')));
     });
     card.append(el('p', { class: 'label', style: 'margin-top:22px' }, 'Your team'), pick);
   }
@@ -265,6 +287,7 @@ async function answer(value) {
   picked = value;
   try {
     const res = await api(`/games/${pin}/answer`, { method: 'POST', body: { playerId: me.id, answer: value } });
+    answeredIndex = game.index;
     me.answered = true; me.correct = res.correct; me.score = res.score; me.hp = res.hp; me.streak = res.streak;
     if (navigator.vibrate) navigator.vibrate(res.correct ? [22, 40, 22] : 90);
     render(true);

@@ -63,10 +63,10 @@ def build():
                             "history.replaceState(null, '', 'play.html?pin=' + pin)")
         if page == "host.html":
             # a folder-relative join link, shown without the protocol
-            html = html.replace("const url = location.origin + '/play?pin=' + pin;",
-                                "const url = location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin;")
-            html = html.replace("${esc(location.host)}/play",
-                                "${esc(url.replace(/^https?:\\/\\//, '').replace(/\\?.*$/, ''))}")
+            html = html.replace("const joinUrl = () => location.origin + '/play?pin=' + pin;",
+                                "const joinUrl = () => location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin;")
+            html = html.replace("const joinLabel = () => location.host + '/play';",
+                                "const joinLabel = () => joinUrl().replace(/^https?:\\/\\//, '').replace(/\\?.*$/, '');")
         else:
             # the other pages only mention the address in prose
             html = html.replace("${esc(location.host)}/play",

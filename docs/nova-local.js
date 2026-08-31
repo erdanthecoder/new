@@ -330,6 +330,10 @@ Rules:
     throw Object.assign(new Error(message), { status });
   };
 
+  /* Polling that follows the game rather than a fixed metronome. */
+  const gameKicks = new Set();
+  let liveGamePace = 'idle';
+
   Nova.api = async function (path, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const body = options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : {};
@@ -449,6 +453,10 @@ Rules:
       }
       const result = await window.NovaLive.handle(clean, method, body);
       if (result === null) fail('Unknown request: ' + path, 404);
+      if (result && result.state) liveGamePace = result.state === 'question' ? 'question' : 'idle';
+      // anything this device just did (answered, started, advanced) should show up now
+      // …just after the caller has handled the reply, so the two cannot race
+      if (method === 'POST' && clean !== '/games') setTimeout(() => gameKicks.forEach(kick => kick()), 30);
       return result;
     }
     fail('Unknown request: ' + path, 404);
@@ -594,17 +602,25 @@ Rules:
     const game = path.match(/^\/games\/([^/]+)\/events$/);
     if (game) {
       const pin = game[1];
-      let stop = false;
+      let stop = false, busy = false;
       const tick = async () => {
-        if (stop) return;
+        if (stop || busy) return;
+        busy = true;
+        clearTimeout(timer);
         try {
           const state = await Nova.api('/games/' + pin);
           onMessage({ event: 'game:state', data: state });
         } catch { /* between questions the row may briefly be busy */ }
-        if (!stop) timer = setTimeout(tick, 1200);
+        busy = false;
+        // an open question is the part of the game people watch, so look more often
+        const wait = liveGamePace === 'question' ? 700 : 1500;
+        if (!stop) timer = setTimeout(tick, wait);
       };
       let timer = setTimeout(tick, 60);
-      return { close() { stop = true; clearTimeout(timer); } };
+      // this device just did something (answered, started, advanced): do not make it
+      // wait out the poll interval to see the result
+      gameKicks.add(tick);
+      return { close() { stop = true; clearTimeout(timer); gameKicks.delete(tick); } };
     }
 
     const handler = (evt) => { if (evt.key === KEY) onMessage({ event: 'poll', data: {} }); };

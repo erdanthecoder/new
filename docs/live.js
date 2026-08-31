@@ -220,13 +220,15 @@
     game.endsAt = now() + (game.questions[game.index].time || 20) * 1000 + 700;
   }
 
+  const readPlayers = (pin) =>
+    rest('GET', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}&select=*`);
+  const readAnswers = (pin, index) => index < 0 ? Promise.resolve([])
+    : rest('GET', `/quiznova_live_answers?pin=eq.${encodeURIComponent(pin)}&q_index=eq.${index}&select=*`);
+
   /* ── the host's reconcile step: pull answers, score them ─ */
-  async function reconcile(pin, game) {
-    const [playerRows, answerRows] = await Promise.all([
-      rest('GET', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}&select=*`),
-      game.index >= 0
-        ? rest('GET', `/quiznova_live_answers?pin=eq.${encodeURIComponent(pin)}&q_index=eq.${game.index}&select=*`)
-        : Promise.resolve([])
+  async function reconcile(pin, game, prefetched) {
+    const [playerRows, answerRows] = prefetched || await Promise.all([
+      readPlayers(pin), readAnswers(pin, game.index)
     ]);
 
     let changed = false;
@@ -278,6 +280,13 @@
     try { return JSON.parse(localStorage.getItem('nova:host:' + pin)); } catch { return null; }
   };
 
+  /* The host's poll needs the game, the players and this question's answers. Waiting
+   * for the game row before asking for the other two doubles the round trip on a
+   * school connection, so remember which question is open and ask for all three at
+   * once — the host is the only device that moves the question on, so this cache
+   * is only ever stale on the single poll after a page reload, which then refetches. */
+  const openIndex = Object.create(null);
+
   async function handle(path, method, body) {
     if (path === '/modes') return { modes: Object.entries(MODES).map(([id, m]) => Object.assign({ id }, m)) };
 
@@ -304,12 +313,24 @@
       return { pin: newPin, hostToken: game.hostToken, mode: game.mode, quizTitle: quiz.title, total: questions.length };
     }
 
-    const game = await readGame(pin);
+    let prefetched = null, game;
+    if (!tail && method === 'GET' && hostTokenFor(pin) != null) {
+      const guess = openIndex[pin] ?? -1;
+      const [row, playerRows, answerRows] = await Promise.all([
+        readGame(pin), readPlayers(pin), readAnswers(pin, guess)
+      ]);
+      game = row;
+      if (game.index === guess) prefetched = [playerRows, answerRows];
+      else prefetched = [playerRows, await readAnswers(pin, game.index)];
+    } else {
+      game = await readGame(pin);
+    }
+    openIndex[pin] = game.index;
     const isHost = hostTokenFor(pin) === game.hostToken;
 
     if (!tail && method === 'GET') {
       // only the host reconciles, so there is exactly one writer
-      if (isHost) await reconcile(pin, game);
+      if (isHost) await reconcile(pin, game, prefetched);
       return publicView(game);
     }
 

@@ -158,6 +158,11 @@ const pin = qs('pin');
 const hostToken = store.get('host:' + pin);
 let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 
+/* Where students join. Kept as two small functions because the GitHub Pages build
+ * rewrites them to folder-relative addresses — everything else stays identical. */
+const joinUrl = () => location.origin + '/play?pin=' + pin;
+const joinLabel = () => location.host + '/play';
+
 if (!pin) location.href = '/quiz';
 if (!hostToken) toast('You are watching this game — only the host device can control it.', 'bad');
 
@@ -185,17 +190,49 @@ function apply(state) {
   lastState = key;
 }
 
+/* A poll every second used to throw the whole board away and build a new one.
+ * Nothing could animate — a kart was created at its new position rather than
+ * driving there, and every tower block replayed its drop — which is what made
+ * the game look like it was stuttering. So we build the new board off-screen and
+ * copy only the differences onto the live one: unchanged nodes are never touched,
+ * and a changed style is a real change to an existing element, which is what CSS
+ * transitions need to animate. Nodes marked data-static (the QR code, the
+ * countdown ring) own themselves and are left alone entirely. */
+function morph(cur, next) {
+  if (cur.hasAttribute && cur.hasAttribute('data-static')) return;
+  for (const a of Array.from(cur.attributes)) if (!next.hasAttribute(a.name)) cur.removeAttribute(a.name);
+  for (const a of Array.from(next.attributes)) if (cur.getAttribute(a.name) !== a.value) cur.setAttribute(a.name, a.value);
+  const cs = Array.from(cur.childNodes), ns = Array.from(next.childNodes);
+  for (let i = 0; i < Math.max(cs.length, ns.length); i++) {
+    const c = cs[i], x = ns[i];
+    if (!x) { c.remove(); continue; }
+    if (!c) { cur.append(x); continue; }
+    if (c.nodeType === 3 && x.nodeType === 3) { if (c.nodeValue !== x.nodeValue) c.nodeValue = x.nodeValue; continue; }
+    if (c.nodeType !== 1 || x.nodeType !== 1 || c.tagName !== x.tagName) { c.replaceWith(x); continue; }
+    morph(c, x);
+  }
+}
+
+/** Draw `build()` into `host`, morphing onto what is already there unless the
+ *  screen genuinely changed (new question, new phase). */
+function paint(host, build, fresh) {
+  const next = build();
+  if (fresh || !host.firstElementChild) { host.innerHTML = ''; host.append(next); return true; }
+  morph(host.firstElementChild, next);
+  return false;
+}
+
 function render(fresh) {
   const stage = $('#stage');
-  if (game.state === 'lobby') return renderLobby(stage);
-  if (game.state === 'over') return renderOver(stage);
-  renderQuestion(stage, fresh);
+  if (game.state === 'lobby') { if (paint(stage, lobbyView, fresh)) bindLobby(); return; }
+  if (game.state === 'over')  { if (paint(stage, overView, fresh)) { clearInterval(ticker); confetti(140); } return; }
+  if (!game.question) return;
+  if (paint(stage, () => questionView(fresh), fresh)) { bindQuestion(); runTimer(); }
 }
 
 /* ── lobby ─────────────────────────────────────── */
-function renderLobby(stage) {
-  const url = location.origin + '/play?pin=' + pin;
-  stage.innerHTML = '';
+function lobbyView() {
+  const root = el('div', {});
   const panel = el('div', { class: 'card pin-panel' });
   panel.innerHTML = `
     <div>
@@ -210,12 +247,12 @@ function renderLobby(stage) {
     </div>
     <div style="text-align:center">
       <p class="label" style="margin-bottom:8px">Join at</p>
-      <p class="join-url gradient-text">${esc(location.host)}/play</p>
+      <p class="join-url gradient-text">${esc(joinLabel())}</p>
       <p class="label" style="margin:18px 0 6px">Game PIN</p>
       <div class="pin-big">${esc(pin)}</div>
-      <div id="qr" style="margin-top:16px;display:inline-block;padding:10px;background:#fff;border-radius:14px"></div>
+      <div id="qr" data-static style="margin-top:16px;display:inline-block;padding:10px;background:#fff;border-radius:14px"></div>
     </div>`;
-  stage.append(panel);
+  root.append(panel);
 
   const roster = el('div', { class: 'card pad', style: 'margin-top:18px' });
   roster.append(el('div', { class: 'spread' },
@@ -226,8 +263,14 @@ function renderLobby(stage) {
   game.players.forEach(p => list.append(el('div', { class: 'pchip ' + (game.mode === 'laser' ? p.team : '') },
     el('span', { class: 'av' }, p.avatar), p.name)));
   roster.append(list);
-  stage.append(roster);
+  root.append(roster);
+  return root;
+}
 
+/* Bound once, when the lobby is first drawn: later polls only morph the roster,
+ * so the buttons keep their handlers and the QR code is not redrawn every second. */
+function bindLobby() {
+  const url = joinUrl();
   $('#cp').onclick = () => copy(url);
   const startBtn = $('#start');
   if (startBtn) startBtn.onclick = async () => {
@@ -251,17 +294,11 @@ function drawQR(url) {
 }
 
 /* ── question ──────────────────────────────────── */
-function renderQuestion(stage, fresh) {
+function questionView(fresh) {
   const q = game.question;
-  if (!q) return;
-  if (fresh) stage.innerHTML = '';
-  let box = document.getElementById('qbox');
-  if (!box || fresh) {
-    stage.innerHTML = '';
-    box = el('div', { class: 'card qstage', id: 'qbox' });
-    stage.append(box);
-    stage.append(el('div', { id: 'extra' }));
-  }
+  const root = el('div', {});
+  const box = el('div', { class: 'card qstage', id: 'qbox' });
+  root.append(box, el('div', { id: 'extra' }));
 
   const answered = game.players.filter(p => p.answered).length;
   const revealing = game.state === 'reveal';
@@ -269,7 +306,7 @@ function renderQuestion(stage, fresh) {
   box.innerHTML = `
     <div class="spread" style="align-items:flex-start">
       <span class="chip">Question ${game.index + 1} / ${game.total}</span>
-      <div class="timer ${revealing ? '' : ''}" id="timer">
+      <div class="timer" id="timer" data-static>
         <svg width="96" height="96" style="transform:rotate(-90deg)">
           <circle cx="48" cy="48" r="42" stroke="rgba(255,255,255,.09)" stroke-width="8" fill="none"></circle>
           <circle cx="48" cy="48" r="42" stroke="#7c5cff" stroke-width="8" fill="none" stroke-linecap="round"
@@ -298,19 +335,22 @@ function renderQuestion(stage, fresh) {
     q.choices.forEach((c, i) => {
       const count = (game.counts || {})[c.id] || 0;
       const node = el('div', { class: `ans a${i % 6}` + (revealing ? (c.correct ? ' reveal-right' : ' reveal-wrong') : '') });
-      node.innerHTML = `<span class="fill"></span>${SHAPES[i % 6]}
+      const pct = revealing ? (count / total * 100) : 0;
+      node.innerHTML = `<span class="fill" style="width:${fresh ? 0 : pct}%"></span>${SHAPES[i % 6]}
         <span class="txt">${esc(c.text || '—')}</span>
         <span class="cnt">${revealing ? count + (count === 1 ? ' answer' : ' answers') : ''}</span>`;
       wrap.append(node);
-      if (revealing) requestAnimationFrame(() => node.querySelector('.fill').style.width = (count / total * 100) + '%');
+      if (revealing && fresh) requestAnimationFrame(() => node.querySelector('.fill').style.width = pct + '%');
     });
   }
 
-  const advance = box.querySelector('#advance');
-  if (advance) advance.onclick = () => api(`/games/${pin}/next`, { method: 'POST', body: { hostToken } }).catch(e => toast(e.message, 'bad'));
+  extraInto(root.querySelector('#extra'));
+  return root;
+}
 
-  renderExtra();
-  runTimer();
+function bindQuestion() {
+  const advance = document.getElementById('advance');
+  if (advance) advance.onclick = () => api(`/games/${pin}/next`, { method: 'POST', body: { hostToken } }).catch(e => toast(e.message, 'bad'));
 }
 
 function runTimer() {
@@ -335,10 +375,8 @@ function runTimer() {
 }
 
 /* ── leaderboard / arena under the question ────── */
-function renderExtra() {
-  const host = document.getElementById('extra');
+function extraInto(host) {
   if (!host) return;
-  host.innerHTML = '';
   const views = { laser: arena, kart: raceTrack, tower: skyline, treasure: treasureBoard, boss: bossArena };
   host.append((views[game.mode] || leaderboard)());
   if (game.mode !== 'laser' && game.mode !== 'boss') host.append(leaderboard());
@@ -476,10 +514,8 @@ function arena() {
 }
 
 /* ── final ─────────────────────────────────────── */
-function renderOver(stage) {
-  clearInterval(ticker);
+function overView() {
   const top = game.players.slice(0, 3);
-  stage.innerHTML = '';
   const card = el('div', { class: 'card pad', style: 'text-align:center;padding:36px' });
 
   if (game.mode === 'laser') {
@@ -531,8 +567,7 @@ function renderOver(stage) {
   card.append(el('div', { class: 'row', style: 'justify-content:center;margin-top:24px;gap:10px' },
     el('a', { class: 'btn', href: '/quiz' }, 'Back to quizzes'),
     el('button', { class: 'btn primary', onclick: () => location.href = '/studio?id=' + (game.quizId || '') }, 'Edit this quiz')));
-  stage.append(card);
-  confetti(140);
+  return card;
 }
 
 $('#end').onclick = async () => {
