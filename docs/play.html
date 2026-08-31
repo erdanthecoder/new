@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>QuizNova — play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link rel="stylesheet" href="nova.css?v=8168e7f7">
+<style>
+.shell{max-width:640px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;display:flex;flex-direction:column}
+.hud{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:16px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line);margin-bottom:14px;position:sticky;top:12px;z-index:20;backdrop-filter:blur(14px)}
+.hud .who{display:flex;gap:8px;align-items:center;font-weight:700}
+.hud .stat{margin-left:auto;text-align:right}
+.hud .stat b{display:block;font-size:1.05rem;line-height:1.1}
+.hud .stat span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+
+.avatars{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin:10px 0 20px}
+.av-pick{aspect-ratio:1;display:grid;place-items:center;font-size:1.35rem;border-radius:13px;cursor:pointer;
+  background:rgba(255,255,255,.05);border:2px solid transparent;transition:.16s}
+.av-pick:hover{background:rgba(255,255,255,.1);transform:scale(1.07)}
+.av-pick.on{border-color:var(--violet);background:rgba(124,92,255,.22)}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.opt-btn{display:flex;gap:12px;align-items:center;padding:22px 18px;border-radius:var(--r-lg);border:none;cursor:pointer;
+  font-weight:750;font-size:1.05rem;text-align:left;color:#fff;background:var(--c);min-height:clamp(104px,17vh,168px);
+  transition:transform .16s var(--ease),filter .2s,opacity .2s;box-shadow:0 12px 26px -14px var(--c)}
+.opt-btn:active{transform:scale(.96)}
+.opt-btn:disabled{opacity:.4}
+.opt-btn.chosen{outline:4px solid #fff;transform:scale(1.02)}
+.opt-btn .lbl{flex:1}
+.opts.one{grid-template-columns:1fr}
+
+.verdict{padding:44px 24px;text-align:center;border-radius:var(--r-xl);animation:fadeUp .4s var(--ease) both}
+.verdict.good{background:linear-gradient(160deg,rgba(52,224,161,.24),rgba(52,224,161,.05));border:1px solid rgba(52,224,161,.45)}
+.verdict.bad{background:linear-gradient(160deg,rgba(255,77,94,.22),rgba(255,77,94,.05));border:1px solid rgba(255,77,94,.4)}
+.verdict .em{font-size:3.6rem;display:block;margin-bottom:10px;animation:pop .5s var(--ease) both}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+
+.hpwrap{margin-top:12px}
+.hpwrap .bar{height:13px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.hpwrap .bar i{display:block;height:100%;transition:width .6s var(--ease)}
+.charge{height:7px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:8px}
+.charge i{display:block;height:100%;background:linear-gradient(90deg,#ffc857,#ff5d8f);transition:width .5s}
+.team-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.team-btn{padding:18px;border-radius:var(--r-lg);border:2px solid var(--line);cursor:pointer;text-align:center;font-weight:800;transition:.2s}
+.team-btn.red.on{border-color:#ff4d5e;background:rgba(255,77,94,.18)}
+.team-btn.blue.on{border-color:#4f6bff;background:rgba(79,107,255,.18)}
+.big-timer{font-size:2.6rem;font-weight:900;text-align:center;letter-spacing:-.03em}
+.waiting .pulse{width:60px;height:60px;border-radius:50%;background:var(--grad-brand);margin:0 auto 18px;animation:breathe 2s infinite}
+@keyframes breathe{50%{transform:scale(1.18);opacity:.75}}
+</style>
+</head>
+<body class="dark">
+<main class="shell" id="app"></main>
+
+<script src="nova.js?v=ae1e0f3f"></script>
+<script src="quizbank.js?v=9c4f8a9a"></script>
+<script src="live.js?v=b685837e"></script>
+<script src="nova-local.js?v=54e4f76d"></script>
+<script>
+const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
+const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
+
+let pin = qs('pin'), me = null, game = null, drift = 0, ticker = null, picked = null, lastKey = '';
+let avatar = store.get('avatar') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
+if (pin) { const saved = store.get('player:' + pin); if (saved) me = saved; }
+
+start();
+
+function start() {
+  if (!pin) return askPin();
+  if (!me) return askName();
+  connect();
+}
+
+/* ── entry screens ─────────────────────────────── */
+function askPin() {
+  $('#app').innerHTML = `
+    <div class="card pad fade-up" style="margin-top:12vh;text-align:center">
+      <div class="brand-mark" style="margin:0 auto 16px;width:46px;height:46px;font-size:22px">⚡</div>
+      <h1 style="font-size:1.7rem;margin-bottom:6px">Join the game</h1>
+      <p class="muted tiny" style="margin-bottom:22px">Ask your teacher for the 6-digit PIN.</p>
+      <input class="input" id="pin" inputmode="numeric" maxlength="6" placeholder="000000"
+             style="font-size:2rem;text-align:center;letter-spacing:.36em;font-weight:800;padding:16px">
+      <button class="btn primary lg block" style="margin-top:16px" id="go">Enter →</button>
+    </div>`;
+  const go = () => {
+    const v = $('#pin').value.replace(/\D/g, '');
+    if (v.length !== 6) return toast('A PIN is 6 digits', 'bad');
+    pin = v; history.replaceState(null, '', 'play.html?pin=' + pin);
+    me = store.get('player:' + pin) || null;
+    start();
+  };
+  $('#go').onclick = go;
+  $('#pin').onkeydown = e => { if (e.key === 'Enter') go(); };
+  $('#pin').focus();
+}
+
+function askName() {
+  $('#app').innerHTML = `
+    <div class="card pad fade-up" style="margin-top:8vh">
+      <span class="chip">PIN ${esc(pin)}</span>
+      <h1 style="font-size:1.6rem;margin:14px 0 4px">Pick your look</h1>
+      <p class="muted tiny">This is how you appear on the big screen.</p>
+      <div class="avatars" id="avs"></div>
+      <div class="field"><label class="label" for="nm">Your name</label>
+        <input class="input" id="nm" maxlength="16" placeholder="e.g. Sam" value="${esc(store.get('studentName') || '')}"></div>
+      <button class="btn primary lg block" style="margin-top:18px" id="join">Join game →</button>
+      <p class="tiny faint" style="margin-top:10px;text-align:center">Wrong PIN? <a href="play.html" style="text-decoration:underline">Change it</a></p>
+    </div>`;
+  const host = $('#avs');
+  AVATARS.forEach(a => {
+    const node = el('div', { class: 'av-pick' + (a === avatar ? ' on' : ''), onclick: () => {
+      avatar = a; store.set('avatar', a);
+      host.querySelectorAll('.av-pick').forEach(n => n.classList.toggle('on', n.textContent === a));
+    } }, a);
+    host.append(node);
+  });
+  const join = async () => {
+    const name = ($('#nm').value || '').trim();
+    if (!name) return toast('Type your name first', 'bad');
+    store.set('studentName', name);
+    try {
+      const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name, avatar } });
+      me = res.player;
+      store.set('player:' + pin, me);
+      connect();
+    } catch (err) { toast(err.message, 'bad'); }
+  };
+  $('#join').onclick = join;
+  $('#nm').onkeydown = e => { if (e.key === 'Enter') join(); };
+}
+
+/* ── realtime ──────────────────────────────────── */
+function connect() {
+  api(`/games/${pin}`).then(apply).catch(() => {
+    store.del('player:' + pin);
+    $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">👻</span>
+      That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="play.html">Try another PIN</a></div>`;
+  });
+  stream(`/games/${pin}/events`, (msg) => { if (msg.data && msg.data.pin) apply(msg.data); }, `/games/${pin}`);
+}
+
+function apply(state) {
+  game = state;
+  drift = state.serverNow - Date.now();
+  const mine = state.players.find(p => p.id === me?.id);
+  if (mine) me = { ...me, ...mine };
+  else if (state.state !== 'lobby') { /* removed */ }
+  document.body.classList.toggle('laser', state.mode === 'laser');
+  const key = state.state + ':' + state.index + ':' + (me?.answered ? 'a' : 'w');
+  render(key !== lastKey);
+  lastKey = key;
+}
+
+function hud() {
+  const node = el('div', { class: 'hud' });
+  node.append(el('div', { class: 'who' }, el('span', { style: 'font-size:1.3rem' }, me.avatar), me.name));
+  if (game.mode === 'laser') {
+    node.append(el('span', { class: 'chip ' + (me.team === 'red' ? '' : 'live'),
+      style: `border-color:${me.team === 'red' ? 'rgba(255,77,94,.5)' : 'rgba(79,107,255,.5)'}` },
+      me.team === 'red' ? '🔴 Crimson' : '🔵 Cobalt'));
+    node.append(el('div', { class: 'stat' }, el('b', {}, me.down ? 'DOWN' : me.hp + ' HP'), el('span', {}, 'shield')));
+  } else {
+    const unit = { kart: ['distance', (me.distance || 0) + 'm'], tower: ['blocks', String(me.blocks || 0)],
+                   treasure: ['coins', String(me.coins || 0)], boss: ['damage', String(me.score)] }[game.mode]
+                 || ['points', String(me.score)];
+    node.append(el('div', { class: 'stat' }, el('b', {}, unit[1]), el('span', {}, unit[0])));
+  }
+  if (me.streak >= 2) node.append(el('span', { class: 'chip warn' }, '🔥 ' + me.streak));
+  return node;
+}
+
+function render(fresh) {
+  if (!me) return;
+  const app = $('#app');
+  app.innerHTML = '';
+  app.append(hud());
+
+  if (game.state === 'lobby') return app.append(lobbyCard());
+  if (game.state === 'over') return app.append(overCard());
+  if (game.state === 'reveal') return app.append(revealCard());
+  app.append(questionCard(fresh));
+  runTimer();
+}
+
+function lobbyCard() {
+  const card = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:34px 22px' });
+  card.innerHTML = `
+    <div class="waiting"><div class="pulse"></div></div>
+    <h1 style="font-size:1.45rem;margin-bottom:6px">You are in!</h1>
+    <p class="muted tiny">${esc(game.quizTitle)} · ${game.total} questions</p>
+    <p class="muted" style="margin-top:16px">${esc((game.modeInfo && game.modeInfo.blurb) || 'Waiting for your teacher to start…')}</p>
+    <p class="tiny faint" style="margin-top:6px">Waiting for your teacher to start…</p>
+    <p class="tiny faint" style="margin-top:8px">${game.players.length} player${game.players.length === 1 ? '' : 's'} in the lobby</p>`;
+
+  if (game.mode === 'laser') {
+    const pick = el('div', { class: 'team-pick' });
+    ['red', 'blue'].forEach(side => {
+      const count = game.players.filter(p => p.team === side).length;
+      pick.append(el('div', { class: `team-btn ${side}` + (me.team === side ? ' on' : ''), onclick: async () => {
+        if (me.team === side) return;
+        try { await api(`/games/${pin}/team`, { method: 'POST', body: { playerId: me.id } }); }
+        catch (err) { toast(err.message, 'bad'); }
+      } }, (side === 'red' ? '🔴 Crimson' : '🔵 Cobalt'), el('div', { class: 'tiny faint' }, count + ' players')));
+    });
+    card.append(el('p', { class: 'label', style: 'margin-top:22px' }, 'Your team'), pick);
+  }
+  return card;
+}
+
+function questionCard(fresh) {
+  const q = game.question;
+  const card = el('div', { class: 'card pad fade-up' });
+  card.append(el('div', { class: 'spread' },
+    el('span', { class: 'chip' }, `Q${game.index + 1} / ${game.total}`),
+    el('span', { class: 'chip', id: 'ptimer' }, '…')));
+
+  if (me.answered) {
+    card.append(el('div', { class: 'verdict', style: 'background:rgba(255,255,255,.04);border:1px solid var(--line)' },
+      el('span', { class: 'em' }, '⏳'),
+      el('h2', {}, 'Answer locked in'),
+      el('p', { class: 'muted tiny', style: 'margin-top:6px' }, 'Waiting for everyone else…')));
+    return card;
+  }
+
+  card.append(el('h2', { style: 'font-size:1.2rem;margin:16px 0 4px;line-height:1.35' }, q.text || 'Question'));
+  if (game.mode === 'laser' && me.down)
+    card.append(el('p', { class: 'tiny', style: 'color:var(--amber);margin-top:6px' },
+      '💫 You are down — a correct answer now heals a teammate instead of firing.'));
+
+  if (q.type === 'short') {
+    const input = el('input', { class: 'input', style: 'font-size:1.1rem;padding:16px;margin-top:16px', placeholder: 'Type your answer…' });
+    const send = el('button', { class: 'btn primary lg block', style: 'margin-top:12px',
+      onclick: () => answer(input.value.trim()) }, 'Submit answer');
+    input.onkeydown = e => { if (e.key === 'Enter') answer(input.value.trim()); };
+    card.append(input, send);
+    setTimeout(() => input.focus(), 80);
+  } else {
+    const isMulti = q.type === 'multi';
+    const chosen = new Set();
+    const wrap = el('div', { class: 'opts' + (q.choices.length <= 2 ? ' one' : '') });
+    q.choices.forEach((c, i) => {
+      const btn = el('button', { class: `opt-btn a${i % 6}`, onclick: () => {
+        if (isMulti) {
+          chosen.has(c.id) ? chosen.delete(c.id) : chosen.add(c.id);
+          btn.classList.toggle('chosen', chosen.has(c.id));
+        } else answer(c.id);
+      } });
+      btn.innerHTML = `${SHAPES[i % 6].replace('var(--c)', '#fff')}<span class="lbl">${esc(c.text || '—')}</span>`;
+      wrap.append(btn);
+    });
+    card.append(wrap);
+    if (isMulti) card.append(el('button', { class: 'btn primary lg block', style: 'margin-top:14px',
+      onclick: () => answer(Array.from(chosen)) }, 'Lock in my answers'));
+  }
+  return card;
+}
+
+async function answer(value) {
+  if (!value || (Array.isArray(value) && !value.length)) return toast('Pick an answer first', 'bad');
+  picked = value;
+  try {
+    const res = await api(`/games/${pin}/answer`, { method: 'POST', body: { playerId: me.id, answer: value } });
+    me.answered = true; me.correct = res.correct; me.score = res.score; me.hp = res.hp; me.streak = res.streak;
+    if (navigator.vibrate) navigator.vibrate(res.correct ? [22, 40, 22] : 90);
+    render(true);
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+function revealCard() {
+  const q = game.question;
+  const ok = me.correct;
+  const card = el('div', { class: 'card pad fade-up', style: 'padding:0;background:none;border:none;box-shadow:none' });
+
+  if (me.correct === null || me.correct === undefined) {
+    card.append(el('div', { class: 'verdict', style: 'background:rgba(255,255,255,.04);border:1px solid var(--line)' },
+      el('span', { class: 'em' }, '⌛'), el('h2', {}, 'Too slow!'),
+      el('p', { class: 'muted tiny', style: 'margin-top:6px' }, 'No answer this round.')));
+  } else {
+    const g = me.lastGain || 0;
+    const gained = game.mode === 'laser'
+        ? (me.down ? 'Teammate healed' : ok ? 'Laser fired!' : 'Shield hit')
+      : game.mode === 'kart' ? (ok ? `🏎️ Drove ${g}m further` : '🛑 You span out')
+      : game.mode === 'tower' ? (ok ? `🧱 Stacked ${g} block${g > 1 ? 's' : ''}` : '🪨 A block fell off')
+      : game.mode === 'treasure' ? (ok ? `🪙 ${g} coins${me.chest ? ' — ' + me.chest : ''}` : '🕳️ Empty chest')
+      : game.mode === 'boss' ? (ok ? `⚔️ ${g} damage to the boss` : '🔥 The boss struck back')
+      : (ok ? '+ points' : 'no points');
+    card.append(el('div', { class: 'verdict ' + (ok ? 'good' : 'bad') },
+      el('span', { class: 'em' }, ok ? (me.streak >= 3 ? '⚡' : '✅') : '❌'),
+      el('h2', { style: 'font-size:1.6rem' }, ok ? (me.streak >= 3 ? 'OVERCHARGE!' : 'Correct!') : 'Not this time'),
+      el('p', { class: 'muted', style: 'margin-top:6px' }, gained),
+      me.streak >= 2 ? el('p', { class: 'chip warn', style: 'margin-top:12px;display:inline-flex' }, `🔥 ${me.streak} in a row`) : ''));
+  }
+
+  const right = q.type === 'short' ? q.answer : (q.choices || []).filter(c => c.correct).map(c => c.text).join(', ');
+  const info = el('div', { class: 'card pad', style: 'margin-top:14px' },
+    el('p', { class: 'tiny faint' }, 'Correct answer'),
+    el('p', { style: 'font-weight:700;margin-top:2px' }, right || '—'));
+  if (q.explanation) info.append(el('p', { class: 'tiny muted', style: 'margin-top:8px;font-style:italic' }, q.explanation));
+  card.append(info);
+
+  if (game.mode === 'boss' && game.boss) {
+    const b = game.boss;
+    card.append(el('div', { class: 'card pad', style: 'margin-top:14px;text-align:center' },
+      el('p', { class: 'tiny faint' }, b.name),
+      el('h2', { style: 'font-size:1.6rem' }, `${b.hp} HP left`),
+      el('div', { style: 'height:12px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;margin-top:8px' },
+        el('i', { style: `display:block;height:100%;width:${Math.max(0, b.hp / b.max * 100)}%;background:linear-gradient(90deg,#F4364C,#FF9A3D)` })),
+      el('p', { class: 'tiny muted', style: 'margin-top:10px' }, `Class health ${b.classHp}%`)));
+  } else if (game.mode === 'laser') {
+    const maxHp = (side) => Math.max(100, 100 * game.players.filter(p => p.team === side).length);
+    const box = el('div', { class: 'card pad hpwrap', style: 'margin-top:14px' });
+    ['red', 'blue'].forEach(side => {
+      const t = game.teams[side];
+      box.append(el('div', { class: 'spread', style: 'margin-top:8px' },
+        el('span', { class: 'tiny' }, (side === 'red' ? '🔴 ' : '🔵 ') + t.name + (side === me.team ? ' (you)' : '')),
+        el('span', { class: 'tiny faint' }, Math.max(0, t.hp) + ' HP')));
+      box.append(el('div', { class: 'bar' }, el('i', {
+        style: `width:${Math.max(0, t.hp / maxHp(side) * 100)}%;background:${side === 'red' ? 'linear-gradient(90deg,#ff4d5e,#ff9b6a)' : 'linear-gradient(90deg,#4f6bff,#22d3ee)'}`
+      })));
+    });
+    card.append(box);
+  } else {
+    const rank = game.players.findIndex(p => p.id === me.id) + 1;
+    card.append(el('div', { class: 'card pad', style: 'margin-top:14px;text-align:center' },
+      el('p', { class: 'tiny faint' }, 'Your position'),
+      el('h2', { style: 'font-size:2rem' }, '#' + (rank || '–')),
+      el('p', { class: 'tiny muted' }, me.score + ' points')));
+  }
+  card.append(el('p', { class: 'tiny faint', style: 'text-align:center;margin-top:16px' }, 'Look up at the board…'));
+  return card;
+}
+
+function overCard() {
+  clearInterval(ticker);
+  const rank = game.players.findIndex(p => p.id === me.id) + 1;
+  const card = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:36px 22px' });
+
+  if (game.mode === 'laser') {
+    const mine = game.teams[me.team];
+    const foe = game.teams[me.team === 'red' ? 'blue' : 'red'];
+    const won = mine.hp > foe.hp;
+    const draw = mine.hp === foe.hp;
+    card.append(el('div', { style: 'font-size:3.4rem' }, draw ? '🤝' : won ? '🏆' : '🛡'),
+      el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, draw ? 'Draw!' : won ? 'Your team wins!' : 'Your team fought hard'),
+      el('p', { class: 'muted tiny' }, `${mine.name} ${Math.max(0, mine.hp)} HP · ${foe.name} ${Math.max(0, foe.hp)} HP`),
+      el('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:20px;flex-wrap:wrap' },
+        el('span', { class: 'chip' }, me.score + ' damage dealt'),
+        el('span', { class: 'chip' }, 'Best streak ' + (me.streak || 0))));
+    if (won || draw) confetti(120);
+  } else if (game.mode === 'boss' && game.boss) {
+    const won = game.boss.hp === 0;
+    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
+      el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, won ? 'The boss is beaten!' : 'The boss survived'),
+      el('p', { class: 'muted' }, `You dealt ${me.score} damage`));
+    if (won) confetti(120);
+  } else {
+    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎓';
+    card.append(el('div', { style: 'font-size:3.4rem' }, medal),
+      el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, rank === 1 ? 'You won!' : `You finished #${rank}`),
+      el('p', { class: 'muted' }, game.mode === 'kart' ? `${me.distance || 0}m driven`
+        : game.mode === 'tower' ? `${me.blocks || 0} blocks high`
+        : game.mode === 'treasure' ? `${me.coins || 0} coins`
+        : me.score + ' points'));
+    if (rank <= 3) confetti(120);
+  }
+
+  const lb = el('div', { class: 'card pad', style: 'margin-top:18px;text-align:left' },
+    el('h3', { style: 'font-size:1rem;margin-bottom:10px' }, 'Final standings'));
+  game.players.slice(0, 5).forEach((p, i) => lb.append(el('div', { class: 'spread', style: 'padding:7px 0' },
+    el('span', {}, `#${i + 1} ${p.avatar} ${p.name}${p.id === me.id ? ' (you)' : ''}`),
+    el('strong', {}, game.mode === 'kart' ? `${p.distance || 0}m`
+      : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
+      : game.mode === 'treasure' ? `${p.coins || 0} 🪙` : String(p.score)))));
+  card.append(lb);
+  card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: 'play.html' }, 'Play another game'));
+  return card;
+}
+
+function runTimer() {
+  clearInterval(ticker);
+  const chip = document.getElementById('ptimer');
+  if (!chip || game.state !== 'question' || !game.endsAt) return;
+  const paint = () => {
+    const left = Math.max(0, game.endsAt - (Date.now() + drift));
+    chip.textContent = '⏱ ' + Math.ceil(left / 1000) + 's';
+    chip.className = 'chip' + (left < 5200 ? ' warn' : '');
+    if (left <= 0) clearInterval(ticker);
+  };
+  paint();
+  ticker = setInterval(paint, 250);
+}
+</script>
+</body>
+</html>

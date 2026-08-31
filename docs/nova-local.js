@@ -441,8 +441,15 @@ Rules:
       return { reply: result.reply, ops: result.ops, applied: false, source };
     }
 
-    if (clean.startsWith('/games')) {
-      fail('Live PIN games need the server edition — see the README for one-click hosting.');
+    // live games run through Supabase (live.js); the pages themselves are unchanged
+    if (clean === '/modes' || clean.startsWith('/games')) {
+      if (!window.NovaLive) fail('Live games did not load — reload the page.', 503);
+      if (clean.startsWith('/games') && method === 'POST' && clean === '/games') {
+        body.quiz = all[body.quizId];                 // the quiz lives in this browser
+      }
+      const result = await window.NovaLive.handle(clean, method, body);
+      if (result === null) fail('Unknown request: ' + path, 404);
+      return result;
     }
     fail('Unknown request: ' + path, 404);
   };
@@ -579,8 +586,27 @@ Rules:
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountAll);
   else mountAll();
 
-  /* No server means no cross-device streaming; other tabs still sync. */
+  /* Realtime, without a socket:
+   *  • live games poll the shared game row, which is how every device keeps in step
+   *  • quiz editing only has to notice this browser's other tabs
+   */
   Nova.stream = function (path, onMessage) {
+    const game = path.match(/^\/games\/([^/]+)\/events$/);
+    if (game) {
+      const pin = game[1];
+      let stop = false;
+      const tick = async () => {
+        if (stop) return;
+        try {
+          const state = await Nova.api('/games/' + pin);
+          onMessage({ event: 'game:state', data: state });
+        } catch { /* between questions the row may briefly be busy */ }
+        if (!stop) timer = setTimeout(tick, 1200);
+      };
+      let timer = setTimeout(tick, 60);
+      return { close() { stop = true; clearTimeout(timer); } };
+    }
+
     const handler = (evt) => { if (evt.key === KEY) onMessage({ event: 'poll', data: {} }); };
     window.addEventListener('storage', handler);
     return { close: () => window.removeEventListener('storage', handler) };

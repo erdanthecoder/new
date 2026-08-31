@@ -148,7 +148,7 @@ tr:hover td{background:var(--paper)}
       <button data-tab="settings">Settings</button>
     </div>
     <button class="btn sm" id="share">🔗 Share</button>
-    <button class="btn sm" id="present" title="Live PIN games need the server edition">▶ Play live</button>
+    <button class="btn sm primary" id="present">▶ Play live</button>
   </div>
 </header>
 
@@ -227,7 +227,8 @@ tr:hover td{background:var(--paper)}
 
 <script src="nova.js?v=ae1e0f3f"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="nova-local.js?v=68735afa"></script>
+<script src="live.js?v=b685837e"></script>
+<script src="nova-local.js?v=54e4f76d"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
@@ -750,11 +751,11 @@ $('#share').onclick = () => {
     } });
 };
 
-$('#present').onclick = () => { return toast('Live PIN games need the server edition — see the README', 'bad'); }; const unusedPresent = () => {
+$('#present').onclick = () => {
   if (!quiz.questions.length) return toast('Add a question first', 'bad');
   modal(`
     <h2 style="margin-bottom:6px">Start a live game</h2>
-    <p class="muted tiny" style="margin-bottom:18px">Six ways to play the same quiz — students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px">Six ways to play the same quiz — students join at <strong>${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html</strong> with the PIN.</p>
     <div class="stack" style="gap:12px" id="mode-list">
       <p class="tiny faint">Loading modes…</p>
     </div>`, {
@@ -776,7 +777,7 @@ $('#present').onclick = () => { return toast('Live PIN games need the server edi
         try {
           const game = await api('/games', { method: 'POST', body: { quizId, mode: btn.dataset.mode } });
           store.set('host:' + game.pin, game.hostToken);
-          location.href = '/host?pin=' + game.pin;
+          location.href = 'host.html?pin=' + game.pin;
         } catch (err) { toast(err.message, 'bad'); close(); }
       });
     }

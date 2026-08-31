@@ -15,8 +15,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(ROOT, "static")
 OUT = os.path.join(ROOT, "docs")
 
-PAGES = ["quiznova.html", "studio.html", "take.html"]
-ASSETS = ["nova.css", "nova.js", "qr.js", "quizbank.js", "nova-local.js"]
+PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
+ASSETS = ["nova.css", "nova.js", "qr.js", "quizbank.js", "live.js", "nova-local.js"]
 
 
 def build():
@@ -43,6 +43,7 @@ def build():
         html = html.replace('<script src="/nova.js"></script>',
                             '<script src="nova.js"></script>\n'
                             '<script src="quizbank.js"></script>\n'
+                            '<script src="live.js"></script>\n'
                             '<script src="nova-local.js"></script>')
         html = html.replace('<script src="/qr.js"></script>', '<script src="qr.js"></script>')
         html = html.replace('href="/nova.css"', 'href="nova.css"')
@@ -53,20 +54,30 @@ def build():
         html = html.replace("location.href = '/studio?id=' + quiz.id", "location.href = 'studio.html?id=' + quiz.id")
         html = html.replace("location.href = '/quiz'", "location.href = 'index.html'")
         html = html.replace('href="/index.html"', 'href="index.html"')
+        html = html.replace("location.href = '/host?pin=' + game.pin", "location.href = 'host.html?pin=' + game.pin")
+        html = html.replace("location.href = '/play?pin=' + pin", "location.href = 'play.html?pin=' + pin")
+        html = html.replace("href: '/play'", "href: 'play.html'")
+        html = html.replace('href="/play"', 'href="play.html"')
+        html = html.replace("location.href = '/play'", "location.href = 'play.html'")
+        html = html.replace("history.replaceState(null, '', '/play?pin=' + pin)",
+                            "history.replaceState(null, '', 'play.html?pin=' + pin)")
+        if page == "host.html":
+            # a folder-relative join link, shown without the protocol
+            html = html.replace("const url = location.origin + '/play?pin=' + pin;",
+                                "const url = location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin;")
+            html = html.replace("${esc(location.host)}/play",
+                                "${esc(url.replace(/^https?:\\/\\//, '').replace(/\\?.*$/, ''))}")
+        else:
+            # the other pages only mention the address in prose
+            html = html.replace("${esc(location.host)}/play",
+                                "${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html")
         html = html.replace("'/studio?id=' + quizId", "'studio.html?id=' + quizId")
 
         # share links carry the quiz inside the URL — there is no server to ask
         html = html.replace("const link = location.origin + '/take?id=' + q.id;", "const link = Nova.shareLink(q.id);")
         html = html.replace("const link = location.origin + '/take?id=' + quizId;", "const link = Nova.shareLink(quizId);")
 
-        # live games genuinely need a server — say so rather than fail on click
-        html = html.replace(
-            '<button class="btn sm primary" id="present">▶ Play live</button>',
-            '<button class="btn sm" id="present" title="Live PIN games need the server edition">▶ Play live</button>')
-        html = html.replace(
-            "$('#present').onclick = () => {",
-            "$('#present').onclick = () => { return toast('Live PIN games need the server edition — see the README', 'bad'); }; "
-            "const unusedPresent = () => {")
+        # live games run through Supabase in this edition, so the button stays live
 
         # the hub's pitch should match what this edition actually does
         html = html.replace(

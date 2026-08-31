@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizNova — live game host</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link rel="stylesheet" href="nova.css?v=8168e7f7">
+<style>
+.stage{max-width:1300px;margin:0 auto;padding:24px 22px 60px}
+
+/* lobby */
+.pin-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:26px;align-items:center;padding:34px}
+.pin-big{font-size:clamp(3.2rem,9vw,5.6rem);font-weight:900;letter-spacing:.16em;line-height:1;
+  background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.join-url{font-size:1.15rem;font-weight:700}
+.mode-badge{display:inline-flex;gap:9px;align-items:center;padding:9px 16px;border-radius:99px;font-weight:750;font-size:.9rem}
+.mode-normal{background:rgba(124,92,255,.18);border:1px solid rgba(124,92,255,.45);color:#cfc4ff}
+.mode-laser{background:rgba(255,77,94,.16);border:1px solid rgba(255,77,94,.45);color:#ffb3ba}
+
+.players{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.pchip{display:flex;gap:9px;align-items:center;padding:9px 15px;border-radius:99px;background:rgba(255,255,255,.06);
+  border:1px solid var(--line);font-weight:650;animation:popIn .35s var(--ease) both;font-size:.92rem}
+@keyframes popIn{from{opacity:0;transform:scale(.8) translateY(8px)}}
+.pchip.red{border-color:rgba(255,77,94,.5);background:rgba(255,77,94,.12)}
+.pchip.blue{border-color:rgba(79,107,255,.5);background:rgba(79,107,255,.12)}
+.pchip .av{font-size:1.15rem}
+
+/* question stage */
+.qstage{padding:34px;text-align:center}
+.qstage h1{font-size:clamp(1.5rem,3.8vw,2.7rem);line-height:1.22;margin:16px 0 26px}
+.timer{width:96px;height:96px;position:relative;margin:0 auto}
+.timer .num{position:absolute;inset:0;display:grid;place-items:center;font-size:2.1rem;font-weight:800}
+.timer.low .num{color:var(--red);animation:tick .5s infinite}
+@keyframes tick{50%{transform:scale(1.12)}}
+.answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:8px}
+.ans{display:flex;gap:14px;align-items:center;padding:20px 22px;border-radius:var(--r-lg);font-weight:700;font-size:1.1rem;
+  text-align:left;border:2px solid transparent;position:relative;overflow:hidden;transition:.3s var(--ease)}
+.ans .fill{position:absolute;inset:0;background:var(--c);opacity:.16;width:0;transition:width .7s var(--ease)}
+.ans .txt{position:relative;z-index:2}
+.ans .cnt{position:relative;z-index:2;margin-left:auto;font-size:.9rem;opacity:.75}
+.ans{background:rgba(255,255,255,.05);border-color:var(--line)}
+.ans.reveal-right{border-color:var(--mint);background:rgba(52,224,161,.14);box-shadow:0 0 0 4px rgba(52,224,161,.15)}
+.ans.reveal-wrong{opacity:.42}
+
+/* laser arena */
+.arena{display:grid;grid-template-columns:1fr 74px 1fr;gap:14px;align-items:stretch;margin-top:18px}
+.team{padding:18px;border-radius:var(--r-lg);border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.team.red{border-color:rgba(255,77,94,.4);background:linear-gradient(180deg,rgba(255,77,94,.13),rgba(255,77,94,.03))}
+.team.blue{border-color:rgba(79,107,255,.45);background:linear-gradient(180deg,rgba(79,107,255,.13),rgba(79,107,255,.03))}
+.hpbar{height:16px;border-radius:99px;background:rgba(0,0,0,.42);overflow:hidden;margin:10px 0 14px;border:1px solid rgba(255,255,255,.09)}
+.hpbar i{display:block;height:100%;transition:width .7s var(--ease)}
+.team.red .hpbar i{background:linear-gradient(90deg,#ff4d5e,#ff9b6a)}
+.team.blue .hpbar i{background:linear-gradient(90deg,#4f6bff,#22d3ee)}
+.fighter{display:flex;gap:9px;align-items:center;padding:7px 10px;border-radius:11px;margin-bottom:6px;background:rgba(0,0,0,.22)}
+.fighter.down{opacity:.42;filter:grayscale(1)}
+.fighter .mini{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+.fighter .mini i{display:block;height:100%;background:var(--mint);transition:width .5s}
+.hit{animation:shake .45s}
+@keyframes shake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.vs{display:grid;place-items:center;font-weight:900;font-size:1.5rem;color:var(--faint);position:relative}
+.beam{position:absolute;height:4px;width:100%;background:linear-gradient(90deg,transparent,#fff,transparent);
+  border-radius:99px;opacity:0;box-shadow:0 0 22px 5px rgba(255,255,255,.6)}
+.beam.fire{animation:beam .55s ease-out}
+@keyframes beam{0%{opacity:0;transform:scaleX(.2)}30%{opacity:1;transform:scaleX(1)}100%{opacity:0}}
+.feed{margin-top:14px;padding:12px 16px;border-radius:var(--r-md);background:rgba(0,0,0,.3);border:1px solid var(--line);
+  font-size:.87rem;min-height:52px}
+.feed div{padding:3px 0;animation:fadeUp .3s var(--ease) both;color:var(--muted)}
+
+/* kart race */
+.track{margin-top:18px;padding:18px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(0,0,0,.28)}
+.lane{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.lane .who{width:120px;font-weight:800;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lane .road{position:relative;flex:1;height:34px;border-radius:99px;background:rgba(255,255,255,.07);
+  border:2px dashed rgba(255,255,255,.18);overflow:hidden}
+.lane .road::after{content:'';position:absolute;inset:0 0 0 auto;width:6px;
+  background:repeating-linear-gradient(180deg,#fff 0 6px,#111 6px 12px)}
+.lane .kart{position:absolute;top:3px;font-size:1.5rem;transition:left 1s var(--ease);transform:translateX(-50%)}
+.lane .kart.boost{filter:drop-shadow(0 0 10px #FFC53D)}
+.lane .m{width:64px;text-align:right;font-weight:800;font-size:.82rem;color:var(--muted)}
+
+/* tower build */
+.skyline{display:flex;gap:16px;align-items:flex-end;justify-content:center;margin-top:18px;padding:18px 12px;
+  min-height:220px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(0,0,0,.28)}
+.tower{display:flex;flex-direction:column;align-items:center;gap:5px}
+.tower .stack{display:flex;flex-direction:column-reverse;gap:3px;min-height:8px}
+.tower .blk{width:46px;height:16px;border-radius:5px;border:2px solid rgba(0,0,0,.45);
+  animation:drop .35s var(--bounce) both}
+@keyframes drop{from{transform:translateY(-22px);opacity:0}}
+.tower .cap{font-size:1.3rem}
+.tower .who{font-size:.78rem;font-weight:800;margin-top:4px;max-width:74px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;text-align:center}
+
+/* treasure run */
+.chests{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+.chest{padding:14px;border-radius:var(--r-lg);border:2.5px solid var(--line);background:rgba(255,197,61,.12);
+  text-align:center}
+.chest .coins{font-size:1.7rem;font-weight:900;color:#FFC53D}
+.chest .tag{font-size:.72rem;font-weight:800;color:var(--mint);min-height:14px}
+
+/* boss battle */
+.boss{margin-top:18px;padding:22px;border-radius:var(--r-lg);border:2.5px solid var(--line);
+  background:linear-gradient(180deg,rgba(244,54,76,.2),rgba(0,0,0,.35));text-align:center}
+.boss .face{font-size:4rem;animation:bob 3s ease-in-out infinite}
+.boss.hurt .face{animation:shake .4s}
+.boss h2{font-size:1.5rem;margin:6px 0 12px}
+.boss .bar{height:22px;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;border:2px solid rgba(255,255,255,.15)}
+.boss .bar i{display:block;height:100%;background:linear-gradient(90deg,#F4364C,#FF9A3D);transition:width .7s var(--ease)}
+.classbar{height:14px;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;margin-top:14px;
+  border:2px solid rgba(255,255,255,.15)}
+.classbar i{display:block;height:100%;background:var(--grad-mint);transition:width .7s var(--ease)}
+
+/* leaderboard */
+.lb{display:flex;flex-direction:column;gap:8px}
+.lb-row{display:flex;gap:13px;align-items:center;padding:12px 16px;border-radius:14px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line);transition:.5s var(--ease)}
+.lb-row .rank{width:26px;font-weight:800;color:var(--faint)}
+.lb-row.top{background:linear-gradient(90deg,rgba(255,200,87,.2),rgba(255,255,255,.04));border-color:rgba(255,200,87,.45)}
+.lb-row .score{margin-left:auto;font-weight:800;font-size:1.05rem}
+
+.podium{display:flex;gap:16px;align-items:flex-end;justify-content:center;margin:34px 0}
+.stand{width:150px;border-radius:20px 20px 0 0;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;padding:16px 12px;text-align:center;animation:rise .8s var(--ease) both}
+@keyframes rise{from{transform:scaleY(.2);opacity:0;transform-origin:bottom}}
+.stand.p1{height:220px;background:linear-gradient(180deg,rgba(255,200,87,.35),rgba(255,200,87,.08));border:1px solid rgba(255,200,87,.5)}
+.stand.p2{height:170px;background:linear-gradient(180deg,rgba(190,200,230,.28),rgba(190,200,230,.06));border:1px solid rgba(190,200,230,.4)}
+.stand.p3{height:135px;background:linear-gradient(180deg,rgba(205,127,50,.3),rgba(205,127,50,.07));border:1px solid rgba(205,127,50,.45)}
+
+@media (max-width:900px){
+  .pin-panel{grid-template-columns:1fr}
+  .answers{grid-template-columns:1fr}
+  .arena{grid-template-columns:1fr;gap:10px}
+  .vs{height:36px}
+}
+</style>
+</head>
+<body class="dark">
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html"><div class="brand-mark">⚡</div><div>QuizNova<small id="qt">live game</small></div></a>
+    <div class="grow"></div>
+    <span class="chip" id="conn"><span class="dot"></span> live</span>
+    <span class="chip" id="count">0 players</span>
+    <span class="chip mono" id="pinchip">------</span>
+    <button class="btn sm danger" id="end">End game</button>
+  </div>
+</header>
+
+<main class="stage" id="stage"></main>
+
+<script src="nova.js?v=ae1e0f3f"></script>
+<script src="quizbank.js?v=9c4f8a9a"></script>
+<script src="live.js?v=b685837e"></script>
+<script src="nova-local.js?v=54e4f76d"></script>
+<script src="qr.js?v=b8307384"></script>
+<script>
+const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, copy } = Nova;
+const pin = qs('pin');
+const hostToken = store.get('host:' + pin);
+let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
+
+if (!pin) location.href = 'index.html';
+if (!hostToken) toast('You are watching this game — only the host device can control it.', 'bad');
+
+function connect() {
+  stream(`/games/${pin}/events`, (msg) => {
+    if (msg.data && msg.data.pin) apply(msg.data);
+    else if (msg.event === 'hello' && msg.data?.error) fail();
+  }, `/games/${pin}`);
+}
+
+function fail() {
+  $('#stage').innerHTML = `<div class="card pad empty"><span class="em">👻</span>
+    That game is no longer running.<br><a class="btn sm" style="margin-top:16px" href="index.html">Back to quizzes</a></div>`;
+}
+
+function apply(state) {
+  game = state;
+  drift = state.serverNow - Date.now();
+  $('#qt').textContent = state.quizTitle;
+  $('#pinchip').textContent = state.pin;
+  $('#count').textContent = state.players.length + ' player' + (state.players.length === 1 ? '' : 's');
+  document.body.classList.toggle('laser', state.mode === 'laser');
+  const key = state.state + ':' + state.index;
+  render(key !== lastState);
+  lastState = key;
+}
+
+function render(fresh) {
+  const stage = $('#stage');
+  if (game.state === 'lobby') return renderLobby(stage);
+  if (game.state === 'over') return renderOver(stage);
+  renderQuestion(stage, fresh);
+}
+
+/* ── lobby ─────────────────────────────────────── */
+function renderLobby(stage) {
+  const url = location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin;
+  stage.innerHTML = '';
+  const panel = el('div', { class: 'card pin-panel' });
+  panel.innerHTML = `
+    <div>
+      <span class="mode-badge ${game.mode === 'laser' ? 'mode-laser' : 'mode-normal'}">
+        ${esc((game.modeInfo && game.modeInfo.icon) || '🎯')} ${esc((game.modeInfo && game.modeInfo.label) || 'Normal')} mode</span>
+      <h1 style="font-size:1.8rem;margin:16px 0 6px">${esc(game.quizTitle)}</h1>
+      <p class="muted tiny">${game.total} questions · waiting for players</p>
+      <div class="row" style="margin-top:24px;gap:10px;flex-wrap:wrap">
+        <button class="btn primary lg" id="start" ${hostToken ? '' : 'disabled'}>▶ Start game</button>
+        <button class="btn" id="cp">📋 Copy join link</button>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <p class="label" style="margin-bottom:8px">Join at</p>
+      <p class="join-url gradient-text">${esc(url.replace(/^https?:\/\//, '').replace(/\?.*$/, ''))}</p>
+      <p class="label" style="margin:18px 0 6px">Game PIN</p>
+      <div class="pin-big">${esc(pin)}</div>
+      <div id="qr" style="margin-top:16px;display:inline-block;padding:10px;background:#fff;border-radius:14px"></div>
+    </div>`;
+  stage.append(panel);
+
+  const roster = el('div', { class: 'card pad', style: 'margin-top:18px' });
+  roster.append(el('div', { class: 'spread' },
+    el('h3', { style: 'font-size:1.05rem' }, `Players (${game.players.length})`),
+    el('span', { class: 'tiny faint' }, game.mode === 'laser' ? 'Teams are balanced automatically — players can swap in the lobby' : 'Everyone plays for themselves')));
+  const list = el('div', { class: 'players' });
+  if (!game.players.length) list.append(el('p', { class: 'faint tiny', style: 'padding:14px 0' }, 'Nobody has joined yet…'));
+  game.players.forEach(p => list.append(el('div', { class: 'pchip ' + (game.mode === 'laser' ? p.team : '') },
+    el('span', { class: 'av' }, p.avatar), p.name)));
+  roster.append(list);
+  stage.append(roster);
+
+  $('#cp').onclick = () => copy(url);
+  const startBtn = $('#start');
+  if (startBtn) startBtn.onclick = async () => {
+    if (!game.players.length) return toast('Wait for at least one player', 'bad');
+    try { await api(`/games/${pin}/start`, { method: 'POST', body: { hostToken } }); }
+    catch (err) { toast(err.message, 'bad'); }
+  };
+  drawQR(url);
+}
+
+/* Real, dependency-free QR of the join link — students can scan or type the PIN. */
+function drawQR(url) {
+  const host = document.getElementById('qr');
+  if (!host) return;
+  const code = window.QR && QR.svg(url, { size: 140 });
+  host.innerHTML = code || `<div style="width:140px;height:140px;display:grid;place-items:center;color:#0b1020;
+    font-weight:800;font-size:.72rem;text-align:center;padding:8px">Type the PIN<br>
+    <span style="font-size:1.15rem">${esc(pin)}</span></div>`;
+  host.insertAdjacentHTML('beforeend',
+    '<div style="color:#0b1020;font-size:.66rem;font-weight:800;letter-spacing:.06em;text-align:center;margin-top:4px">SCAN TO JOIN</div>');
+}
+
+/* ── question ──────────────────────────────────── */
+function renderQuestion(stage, fresh) {
+  const q = game.question;
+  if (!q) return;
+  if (fresh) stage.innerHTML = '';
+  let box = document.getElementById('qbox');
+  if (!box || fresh) {
+    stage.innerHTML = '';
+    box = el('div', { class: 'card qstage', id: 'qbox' });
+    stage.append(box);
+    stage.append(el('div', { id: 'extra' }));
+  }
+
+  const answered = game.players.filter(p => p.answered).length;
+  const revealing = game.state === 'reveal';
+
+  box.innerHTML = `
+    <div class="spread" style="align-items:flex-start">
+      <span class="chip">Question ${game.index + 1} / ${game.total}</span>
+      <div class="timer ${revealing ? '' : ''}" id="timer">
+        <svg width="96" height="96" style="transform:rotate(-90deg)">
+          <circle cx="48" cy="48" r="42" stroke="rgba(255,255,255,.09)" stroke-width="8" fill="none"></circle>
+          <circle cx="48" cy="48" r="42" stroke="#7c5cff" stroke-width="8" fill="none" stroke-linecap="round"
+                  id="tring" stroke-dasharray="264" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="num" id="tnum">–</div>
+      </div>
+      <span class="chip ${answered === game.players.length && game.players.length ? 'live' : ''}">
+        ${answered}/${game.players.length} answered</span>
+    </div>
+    <h1>${esc(q.text || 'Question')}</h1>
+    <div class="answers" id="answers"></div>
+    ${revealing && q.explanation ? `<p class="muted" style="margin-top:20px;font-style:italic">${esc(q.explanation)}</p>` : ''}
+    <div class="row" style="justify-content:center;margin-top:26px;gap:10px">
+      ${hostToken ? `<button class="btn ${revealing ? 'primary' : ''}" id="advance">
+        ${revealing ? (game.index + 1 >= game.total ? 'Show final results →' : 'Next question →') : 'Skip to answer'}</button>` : ''}
+    </div>`;
+
+  const wrap = box.querySelector('#answers');
+  if (q.type === 'short') {
+    wrap.style.gridTemplateColumns = '1fr';
+    wrap.append(el('div', { class: 'ans a3' },
+      el('span', { class: 'txt' }, revealing ? `Answer: ${q.answer || '—'}` : 'Type-in answer — students are typing…')));
+  } else {
+    const total = Object.values(game.counts || {}).reduce((a, b) => a + b, 0) || 1;
+    q.choices.forEach((c, i) => {
+      const count = (game.counts || {})[c.id] || 0;
+      const node = el('div', { class: `ans a${i % 6}` + (revealing ? (c.correct ? ' reveal-right' : ' reveal-wrong') : '') });
+      node.innerHTML = `<span class="fill"></span>${SHAPES[i % 6]}
+        <span class="txt">${esc(c.text || '—')}</span>
+        <span class="cnt">${revealing ? count + (count === 1 ? ' answer' : ' answers') : ''}</span>`;
+      wrap.append(node);
+      if (revealing) requestAnimationFrame(() => node.querySelector('.fill').style.width = (count / total * 100) + '%');
+    });
+  }
+
+  const advance = box.querySelector('#advance');
+  if (advance) advance.onclick = () => api(`/games/${pin}/next`, { method: 'POST', body: { hostToken } }).catch(e => toast(e.message, 'bad'));
+
+  renderExtra();
+  runTimer();
+}
+
+function runTimer() {
+  clearInterval(ticker);
+  const num = document.getElementById('tnum');
+  const ring = document.getElementById('tring');
+  if (!num) return;
+  if (game.state !== 'question' || !game.endsAt) { num.textContent = '✓'; if (ring) ring.style.strokeDashoffset = 264; return; }
+  const limit = (game.question.time || 20) * 1000;
+  const paint = () => {
+    const left = Math.max(0, game.endsAt - (Date.now() + drift));
+    num.textContent = Math.ceil(left / 1000);
+    document.getElementById('timer')?.classList.toggle('low', left < 5200);
+    if (ring) ring.style.strokeDashoffset = 264 * (1 - left / limit);
+    if (left <= 0) {
+      clearInterval(ticker);
+      if (hostToken) api(`/games/${pin}/tick`, { method: 'POST', body: { hostToken } }).catch(() => {});
+    }
+  };
+  paint();
+  ticker = setInterval(paint, 200);
+}
+
+/* ── leaderboard / arena under the question ────── */
+function renderExtra() {
+  const host = document.getElementById('extra');
+  if (!host) return;
+  host.innerHTML = '';
+  const views = { laser: arena, kart: raceTrack, tower: skyline, treasure: treasureBoard, boss: bossArena };
+  host.append((views[game.mode] || leaderboard)());
+  if (game.mode !== 'laser' && game.mode !== 'boss') host.append(leaderboard());
+}
+
+const KART_COLOURS = ['#F4364C', '#4F6BFF', '#FFC53D', '#12BE8E', '#6C4CF1', '#2BA8FF'];
+
+function raceTrack() {
+  const box = el('div', { class: 'track' });
+  const longest = Math.max(game.trackLength || 1000, ...game.players.map(p => p.distance || 0));
+  game.players.forEach((p, i) => {
+    const pct = Math.min(100, (p.distance || 0) / longest * 100);
+    const lane = el('div', { class: 'lane' });
+    lane.append(el('span', { class: 'who' }, `${p.avatar} ${p.name}`));
+    const road = el('div', { class: 'road' });
+    road.append(el('span', { class: 'kart' + (p.streak >= 3 ? ' boost' : ''), style: `left:${pct}%` }, '🏎️'));
+    lane.append(road, el('span', { class: 'm' }, `${p.distance || 0}m`));
+    box.append(lane);
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No racers yet.'));
+  box.append(el('p', { class: 'tiny faint', style: 'margin-top:6px' },
+    'Answer faster to drive further. Three right in a row gives a 🚀 boost.'));
+  return box;
+}
+
+function skyline() {
+  const box = el('div', { class: 'skyline' });
+  game.players.slice(0, 10).forEach((p, i) => {
+    const tower = el('div', { class: 'tower' });
+    const stack = el('div', { class: 'stack' });
+    for (let b = 0; b < Math.min(p.blocks || 0, 14); b++) {
+      stack.append(el('span', { class: 'blk', style: `background:${KART_COLOURS[i % 6]};animation-delay:${b * 25}ms` }));
+    }
+    tower.append(el('span', { class: 'cap' }, (p.blocks || 0) > 0 ? p.avatar : '·'), stack,
+                 el('span', { class: 'who' }, `${p.name} · ${p.blocks || 0}`));
+    box.append(tower);
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No builders yet.'));
+  return box;
+}
+
+function treasureBoard() {
+  const box = el('div', { class: 'chests' });
+  game.players.slice(0, 12).forEach(p => {
+    box.append(el('div', { class: 'chest' },
+      el('div', { style: 'font-size:1.5rem' }, p.avatar),
+      el('div', { class: 'coins' }, String(p.coins || 0)),
+      el('div', { style: 'font-weight:700;font-size:.84rem' }, p.name),
+      el('div', { class: 'tag' }, p.chest || '')));
+  });
+  if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No treasure hunters yet.'));
+  return box;
+}
+
+function bossArena() {
+  const boss = game.boss || { hp: 1, max: 1, name: 'The Boss', classHp: 100, classMax: 100 };
+  const hurt = boss.hp < (lastBossHp ?? boss.hp);
+  lastBossHp = boss.hp;
+  const box = el('div', { class: 'boss' + (hurt ? ' hurt' : '') });
+  box.append(el('div', { class: 'face' }, boss.hp > 0 ? '🐉' : '💀'),
+    el('h2', {}, boss.hp > 0 ? boss.name : `${boss.name} is defeated!`),
+    el('div', { class: 'bar' }, el('i', { style: `width:${Math.max(0, boss.hp / boss.max * 100)}%` })),
+    el('p', { class: 'tiny faint', style: 'margin-top:6px' }, `${boss.hp} / ${boss.max} HP`),
+    el('p', { class: 'tiny', style: 'margin-top:14px;font-weight:800' }, `Class health · ${boss.classHp}%`),
+    el('div', { class: 'classbar' }, el('i', { style: `width:${boss.classHp}%` })));
+  const wrap = el('div', {});
+  wrap.append(box, leaderboard());
+  return wrap;
+}
+let lastBossHp = null;
+
+const unitFor = (p) => game.mode === 'kart' ? `${p.distance || 0}m`
+  : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
+  : game.mode === 'treasure' ? `${p.coins || 0} 🪙`
+  : String(p.score);
+
+function leaderboard() {
+  const card = el('div', { class: 'card pad', style: 'margin-top:18px' },
+    el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' },
+      game.mode === 'boss' ? '⚔️ Damage dealt' : '🏆 Leaderboard'));
+  const lb = el('div', { class: 'lb' });
+  game.players.slice(0, 8).forEach((p, i) => {
+    lb.append(el('div', { class: 'lb-row' + (i === 0 ? ' top' : '') },
+      el('span', { class: 'rank' }, '#' + (i + 1)),
+      el('span', { style: 'font-size:1.2rem' }, p.avatar),
+      el('span', {}, p.name),
+      p.streak >= 3 ? el('span', { class: 'chip warn' }, `🔥 ${p.streak}`) : '',
+      p.answered && game.state === 'question' ? el('span', { class: 'chip live' }, 'in') : '',
+      el('span', { class: 'score' }, unitFor(p))));
+  });
+  if (!game.players.length) lb.append(el('p', { class: 'faint tiny' }, 'No players.'));
+  card.append(lb);
+  return card;
+}
+
+function arena() {
+  const box = el('div', {});
+  const grid = el('div', { class: 'arena' });
+  ['red', 'blue'].forEach((side, idx) => {
+    const team = game.teams[side];
+    const members = game.players.filter(p => p.team === side);
+    const maxHp = Math.max(100, 100 * members.length);
+    const panel = el('div', { class: 'team ' + side });
+    panel.append(el('div', { class: 'spread' },
+      el('strong', {}, (side === 'red' ? '🔴 ' : '🔵 ') + team.name),
+      el('span', { class: 'tiny faint' }, `${Math.max(0, team.hp)} HP`)));
+    panel.append(el('div', { class: 'hpbar' }, el('i', { style: `width:${Math.max(0, team.hp / maxHp * 100)}%` })));
+    members.forEach(p => {
+      const row = el('div', { class: 'fighter' + (p.down ? ' down' : '') },
+        el('span', { style: 'font-size:1.15rem' }, p.avatar),
+        el('span', { style: 'width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.86rem' }, p.name),
+        el('span', { class: 'mini' }, el('i', { style: `width:${p.hp}%;background:${p.hp > 50 ? '#34e0a1' : p.hp > 20 ? '#ffc857' : '#ff4d5e'}` })),
+        el('span', { class: 'tiny faint', style: 'width:34px;text-align:right' }, p.down ? 'down' : p.hp),
+        p.streak >= 3 ? el('span', { class: 'chip warn', style: 'padding:1px 7px' }, '⚡') : '');
+      if (lastHp[p.id] !== undefined && p.hp < lastHp[p.id]) row.classList.add('hit');
+      lastHp[p.id] = p.hp;
+      panel.append(row);
+    });
+    if (!members.length) panel.append(el('p', { class: 'tiny faint', style: 'padding:8px 2px' }, 'No players on this team.'));
+    if (idx === 0) grid.append(panel, el('div', { class: 'vs' }, el('div', { class: 'beam', id: 'beam' }), 'VS'));
+    else grid.append(panel);
+  });
+  box.append(grid);
+
+  const feed = el('div', { class: 'feed' });
+  (game.lastEvents || []).slice().reverse().forEach(line => feed.append(el('div', {}, line)));
+  if (!game.lastEvents?.length) feed.append(el('div', { class: 'faint' }, 'Correct answers fire your team’s laser. Three in a row overcharges it.'));
+  box.append(feed);
+
+  if (game.lastEvents?.length) setTimeout(() => {
+    const beam = document.getElementById('beam');
+    if (beam) { beam.classList.remove('fire'); void beam.offsetWidth; beam.classList.add('fire'); }
+  }, 30);
+  return box;
+}
+
+/* ── final ─────────────────────────────────────── */
+function renderOver(stage) {
+  clearInterval(ticker);
+  const top = game.players.slice(0, 3);
+  stage.innerHTML = '';
+  const card = el('div', { class: 'card pad', style: 'text-align:center;padding:36px' });
+
+  if (game.mode === 'laser') {
+    const red = game.teams.red, blue = game.teams.blue;
+    const winner = red.hp === blue.hp ? null : (red.hp > blue.hp ? red : blue);
+    card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' },
+      winner ? `${winner === red ? '🔴' : '🔵'} ${winner.name} wins!` : '🤝 It is a draw!'),
+      el('p', { class: 'muted' }, `${red.name} ${Math.max(0, red.hp)} HP · ${blue.name} ${Math.max(0, blue.hp)} HP`));
+  } else if (game.mode === 'boss') {
+    const boss = game.boss || { hp: 0, classHp: 0, name: 'The Boss' };
+    const won = boss.hp === 0;
+    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' },
+        won ? `The class defeated ${boss.name}!` : `${boss.name} survived this time`),
+      el('p', { class: 'muted' }, won ? 'Every right answer landed a blow.' : `${boss.hp} HP left — closer next lesson.`));
+  } else if (game.mode === 'kart') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '🏁'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} takes the flag!` : 'Race over'),
+      el('p', { class: 'muted' }, first ? `${first.distance}m driven` : ''));
+  } else if (game.mode === 'tower') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '🏗️'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} built the tallest tower!` : 'Building over'),
+      el('p', { class: 'muted' }, first ? `${first.blocks} blocks high` : ''));
+  } else if (game.mode === 'treasure') {
+    const first = game.players[0];
+    card.append(el('div', { style: 'font-size:3.4rem' }, '💎'),
+      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} is the richest!` : 'Hunt over'),
+      el('p', { class: 'muted' }, first ? `${first.coins} coins` : ''));
+  } else {
+    card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' }, '🏁 Final results'),
+                el('p', { class: 'muted' }, esc(game.quizTitle)));
+  }
+
+  const podium = el('div', { class: 'podium' });
+  const order = [top[1], top[0], top[2]];
+  order.forEach((p, i) => {
+    if (!p) return;
+    const place = p === top[0] ? 1 : p === top[1] ? 2 : 3;
+    podium.append(el('div', { class: 'stand p' + place, style: `animation-delay:${i * 140}ms` },
+      el('div', { style: 'font-size:2.2rem' }, p.avatar),
+      el('strong', { style: 'margin-top:6px' }, p.name),
+      el('span', { class: 'tiny faint' }, game.mode === 'laser' ? p.score + ' dmg' : unitFor(p)),
+      el('div', { style: 'font-size:1.4rem;margin-top:8px' }, place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉')));
+  });
+  card.append(podium);
+  card.append(leaderboard());
+  card.append(el('div', { class: 'row', style: 'justify-content:center;margin-top:24px;gap:10px' },
+    el('a', { class: 'btn', href: '/quiz' }, 'Back to quizzes'),
+    el('button', { class: 'btn primary', onclick: () => location.href = '/studio?id=' + (game.quizId || '') }, 'Edit this quiz')));
+  stage.append(card);
+  confetti(140);
+}
+
+$('#end').onclick = async () => {
+  if (!hostToken) return toast('Only the host device can end the game', 'bad');
+  if (!confirm('End the game for everyone?')) return;
+  await api(`/games/${pin}/end`, { method: 'POST', body: { hostToken } });
+};
+
+api(`/games/${pin}`).then(apply).catch(fail);
+connect();
+</script>
+</body>
+</html>

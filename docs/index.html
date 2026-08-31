@@ -166,7 +166,8 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 
 <script src="nova.js?v=ae1e0f3f"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="nova-local.js?v=68735afa"></script>
+<script src="live.js?v=b685837e"></script>
+<script src="nova-local.js?v=54e4f76d"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 const { $, api, el, esc, toast, modal, ago, classroomUrl, copy } = Nova;
@@ -268,7 +269,7 @@ async function hostGame(q) {
         try {
           const game = await api('/games', { method: 'POST', body: { quizId: q.id, mode: btn.dataset.mode } });
           Nova.store.set('host:' + game.pin, game.hostToken);
-          location.href = '/host?pin=' + game.pin;
+          location.href = 'host.html?pin=' + game.pin;
         } catch (err) { toast(err.message, 'bad'); }
       });
     }
@@ -313,7 +314,7 @@ $('#top-new').onclick = (e) => { e.preventDefault(); newQuiz(); };
 $('#join').onclick = () => {
   const pin = $('#pin').value.replace(/\D/g, '');
   if (pin.length !== 6) return toast('A game PIN is 6 digits', 'bad');
-  location.href = '/play?pin=' + pin;
+  location.href = 'play.html?pin=' + pin;
 };
 $('#pin').onkeydown = (e) => { if (e.key === 'Enter') $('#join').click(); };
 
