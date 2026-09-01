@@ -16,7 +16,7 @@ SRC = os.path.join(ROOT, "static")
 OUT = os.path.join(ROOT, "docs")
 
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
-ASSETS = ["nova.css", "nova.js", "qr.js", "quizbank.js", "realtime.js", "live.js", "nova-local.js"]
+ASSETS = ["nova.css", "sprites.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "live.js", "nova-local.js"]
 
 
 def build():
@@ -40,6 +40,7 @@ def build():
         html = open(os.path.join(SRC, page), encoding="utf-8").read()
 
         # the in-browser API must load right after the shared runtime
+        html = html.replace('<script src="/sprites.js"></script>', '<script src="sprites.js"></script>')
         html = html.replace('<script src="/nova.js"></script>',
                             '<script src="nova.js"></script>\n'
                             '<script src="quizbank.js"></script>\n'

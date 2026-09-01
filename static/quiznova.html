@@ -30,7 +30,7 @@
 .fc-badge{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.72rem;font-weight:900;color:#fff}
 .fc-score{top:0;right:0;z-index:3;background:var(--sun);transform:rotate(5deg);font-weight:900;padding:12px 16px;text-align:center}
 .fc-players{bottom:0;left:0;z-index:3;transform:rotate(-4deg);display:flex;gap:6px;align-items:center;font-weight:800;font-size:.86rem;background:var(--mint);color:#04241b}
-.fc-players .av{font-size:1.15rem}
+.fc-players .av{display:inline-flex;line-height:0;vertical-align:middle;margin-right:-6px}
 
 .pillars-wrap{margin-top:8px}
 .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
@@ -91,12 +91,12 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="/quiz">
-      <div class="brand-mark">⚡</div>
+      <div class="brand-mark" id="brand-mark"></div>
       <div>QuizNova<small>realtime quiz studio</small></div>
     </a>
     <div class="grow"></div>
-    <span id="store-pill" class="chip hide-sm">💾 checking…</span>
-    <span id="ai-pill" class="chip hide-sm">✨ checking AI…</span>
+    <span id="store-pill" class="chip hide-sm">checking</span>
+    <span id="ai-pill" class="chip hide-sm">checking</span>
     <a class="btn ghost sm hide-sm" href="/index.html">KidWorld</a>
     <a class="btn primary sm" href="#new" id="top-new">＋ New quiz</a>
   </div>
@@ -105,12 +105,12 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <main class="wrap">
   <section class="hero fade-up">
     <div>
-      <span class="eyebrow">🎈 Made for primary classrooms</span>
+      <span class="eyebrow">Made for primary classrooms</span>
       <h1>Quizzes your class <span class="pop">begs</span> to play.</h1>
       <p class="lede">Write a quiz in minutes, let the co-pilot draft the questions, then send it to Google
         Classroom. The link carries the whole quiz, so students need no account and nothing to install.</p>
       <div class="hero-actions">
-        <button class="btn primary lg" id="hero-new">✏️ Create a quiz</button>
+        <button class="btn primary lg" id="hero-new">Create a quiz</button>
         <div class="join-box">
           <input id="pin" maxlength="6" inputmode="numeric" placeholder="GAME PIN" aria-label="Game PIN">
           <button class="btn sm sun" id="join">Join →</button>
@@ -125,21 +125,21 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
         <div class="fc-opt right"><span class="fc-badge" style="background:#12BE8E">B</span> Diplodocus ✓</div>
         <div class="fc-opt"><span class="fc-badge" style="background:#FFC53D">C</span> Stegosaurus</div>
       </div>
-      <div class="float-card fc-score wobble">🔥 3 in a row<div style="font-size:1.5rem">1,240</div></div>
-      <div class="float-card fc-players wobble"><span class="av">🦊</span><span class="av">🐼</span><span class="av">🦄</span> 24 playing</div>
+      <div class="float-card fc-score wobble"><span class="mini-face" data-icon="flame" data-size="15"></span> 3 in a row<div style="font-size:1.5rem">1,240</div></div>
+      <div class="float-card fc-players wobble" id="fc-players"> 24 playing</div>
     </div>
 
   </section>
 
   <section class="pillars-wrap">
     <div class="pillars">
-      <div class="pillar"><div class="ic">🧩</div><h3>Builds like a form</h3>
+      <div class="pillar"><div class="ic" data-icon="bricks"></div><h3>Builds like a form</h3>
         <p>Multiple choice, true/false, multi-select and short answer. Drag to reorder, autosaves as you type.</p></div>
-      <div class="pillar"><div class="ic">✨</div><h3>AI co-pilot, on a leash</h3>
+      <div class="pillar"><div class="ic" data-icon="spark"></div><h3>AI co-pilot, on a leash</h3>
         <p>Ask for ten harder fractions questions, then approve or reject every single change it proposes.</p></div>
-      <div class="pillar"><div class="ic">🎯</div><h3>Marks itself</h3>
+      <div class="pillar"><div class="ic" data-icon="target"></div><h3>Marks itself</h3>
         <p>Marked the moment they finish, with an explanation for every question.</p></div>
-      <div class="pillar"><div class="ic">🔫</div><h3>Laser Tag mode</h3>
+      <div class="pillar"><div class="ic" data-icon="laser"></div><h3>Laser Tag mode</h3>
         <p>Two teams, real HP. Right answers fire, streaks overcharge, downed players revive their team.</p></div>
     </div>
   </section>
@@ -164,10 +164,31 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
   </footer>
 </main>
 
+<script src="/sprites.js"></script>
 <script src="/nova.js"></script>
 <script src="/qr.js"></script>
 <script>
 const { $, api, el, esc, toast, modal, ago, classroomUrl, copy } = Nova;
+
+/* Interface icons are drawn, not typed: emoji change shape on every device. */
+function paintIcons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(node => {
+    if (node.firstElementChild) return;
+    node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
+  });
+  const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+}
+document.addEventListener('DOMContentLoaded', () => { paintIcons(); showcase(); });
+
+/* Three of the characters a class would actually see, on the landing page. */
+function showcase() {
+  const strip = document.getElementById('fc-players');
+  if (!strip || strip.firstElementChild) return;
+  [0, 13, 26].forEach(i => strip.insertAdjacentHTML('afterbegin',
+    `<span class="av">${Sprite.face(i, 26)}</span>`));
+}
+paintIcons();
 let quizzes = [];
 
 async function load() {
@@ -175,7 +196,7 @@ async function load() {
     quizzes = (await api('/quizzes')).quizzes;
     render();
   } catch (err) {
-    $('#grid').innerHTML = `<div class="empty"><span class="em">⚠️</span>Could not reach the server.<br>${esc(err.message)}</div>`;
+    $('#grid').innerHTML = `<div class="empty"><span class="em" data-icon="warn"></span>Could not reach the server.<br>${esc(err.message)}</div>`;
   }
 }
 
@@ -206,9 +227,9 @@ function render() {
         el('span', { class: 'chip' }, ago(q.updatedAt))),
       el('div', { class: 'acts' },
         el('a', { class: 'btn sm primary grow', style: 'justify-content:center', href: '/studio?id=' + q.id }, 'Open'),
-        el('button', { class: 'btn sm', title: 'Host a live game', onclick: () => hostGame(q) }, '🎮'),
-        el('button', { class: 'btn sm', title: 'Share', onclick: () => share(q) }, '🔗'),
-        el('button', { class: 'btn sm danger', title: 'Delete', onclick: () => removeQuiz(q) }, '🗑'))
+        el('button', { class: 'btn sm', title: 'Host a live game', onclick: () => hostGame(q), html: Sprite.icon('play', 16) }),
+        el('button', { class: 'btn sm', title: 'Share', onclick: () => share(q) }, 'Share'),
+        el('button', { class: 'btn sm danger', title: 'Delete', onclick: () => removeQuiz(q) }, 'Delete'))
     );
     grid.append(card);
   });
@@ -252,12 +273,12 @@ async function hostGame(q) {
       const list = box.querySelector('#mode-list');
       let modes = [];
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
-      if (!modes.length) modes = [{ id: 'normal', icon: '🎯', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
+      if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
       list.innerHTML = '';
       modes.forEach(m => {
         const btn = el('button', { class: 'btn lg block', 'data-mode': m.id,
           style: 'justify-content:flex-start;padding:16px 18px;text-align:left' });
-        btn.append(el('span', { style: 'font-size:24px' }, m.icon),
+        btn.append(el('span', { class: 'mini-face', html: Sprite.icon(m.icon, 24) }),
           el('span', {}, el('strong', { style: 'display:block' }, m.label),
                          el('span', { class: 'tiny muted' }, m.blurb)));
         list.append(btn);
@@ -282,9 +303,9 @@ function share(q) {
     <div class="field"><label class="label">Student link</label>
       <input class="input mono" id="lnk" value="${esc(link)}" readonly></div>
     <div class="row" style="margin-top:18px;gap:10px">
-      <button class="btn grow" id="cp">📋 Copy link</button>
+      <button class="btn grow" id="cp">Copy link</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on QuizNova.'))}">📚 Send to Google Classroom</a>
+         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on QuizNova.'))}">Send to Google Classroom</a>
     </div>`, {
     onMount(box) {
       box.querySelector('#cp').onclick = () => copy(link);
@@ -318,16 +339,16 @@ $('#pin').onkeydown = (e) => { if (e.key === 'Enter') $('#join').click(); };
 api('/ai/status').then(s => {
   const pill = $('#ai-pill');
   pill.className = 'chip hide-sm ' + (s.live ? 'live' : 'warn');
-  pill.textContent = s.live ? `✨ Claude connected (${s.model})` : '✨ AI running on the built-in bank';
+  pill.textContent = s.live ? `Claude connected (${s.model})` : 'Questions from the built-in bank';
 }).catch(() => {});
 
 api('/status').then(s => {
   const pill = $('#store-pill');
-  const look = { browser: ['live', '💾 Saved in this browser',
+  const look = { browser: ['live', 'Saved in this browser',
                    'Quizzes are stored on this device. Share links carry the quiz inside the link, so students need nothing.'],
-                 database: ['live', '💾 Saved to your database',
+                 database: ['live', 'Saved to your database',
                    'Quizzes live in Postgres. They survive the site sleeping or being redeployed.'],
-                 server: ['warn', '💾 Saved on this server',
+                 server: ['warn', 'Saved on this server',
                    'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps. Connect a database to keep them.'] };
   const [cls, label, why] = look[s.storage === 'browser' ? 'browser' : s.durable ? 'database' : 'server'];
   pill.className = 'chip hide-sm ' + cls;

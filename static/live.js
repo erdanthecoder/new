@@ -39,15 +39,18 @@
 
   const now = () => Date.now();
   const rid = (n = 10) => Math.random().toString(36).slice(2, 2 + n);
-  const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
+  /* Characters are numbers, drawn by sprites.js. A number is handed out once per
+   * game so no two children in the same room are the same character, and it is
+   * stored with the player so it never changes underneath them. */
+  const freeFace = (taken) => (global.Sprite ? global.Sprite.freeFace(taken) : (taken || []).length);
 
   const MODES = {
-    normal:   { label: 'Normal',       icon: '🎯', blurb: 'Fastest right answer scores the most' },
-    laser:    { label: 'Laser Tag',    icon: '🔫', blurb: 'Two teams. Right answers fire, wrong ones cost shield' },
-    kart:     { label: 'Kart Race',    icon: '🏎️', blurb: 'Every right answer drives your kart further' },
-    tower:    { label: 'Tower Build',  icon: '🧱', blurb: 'Stack a block for each right answer' },
-    treasure: { label: 'Treasure Run', icon: '💎', blurb: 'Collect coins and open lucky chests' },
-    boss:     { label: 'Boss Battle',  icon: '🐉', blurb: 'The whole class fights one boss together' }
+    normal:   { label: 'Normal',       icon: 'target', blurb: 'Fastest right answer scores the most' },
+    laser:    { label: 'Laser Tag',    icon: 'laser', blurb: 'Two teams. Right answers fire, wrong ones cost shield' },
+    kart:     { label: 'Kart Race',    icon: 'kart', blurb: 'Every right answer drives your kart further' },
+    tower:    { label: 'Tower Build',  icon: 'bricks', blurb: 'Stack a block for each right answer' },
+    treasure: { label: 'Treasure Run', icon: 'gem', blurb: 'Collect coins and open lucky chests' },
+    boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' }
   };
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
   const TEAM_HP_FLOOR = 400, TEAM_HP_PER_PLAYER = 250, MAX_PLAYER_HIT = 40;
@@ -89,64 +92,64 @@
           target.hp = Math.max(0, target.hp - Math.min(damage, MAX_PLAYER_HIT));
           target.lastDamage = Math.min(damage, MAX_PLAYER_HIT);
           hitName = target.name;
-          if (target.hp === 0) { target.down = true; game.lastEvents.push(`💥 ${p.name} knocked out ${target.name}!`); }
+          if (target.hp === 0) { target.down = true; game.lastEvents.push(`${p.name} knocked out ${target.name}`); }
         }
         game.teams[foe].hp = Math.max(0, game.teams[foe].hp - damage);
         game.teams[p.team].score += damage;
         p.score += damage;
-        game.lastEvents.push(`🔺 ${p.name} hit ${hitName} for ${damage}` + (p.streak >= 3 ? ' ⚡OVERCHARGE' : ''));
+        game.lastEvents.push(`${p.name} hit ${hitName} for ${damage}` + (p.streak >= 3 ? ' (overcharged)' : ''));
       } else if (ok && p.down) {
         const hurt = mates.filter(x => x.team === p.team && x.hp < 100);
         if (hurt.length) {
           const mate = hurt.reduce((a, b) => (a.hp <= b.hp ? a : b));
           mate.hp = Math.min(100, mate.hp + 25);
           if (mate.down && mate.hp > 0) mate.down = false;
-          game.lastEvents.push(`✚ ${p.name} revived ${mate.name} (+25 HP)`);
+          game.lastEvents.push(`${p.name} revived ${mate.name}, +25 HP`);
         }
         p.score += 25;
       } else {
         p.hp = Math.max(0, p.hp - 10);
         if (p.hp === 0) p.down = true;
-        game.lastEvents.push(`⚠️ ${p.name} missed and lost shield`);
+        game.lastEvents.push(`${p.name} missed and lost shield`);
       }
     },
     kart(game, p, q, ok, speed) {
-      if (!ok) { game.lastEvents.push(`🛑 ${p.name} span out`); return; }
+      if (!ok) { game.lastEvents.push(`${p.name} span out`); return; }
       let metres = Math.round(45 + 55 * speed);
       const boost = p.streak >= 3;
       if (boost) metres = Math.round(metres * 1.6);
       p.distance += metres; p.score = p.distance; p.lastGain = metres;
-      game.lastEvents.push(`🏎️ ${p.name} drove ${metres}m` + (boost ? ' 🚀 BOOST' : ''));
+      game.lastEvents.push(`${p.name} drove ${metres}m` + (boost ? ' with a boost' : ''));
     },
     tower(game, p, q, ok, speed) {
       if (ok) {
         const gain = speed > 0.55 ? 2 : 1;
         p.blocks += gain; p.lastGain = gain;
-        game.lastEvents.push(`🧱 ${p.name} stacked ${gain} block${gain > 1 ? 's' : ''}`);
+        game.lastEvents.push(`${p.name} stacked ${gain} block${gain > 1 ? 's' : ''}`);
       } else {
-        if (p.blocks > 0) game.lastEvents.push(`🪨 ${p.name}'s tower wobbled — one block fell`);
+        if (p.blocks > 0) game.lastEvents.push(`${p.name}'s tower wobbled and a block fell`);
         p.blocks = Math.max(0, p.blocks - 1); p.lastGain = -1;
       }
       p.score = p.blocks;
     },
     treasure(game, p, q, ok, speed) {
-      if (!ok) { p.chest = ''; game.lastEvents.push(`🕳️ ${p.name} found an empty chest`); return; }
+      if (!ok) { p.chest = ''; game.lastEvents.push(`${p.name} found an empty chest`); return; }
       let coins = Math.round(60 + 60 * speed);
       const roll = Math.random();
       let chest = '';
-      if (roll < 0.12) { coins *= 3; chest = '💎 JACKPOT ×3'; }
-      else if (roll < 0.32) { coins *= 2; chest = '✨ Double chest'; }
+      if (roll < 0.12) { coins *= 3; chest = 'Jackpot, three times'; }
+      else if (roll < 0.32) { coins *= 2; chest = 'Double chest'; }
       else if (roll < 0.42) {
         const others = Object.values(game.players).filter(x => x.id !== p.id && x.coins > 0);
         if (others.length) {
           const leader = others.reduce((a, b) => (a.coins >= b.coins ? a : b));
           const stolen = Math.floor(leader.coins * 0.2);
           leader.coins -= stolen; leader.score = leader.coins;
-          coins += stolen; chest = `🏴 Raided ${leader.name} for ${stolen}`;
+          coins += stolen; chest = `Raided ${leader.name} for ${stolen}`;
         }
       }
       p.coins += coins; p.score = p.coins; p.chest = chest; p.lastGain = coins;
-      game.lastEvents.push(`🪙 ${p.name} collected ${coins}` + (chest ? ` — ${chest}` : ''));
+      game.lastEvents.push(`${p.name} collected ${coins}` + (chest ? ` — ${chest}` : ''));
     },
     boss(game, p, q, ok, speed) {
       const boss = game.boss;
@@ -155,12 +158,12 @@
         if (p.streak >= 3) damage = Math.round(damage * 1.5);
         boss.hp = Math.max(0, boss.hp - damage);
         p.score += damage; p.lastGain = damage;
-        game.lastEvents.push(`⚔️ ${p.name} hit ${boss.name} for ${damage}`);
-        if (boss.hp === 0) game.lastEvents.push(`🎉 ${boss.name} is defeated!`);
+        game.lastEvents.push(`${p.name} hit ${boss.name} for ${damage}`);
+        if (boss.hp === 0) game.lastEvents.push(`${boss.name} is defeated`);
       } else {
         boss.classHp = Math.max(0, boss.classHp - 4);
         p.lastGain = 0;
-        game.lastEvents.push(`🔥 ${boss.name} struck back at the class`);
+        game.lastEvents.push(`${boss.name} struck back at the class`);
       }
     }
   };
@@ -170,7 +173,7 @@
 
   /* ── state helpers ────────────────────────────────────── */
   const blankPlayer = (row) => ({
-    id: row.id, name: row.name, avatar: row.avatar || '🦊', team: row.team || 'red',
+    id: row.id, name: row.name, avatar: Number(row.avatar) || 0, team: row.team || 'red',
     score: 0, hp: 100, streak: 0, best: 0, answered: false, correct: null, down: false,
     lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0
   });
@@ -337,11 +340,13 @@
 
     if (tail === '/join' && method === 'POST') {
       if (game.state === 'over') throw new Error('This game has finished.');
-      const red = Object.values(game.players).filter(p => p.team === 'red').length;
-      const blue = Object.values(game.players).filter(p => p.team === 'blue').length;
+      // ask the table, not the host's copy: someone may have joined a second ago
+      const already = await readPlayers(pin) || [];
+      const red = already.filter(p => p.team === 'red').length;
+      const blue = already.filter(p => p.team === 'blue').length;
       const row = {
         id: rid(10), pin, name: (body.name || 'Player').slice(0, 16),
-        avatar: body.avatar || AVATARS[Math.floor(Math.random() * AVATARS.length)],
+        avatar: String(freeFace(already.map(p => p.avatar))),
         team: red <= blue ? 'red' : 'blue'
       };
       await rest('POST', '/quiznova_live_players', row, { prefer: 'return=minimal' });

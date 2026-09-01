@@ -255,7 +255,7 @@ Rules:
 
     if (!topicLabel || !questions.length) {
       return { reply: 'I am not sure which topic you mean. Try naming it: "times tables", "the water cycle", ' +
-                      '"opposites", "Ancient Egypt". Or add a Claude key (🔑 above) for any topic at all.', ops: [] };
+                      '"opposites", "Ancient Egypt". Or add a Claude key (the key button above) for any topic at all.', ops: [] };
     }
 
     const ops = questions.map(q => ({
@@ -426,7 +426,7 @@ Rules:
           source = 'claude';
         } catch (err) {
           result = offlineBrain(body.prompt || '', quiz);
-          result.reply = `⚠️ ${err.message}\n\n${result.reply}`;
+          result.reply = `${err.message}\n\n${result.reply}`;
         }
       } else {
         result = offlineBrain(body.prompt || '', quiz);
@@ -472,7 +472,7 @@ Rules:
 
     const paint = () => {
       mode.textContent = getKey() ? 'Claude · claude-opus-5' : 'Built-in question bank';
-      button.textContent = getKey() ? '🔑' : '🔑';
+      button.innerHTML = Sprite.icon('key', 17);
       button.title = getKey() ? 'Claude is connected. Click to change or remove the key.'
                               : 'Connect your Claude API key for questions on any topic';
       button.style.opacity = getKey() ? '1' : '.6';
@@ -564,7 +564,7 @@ Rules:
       const button = document.createElement('button');
       button.id = 'import-top';
       button.className = 'btn sm';
-      button.textContent = '📥 Import';
+      button.innerHTML = Sprite.icon('inbox', 16) + ' Import';
       button.title = 'Paste a quiz code or share link';
       button.onclick = openImportDialog;
       top.insertBefore(button, newBtn);
@@ -579,7 +579,7 @@ Rules:
       card.className = 'quiz-card new-card import-card';
       card.style.borderColor = 'rgba(52,224,161,.45)';
       card.innerHTML = `
-        <div class="plus" style="background:var(--grad-mint);color:#03251b">📥</div>
+        <div class="plus" style="background:var(--grad-mint);color:#03251b">${Sprite.icon('inbox', 20)}</div>
         <strong>Import a quiz</strong>
         <span class="tiny faint">Paste a code Claude wrote for you</span>`;
       card.onclick = openImportDialog;

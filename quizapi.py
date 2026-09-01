@@ -867,24 +867,41 @@ MAX_PLAYER_HIT = 40          # damage cap on any one player, so nobody is out in
 # results screens work unchanged; a mode adds its own extra state on top.
 
 MODES = {
-    "normal":   {"label": "Normal",      "icon": "🎯", "teams": False,
+    "normal":   {"label": "Normal",      "icon": "target", "teams": False,
                  "blurb": "Fastest right answer scores the most"},
-    "laser":    {"label": "Laser Tag",   "icon": "🔫", "teams": True,
+    "laser":    {"label": "Laser Tag",   "icon": "laser", "teams": True,
                  "blurb": "Two teams. Right answers fire, wrong ones cost shield"},
-    "kart":     {"label": "Kart Race",   "icon": "🏎️", "teams": False,
+    "kart":     {"label": "Kart Race",   "icon": "kart", "teams": False,
                  "blurb": "Every right answer drives your kart further"},
-    "tower":    {"label": "Tower Build", "icon": "🧱", "teams": False,
+    "tower":    {"label": "Tower Build", "icon": "bricks", "teams": False,
                  "blurb": "Stack a block for each right answer"},
-    "treasure": {"label": "Treasure Run", "icon": "💎", "teams": False,
+    "treasure": {"label": "Treasure Run", "icon": "gem", "teams": False,
                  "blurb": "Collect coins and open lucky chests"},
-    "boss":     {"label": "Boss Battle", "icon": "🐉", "teams": False,
+    "boss":     {"label": "Boss Battle", "icon": "dragon", "teams": False,
                  "blurb": "The whole class fights one boss together"},
 }
 
 TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
 
-AVATARS = ["🦊", "🐼", "🦄", "🐙", "🦁", "🐸", "🐧", "🦖", "🐝", "🦈", "🐨", "🦉", "🐢", "🦩", "🐳", "🦋"]
+# Characters are numbers drawn by sprites.js in the browser: 12 colours x 12
+# silhouettes. One is handed out per game so no two children in the same room
+# look alike, and it is stored with the player so it never changes.
+FACE_COMBINATIONS = 144
+
+
+def free_face(taken):
+    """The first character nobody in this game has.
+
+    Stepping by 13 through 144 visits every colour/shape pair once, so the first
+    children to join differ in both rather than sharing one silhouette.
+    """
+    used = {str(t) for t in taken}
+    for k in range(FACE_COMBINATIONS):
+        candidate = str(k * 13 % FACE_COMBINATIONS)
+        if candidate not in used:
+            return candidate
+    return str(random.randrange(FACE_COMBINATIONS))
 
 def public_game(game: dict, include_answers: bool = False) -> dict:
     quiz = _store["quizzes"].get(game["quizId"], {})
@@ -1012,7 +1029,7 @@ def join_game(pin):
         player = {
             "id": nid(10),
             "name": name,
-            "avatar": body.get("avatar") or random.choice(AVATARS),
+            "avatar": free_face(p.get("avatar") for p in game["players"].values()),
             "team": "red" if red <= blue else "blue",
             "score": 0,
             "hp": 100,
@@ -1148,12 +1165,12 @@ def score_laser(game, player, question, ok, speed):
             hit_name = target["name"]
             if target["hp"] == 0:
                 target["down"] = True
-                game["lastEvents"].append(f"💥 {player['name']} knocked out {target['name']}!")
+                game["lastEvents"].append(f"{player['name']} knocked out {target['name']}")
         game["teams"][foe]["hp"] = max(0, game["teams"][foe]["hp"] - damage)
         game["teams"][player["team"]]["score"] += damage
         player["score"] += damage
         game["lastEvents"].append(
-            f"🔺 {player['name']} hit {hit_name} for {damage}" + (" ⚡OVERCHARGE" if player["streak"] >= 3 else ""))
+            f"{player['name']} hit {hit_name} for {damage}" + (" (overcharged)" if player["streak"] >= 3 else ""))
     elif ok and player["down"]:
         mates = [p for p in game["players"].values() if p["team"] == player["team"] and p["hp"] < 100]
         heal = 25
@@ -1162,19 +1179,19 @@ def score_laser(game, player, question, ok, speed):
             mate["hp"] = min(100, mate["hp"] + heal)
             if mate["down"] and mate["hp"] > 0:
                 mate["down"] = False
-            game["lastEvents"].append(f"✚ {player['name']} revived {mate['name']} (+{heal} HP)")
+            game["lastEvents"].append(f"{player['name']} revived {mate['name']}, +{heal} HP")
         player["score"] += heal
     else:
         player["hp"] = max(0, player["hp"] - 10)
         if player["hp"] == 0:
             player["down"] = True
-        game["lastEvents"].append(f"⚠️ {player['name']} missed and lost shield")
+        game["lastEvents"].append(f"{player['name']} missed and lost shield")
 
 
 def score_kart(game, player, question, ok, speed):
     """Distance driven. Answering fast is worth roughly double answering slowly."""
     if not ok:
-        game["lastEvents"].append(f"🛑 {player['name']} span out")
+        game["lastEvents"].append(f"{player['name']} span out")
         return
     metres = int(round(45 + 55 * speed))
     boost = player["streak"] >= 3
@@ -1183,7 +1200,7 @@ def score_kart(game, player, question, ok, speed):
     player["distance"] = player.get("distance", 0) + metres
     player["score"] = player["distance"]
     player["lastGain"] = metres
-    game["lastEvents"].append(f"🏎️ {player['name']} drove {metres}m" + (" 🚀 BOOST" if boost else ""))
+    game["lastEvents"].append(f"{player['name']} drove {metres}m" + (" with a boost" if boost else ""))
 
 
 def score_tower(game, player, question, ok, speed):
@@ -1193,12 +1210,12 @@ def score_tower(game, player, question, ok, speed):
         gain = 2 if speed > 0.55 else 1
         player["blocks"] = blocks + gain
         player["lastGain"] = gain
-        game["lastEvents"].append(f"🧱 {player['name']} stacked {gain} block" + ("s" if gain > 1 else ""))
+        game["lastEvents"].append(f"{player['name']} stacked {gain} block" + ("s" if gain > 1 else ""))
     else:
         player["blocks"] = max(0, blocks - 1)
         player["lastGain"] = -1 if blocks else 0
         if blocks:
-            game["lastEvents"].append(f"🪨 {player['name']}'s tower wobbled — one block fell")
+            game["lastEvents"].append(f"{player['name']}'s tower wobbled and a block fell")
     player["score"] = player["blocks"]
 
 
@@ -1206,17 +1223,17 @@ def score_treasure(game, player, question, ok, speed):
     """Coins plus a chest: the luck keeps a slower reader in the race."""
     if not ok:
         player["chest"] = ""
-        game["lastEvents"].append(f"🕳️ {player['name']} found an empty chest")
+        game["lastEvents"].append(f"{player['name']} found an empty chest")
         return
     coins = int(round(60 + 60 * speed))
     roll = random.random()
     chest = ""
     if roll < 0.12:
         coins *= 3
-        chest = "💎 JACKPOT ×3"
+        chest = "Jackpot, three times"
     elif roll < 0.32:
         coins *= 2
-        chest = "✨ Double chest"
+        chest = "Double chest"
     elif roll < 0.42:
         leader = max((p for p in game["players"].values() if p is not player),
                      key=lambda p: p.get("coins", 0), default=None)
@@ -1225,12 +1242,12 @@ def score_treasure(game, player, question, ok, speed):
             leader["coins"] -= stolen
             leader["score"] = leader["coins"]
             coins += stolen
-            chest = f"🏴 Raided {leader['name']} for {stolen}"
+            chest = f"Raided {leader['name']} for {stolen}"
     player["coins"] = player.get("coins", 0) + coins
     player["score"] = player["coins"]
     player["chest"] = chest
     player["lastGain"] = coins
-    game["lastEvents"].append(f"🪙 {player['name']} collected {coins}" + (f" — {chest}" if chest else ""))
+    game["lastEvents"].append(f"{player['name']} collected {coins}" + (f" — {chest}" if chest else ""))
 
 
 def score_boss(game, player, question, ok, speed):
@@ -1243,13 +1260,13 @@ def score_boss(game, player, question, ok, speed):
         boss["hp"] = max(0, boss["hp"] - damage)
         player["score"] += damage
         player["lastGain"] = damage
-        game["lastEvents"].append(f"⚔️ {player['name']} hit {boss['name']} for {damage}")
+        game["lastEvents"].append(f"{player['name']} hit {boss['name']} for {damage}")
         if boss["hp"] == 0:
-            game["lastEvents"].append(f"🎉 {boss['name']} is defeated!")
+            game["lastEvents"].append(f"{boss['name']} is defeated")
     else:
         boss["classHp"] = max(0, boss["classHp"] - 4)
         player["lastGain"] = 0
-        game["lastEvents"].append(f"🔥 {boss['name']} struck back at the class")
+        game["lastEvents"].append(f"{boss['name']} struck back at the class")
 
 
 SCORERS = {

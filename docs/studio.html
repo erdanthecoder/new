@@ -150,7 +150,7 @@ tr:hover td{background:var(--paper)}
 <header class="topbar">
   <div class="topbar-inner">
     <a class="icon-btn" href="index.html" title="All quizzes">←</a>
-    <div class="brand-mark hide-sm">⚡</div>
+    <div class="brand-mark hide-sm" id="brand-mark"></div>
     <input id="title" class="line-input" style="max-width:340px;font-weight:700;font-size:1.02rem" placeholder="Untitled quiz">
     <span id="save" class="chip">saved</span>
     <div class="grow"></div>
@@ -160,7 +160,7 @@ tr:hover td{background:var(--paper)}
       <button data-tab="responses">Responses</button>
       <button data-tab="settings">Settings</button>
     </div>
-    <button class="btn sm" id="share">🔗 Share</button>
+    <button class="btn sm" id="share">Share</button>
     <button class="btn sm primary" id="present">▶ Play live</button>
   </div>
 </header>
@@ -212,7 +212,7 @@ tr:hover td{background:var(--paper)}
   <!-- AI co-pilot -->
   <aside class="col panel ai">
     <div class="ai-head">
-      <div class="ai-orb">✨</div>
+      <div class="ai-orb" data-icon="spark"></div>
       <div class="grow">
         <strong style="display:block;font-size:.98rem">Quiz co-pilot</strong>
         <span class="tiny faint" id="ai-mode">checking…</span>
@@ -238,14 +238,27 @@ tr:hover td{background:var(--paper)}
   </aside>
 </main>
 
+<script src="sprites.js?v=e3d62bbc"></script>
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=eda5027d"></script>
-<script src="nova-local.js?v=852b3257"></script>
+<script src="live.js?v=928cf3f6"></script>
+<script src="nova-local.js?v=f4a230f0"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
+
+/* Interface icons are drawn, not typed: emoji change shape on every device. */
+function paintIcons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(node => {
+    if (node.firstElementChild) return;
+    node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
+  });
+  const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+}
+document.addEventListener('DOMContentLoaded', () => paintIcons());
+paintIcons();
 
 const quizId = qs('id');
 if (!quizId) location.href = 'index.html';
@@ -299,7 +312,7 @@ function listen() {
       renderAll();
       restoreFocus(anchor);
       if (msg.data.by === 'ai') {
-        (msg.data.log || []).forEach(line => addBubble('sys', '✨ ' + line));
+        (msg.data.log || []).forEach(line => addBubble('sys', line));
       } else {
         toast('Updated by a collaborator');
       }
@@ -384,7 +397,7 @@ function renderQuestions() {
   host.innerHTML = '';
   if (!quiz.questions.length) {
     host.append(el('div', { class: 'card pad empty' },
-      el('span', { class: 'em' }, '🧩'),
+      el('span', { class: 'em', html: Sprite.icon('bricks', 40) }),
       el('div', {}, 'No questions yet. Add one below, or ask the co-pilot to write the quiz.')));
     return;
   }
@@ -479,7 +492,7 @@ function questionCard(q, i) {
     } }, '⧉ Duplicate'),
     el('button', { class: 'btn sm danger', onclick: () => {
       quiz.questions = quiz.questions.filter(x => x.id !== q.id); renderAll(); save();
-    } }, '🗑 Delete')));
+    } }, 'Delete')));
 
   return card;
 }
@@ -572,7 +585,7 @@ async function loadResponses() {
       el('td', { class: 'faint tiny' }, Nova.ago(r.at))));
   });
   const wrapCard = el('div', { class: 'card pad' }, el('h3', { style: 'margin-bottom:12px;font-size:1.06rem' }, 'Every response'));
-  if (!rows.length) wrapCard.append(el('div', { class: 'empty' }, el('span', { class: 'em' }, '📭'),
+  if (!rows.length) wrapCard.append(el('div', { class: 'empty' }, el('span', { class: 'em', html: Sprite.icon('inbox', 40) }),
     'No responses yet. Share the link or run a live game.'));
   else wrapCard.append(table);
   host.append(wrapCard);
@@ -627,9 +640,9 @@ $$('#perm button').forEach(btn => {
     permission = btn.dataset.p;
     store.set('permission', permission);
     $$('#perm button').forEach(b => b.classList.toggle('on', b === btn));
-    addBubble('sys', permission === 'auto' ? '🔓 Auto-edit on. Changes are applied straight away.'
-            : permission === 'read' ? '🔒 Read-only. The quiz will not be changed.'
-            : '🛡 Ask me. You approve every change.');
+    addBubble('sys', permission === 'auto' ? 'Auto-edit on. Changes are applied straight away.'
+            : permission === 'read' ? 'Read-only. The quiz will not be changed.'
+            : 'Ask me. You approve every change.');
   };
 });
 
@@ -724,7 +737,7 @@ async function askAI() {
       thinking.append(el('div', { class: 'tiny faint', style: 'margin-top:6px' }, res.note));
     }
   } catch (err) {
-    thinking.innerHTML = '⚠️ ' + esc(err.message);
+    thinking.innerHTML = esc(err.message);
   } finally {
     $('#ai-send').disabled = false;
     $('#ai-log').scrollTop = $('#ai-log').scrollHeight;
@@ -752,9 +765,9 @@ $('#share').onclick = () => {
     <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
     <div class="field"><label class="label">Student link</label><input class="input mono" value="${esc(link)}" readonly></div>
     <div class="row" style="margin-top:18px;gap:10px">
-      <button class="btn grow" id="cp">📋 Copy</button>
+      <button class="btn grow" id="cp">Copy</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on QuizNova.'))}">📚 Google Classroom</a>
+         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on QuizNova.'))}">Google Classroom</a>
     </div>`, { onMount(box) {
       box.querySelector('#cp').onclick = () => copy(link);
       const code = window.QR && QR.svg(link, { size: 150 });
@@ -778,11 +791,11 @@ $('#present').onclick = () => {
       const list = box.querySelector('#mode-list');
       let modes = [];
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
-      if (!modes.length) modes = [{ id: 'normal', icon: '🎯', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
+      if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
       list.innerHTML = '';
       modes.forEach((m, i) => {
         const btn = el('button', { class: 'modecard c' + (i % 6), 'data-mode': m.id });
-        btn.append(el('span', { class: 'ic' }, m.icon),
+        btn.append(el('span', { class: 'ic', html: Sprite.icon(m.icon, 30) }),
                    el('strong', {}, m.label),
                    el('span', { class: 'sub' }, m.blurb));
         list.append(btn);
@@ -802,7 +815,7 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(true); toast('Saved', 'good'); }
 });
 
-boot().catch(err => { document.body.innerHTML = `<div class="empty" style="padding-top:120px"><span class="em">⚠️</span>${esc(err.message)}<br><a class="btn sm" style="margin-top:16px" href="index.html">Back to quizzes</a></div>`; });
+boot().catch(err => { document.body.innerHTML = `<div class="empty" style="padding-top:120px"><span class="em">${Sprite.icon('warn', 40)}</span>${esc(err.message)}<br><a class="btn sm" style="margin-top:16px" href="index.html">Back to quizzes</a></div>`; });
 </script>
 </body>
 </html>

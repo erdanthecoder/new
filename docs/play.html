@@ -16,11 +16,7 @@
 .hud .stat b{display:block;font-size:1.05rem;line-height:1.1}
 .hud .stat span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
 
-.avatars{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin:10px 0 20px}
-.av-pick{aspect-ratio:1;display:grid;place-items:center;font-size:1.35rem;border-radius:13px;cursor:pointer;
-  background:rgba(255,255,255,.05);border:2px solid transparent;transition:.16s}
-.av-pick:hover{background:rgba(255,255,255,.1);transform:scale(1.07)}
-.av-pick.on{border-color:var(--violet);background:rgba(124,92,255,.22)}
+
 
 /* the phone is the controller: the buttons get the whole screen */
 .play{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
@@ -52,7 +48,10 @@
 .big.good{background:linear-gradient(165deg,#12BE8E,#0B8F6B);color:#fff}
 .big.bad{background:linear-gradient(165deg,#F4364C,#B31F32);color:#fff}
 .big.wait{background:rgba(255,255,255,.05);border:1px solid var(--line)}
-.big .you{font-size:clamp(3.6rem,22vw,5.5rem);line-height:1;animation:bob 2.4s ease-in-out infinite}
+.big .you{line-height:0;animation:bob 2.4s ease-in-out infinite}
+.big .you svg{width:clamp(96px,30vw,150px);height:auto}
+.mini-face{display:inline-flex;line-height:0;vertical-align:middle}
+.row-name{display:flex;align-items:center;gap:8px}
 @keyframes bob{50%{transform:translateY(-8px)}}
 .big .sub.dim{opacity:.5;font-size:.9rem}
 .big.late{background:linear-gradient(165deg,#5A5170,#3A3350);color:#fff}
@@ -80,18 +79,20 @@
 <body class="dark">
 <main class="shell" id="app"></main>
 
+<script src="sprites.js?v=e3d62bbc"></script>
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=eda5027d"></script>
-<script src="nova-local.js?v=852b3257"></script>
+<script src="live.js?v=928cf3f6"></script>
+<script src="nova-local.js?v=f4a230f0"></script>
 <script>
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
-const AVATARS = ['🦊','🐼','🦄','🐙','🦁','🐸','🐧','🦖','🐝','🦈','🐨','🦉','🐢','🦩','🐳','🦋'];
 
+const drawFace = (p, size) => Sprite.face(p && p.avatar, size);
+const paintMark = () => { const m = document.getElementById('brand-mark');
+                          if (m) m.innerHTML = Sprite.icon('spark', 22, '#fff'); };
 let pin = qs('pin'), me = null, game = null, drift = 0, ticker = null, picked = null, lastKey = '';
 let answeredIndex = -1;   // the question this device has already sent — sticky until the next one
-let avatar = store.get('avatar') || AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
 if (pin) { const saved = store.get('player:' + pin); if (saved) me = saved; }
 
@@ -107,12 +108,12 @@ function start() {
 function askPin() {
   $('#app').innerHTML = `
     <div class="card pad fade-up" style="margin-top:12vh;text-align:center">
-      <div class="brand-mark" style="margin:0 auto 16px;width:46px;height:46px;font-size:22px">⚡</div>
+      <div class="brand-mark" id="brand-mark" style="margin:0 auto 16px;width:46px;height:46px"></div>
       <h1 style="font-size:1.7rem;margin-bottom:6px">Join the game</h1>
       <p class="muted tiny" style="margin-bottom:22px">Ask your teacher for the 6-digit PIN.</p>
       <input class="input" id="pin" inputmode="numeric" maxlength="6" placeholder="000000"
              style="font-size:2rem;text-align:center;letter-spacing:.36em;font-weight:800;padding:16px">
-      <button class="btn primary lg block" style="margin-top:16px" id="go">Enter →</button>
+      <button class="btn primary lg block" style="margin-top:16px" id="go">Enter</button>
     </div>`;
   const go = () => {
     const v = $('#pin').value.replace(/\D/g, '');
@@ -121,6 +122,7 @@ function askPin() {
     me = store.get('player:' + pin) || null;
     start();
   };
+  paintMark();
   $('#go').onclick = go;
   $('#pin').onkeydown = e => { if (e.key === 'Enter') go(); };
   $('#pin').focus();
@@ -128,30 +130,22 @@ function askPin() {
 
 function askName() {
   $('#app').innerHTML = `
-    <div class="card pad fade-up" style="margin-top:8vh">
+    <div class="card pad fade-up" style="margin-top:10vh">
       <span class="chip">PIN ${esc(pin)}</span>
-      <h1 style="font-size:1.6rem;margin:14px 0 4px">Pick your look</h1>
-      <p class="muted tiny">This is how you appear on the big screen.</p>
-      <div class="avatars" id="avs"></div>
-      <div class="field"><label class="label" for="nm">Your name</label>
+      <h1 style="font-size:1.7rem;margin:14px 0 4px">What is your name?</h1>
+      <p class="muted tiny">The class sees this on the big screen.</p>
+      <div class="field" style="margin-top:16px">
         <input class="input" id="nm" maxlength="16" placeholder="e.g. Sam" value="${esc(store.get('studentName') || '')}"></div>
-      <button class="btn primary lg block" style="margin-top:18px" id="join">Join game →</button>
+      <button class="btn primary lg block" style="margin-top:18px" id="join">Join the game</button>
       <p class="tiny faint" style="margin-top:10px;text-align:center">Wrong PIN? <a href="play.html" style="text-decoration:underline">Change it</a></p>
     </div>`;
-  const host = $('#avs');
-  AVATARS.forEach(a => {
-    const node = el('div', { class: 'av-pick' + (a === avatar ? ' on' : ''), onclick: () => {
-      avatar = a; store.set('avatar', a);
-      host.querySelectorAll('.av-pick').forEach(n => n.classList.toggle('on', n.textContent === a));
-    } }, a);
-    host.append(node);
-  });
   const join = async () => {
     const name = ($('#nm').value || '').trim();
     if (!name) return toast('Type your name first', 'bad');
     store.set('studentName', name);
     try {
-      const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name, avatar } });
+      // the game picks a character nobody else in the room has
+      const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name } });
       me = res.player;
       store.set('player:' + pin, me);
       connect();
@@ -159,13 +153,14 @@ function askName() {
   };
   $('#join').onclick = join;
   $('#nm').onkeydown = e => { if (e.key === 'Enter') join(); };
+  setTimeout(() => $('#nm').focus(), 80);
 }
 
 /* ── realtime ──────────────────────────────────── */
 function connect() {
   api(`/games/${pin}`).then(apply).catch(() => {
     store.del('player:' + pin);
-    $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">👻</span>
+    $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">${Sprite.icon('ghost', 44)}</span>
       That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="play.html">Try another PIN</a></div>`;
   });
   stream(`/games/${pin}/events`, (msg) => { if (msg.data && msg.data.pin) apply(msg.data); }, `/games/${pin}`);
@@ -205,11 +200,11 @@ function patch() {
 
 function hud() {
   const node = el('div', { class: 'hud' });
-  node.append(el('div', { class: 'who' }, el('span', { style: 'font-size:1.3rem' }, me.avatar), me.name));
+  node.append(el('div', { class: 'who' }, el('span', { class: 'mini-face', html: drawFace(me, 30) }), me.name));
   if (game.mode === 'laser') {
     node.append(el('span', { class: 'chip ' + (me.team === 'red' ? '' : 'live'),
       style: `border-color:${me.team === 'red' ? 'rgba(255,77,94,.5)' : 'rgba(79,107,255,.5)'}` },
-      me.team === 'red' ? '🔴 Crimson' : '🔵 Cobalt'));
+      me.team === 'red' ? 'Crimson' : 'Cobalt'));
     node.append(el('div', { class: 'stat' }, el('b', {}, me.down ? 'DOWN' : me.hp + ' HP'), el('span', {}, 'shield')));
   } else {
     const unit = { kart: ['distance', (me.distance || 0) + 'm'], tower: ['blocks', String(me.blocks || 0)],
@@ -217,7 +212,8 @@ function hud() {
                  || ['points', String(me.score)];
     node.append(el('div', { class: 'stat' }, el('b', {}, unit[1]), el('span', {}, unit[0])));
   }
-  if (me.streak >= 2) node.append(el('span', { class: 'chip warn' }, '🔥 ' + me.streak));
+  if (me.streak >= 2) node.append(el('span', { class: 'chip warn' },
+    el('span', { class: 'mini-face', html: Sprite.icon('flame', 14) }), String(me.streak)));
   return node;
 }
 
@@ -238,7 +234,7 @@ function lobbyCard() {
   const card = el('div', { class: 'play' });
   const panel = el('div', { class: 'big wait' });
   panel.innerHTML = `
-    <div class="you">${esc(me.avatar)}</div>
+    <div class="you">${drawFace(me, 120)}</div>
     <h2>You are in</h2>
     <p class="sub">${esc(game.quizTitle)}</p>
     <p class="sub" style="margin-top:14px">${esc((game.modeInfo && game.modeInfo.blurb) || '')}</p>
@@ -253,7 +249,7 @@ function lobbyCard() {
         if (me.team === side) return;
         try { await api(`/games/${pin}/team`, { method: 'POST', body: { playerId: me.id } }); }
         catch (err) { toast(err.message, 'bad'); }
-      } }, (side === 'red' ? '🔴 Crimson' : '🔵 Cobalt'),
+      } }, (side === 'red' ? 'Crimson' : 'Cobalt'),
          el('div', { class: 'tiny faint', 'data-team-count': side }, count + ' players')));
     });
     card.append(el('p', { class: 'label', style: 'margin-top:14px;flex:none' }, 'Pick your team'), pick);
@@ -330,7 +326,7 @@ function revealCard() {
 
   if (me.correct === null || me.correct === undefined) {
     card.append(el('div', { class: 'big late' },
-      el('div', { class: 'mark' }, '⌛'),
+      el('div', { class: 'mark', html: Sprite.icon('clock', 78) }),
       el('h2', {}, 'Too slow'),
       el('p', { class: 'sub' }, 'Be quicker next round')));
   } else {
@@ -341,7 +337,7 @@ function revealCard() {
       : game.mode === 'boss'     ? (ok ? `${g} damage` : 'The boss hit back')
       :                            (ok ? `+${g || 0}` : 'No points');
     card.append(el('div', { class: 'big ' + (ok ? 'good' : 'bad') },
-      el('div', { class: 'mark' }, ok ? (me.streak >= 3 ? '⚡' : '✓') : '✕'),
+      el('div', { class: 'mark', html: Sprite.icon(ok ? (me.streak >= 3 ? 'flame' : 'tick') : 'cross', 86) }),
       el('h2', {}, ok ? (me.streak >= 3 ? 'On fire' : 'Correct') : 'Not this time'),
       el('p', { class: 'gain' }, line),
       me.chest ? el('p', { class: 'sub' }, me.chest) : '',
@@ -369,7 +365,7 @@ function revealCard() {
     ['red', 'blue'].forEach(side => {
       const t = game.teams[side];
       box.append(el('div', { class: 'spread', style: 'margin-top:8px' },
-        el('span', { class: 'tiny' }, (side === 'red' ? '🔴 ' : '🔵 ') + t.name + (side === me.team ? ' (you)' : '')),
+        el('span', { class: 'tiny' }, t.name + (side === me.team ? ' (you)' : '')),
         el('span', { class: 'tiny faint' }, Math.max(0, t.hp) + ' HP')));
       box.append(el('div', { class: 'bar' }, el('i', {
         style: `width:${Math.max(0, t.hp / maxHp(side) * 100)}%;background:${side === 'red' ? 'linear-gradient(90deg,#ff4d5e,#ff9b6a)' : 'linear-gradient(90deg,#4f6bff,#22d3ee)'}`
@@ -398,7 +394,7 @@ function overCard() {
     const foe = game.teams[me.team === 'red' ? 'blue' : 'red'];
     const won = mine.hp > foe.hp;
     const draw = mine.hp === foe.hp;
-    card.append(el('div', { style: 'font-size:3.4rem' }, draw ? '🤝' : won ? '🏆' : '🛡'),
+    card.append(el('div', { class: 'mini-face', html: Sprite.icon(draw ? 'handshake' : won ? 'trophy' : 'laser', 64) }),
       el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, draw ? 'Draw!' : won ? 'Your team wins!' : 'Your team fought hard'),
       el('p', { class: 'muted tiny' }, `${mine.name} ${Math.max(0, mine.hp)} HP · ${foe.name} ${Math.max(0, foe.hp)} HP`),
       el('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:20px;flex-wrap:wrap' },
@@ -407,12 +403,13 @@ function overCard() {
     if (won || draw) confetti(120);
   } else if (game.mode === 'boss' && game.boss) {
     const won = game.boss.hp === 0;
-    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
+    card.append(el('div', { class: 'mini-face', html: Sprite.icon(won ? 'trophy' : 'dragon', 64) }),
       el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, won ? 'The boss is beaten!' : 'The boss survived'),
       el('p', { class: 'muted' }, `You dealt ${me.score} damage`));
     if (won) confetti(120);
   } else {
-    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎓';
+    const medal = rank <= 3 ? Sprite.icon('medal', 46,
+        rank === 1 ? '#E8A400' : rank === 2 ? '#93A0BC' : '#B4713A') : Sprite.icon('flag', 46);
     card.append(el('div', { style: 'font-size:3.4rem' }, medal),
       el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, rank === 1 ? 'You won!' : `You finished #${rank}`),
       el('p', { class: 'muted' }, game.mode === 'kart' ? `${me.distance || 0}m driven`
@@ -425,10 +422,11 @@ function overCard() {
   const lb = el('div', { class: 'card pad', style: 'margin-top:18px;text-align:left' },
     el('h3', { style: 'font-size:1rem;margin-bottom:10px' }, 'Final standings'));
   game.players.slice(0, 5).forEach((p, i) => lb.append(el('div', { class: 'spread', style: 'padding:7px 0' },
-    el('span', {}, `#${i + 1} ${p.avatar} ${p.name}${p.id === me.id ? ' (you)' : ''}`),
+    el('span', { class: 'row-name' }, el('span', { class: 'mini-face', html: drawFace(p, 24) }),
+       `#${i + 1} ${p.name}${p.id === me.id ? ' (you)' : ''}`),
     el('strong', {}, game.mode === 'kart' ? `${p.distance || 0}m`
-      : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
-      : game.mode === 'treasure' ? `${p.coins || 0} 🪙` : String(p.score)))));
+      : game.mode === 'tower' ? `${p.blocks || 0} blocks`
+      : game.mode === 'treasure' ? `${p.coins || 0} coins` : String(p.score)))));
   card.append(lb);
   card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: 'play.html' }, 'Play another game'));
   return card;
@@ -440,7 +438,7 @@ function runTimer() {
   if (!chip || game.state !== 'question' || !game.endsAt) return;
   const paint = () => {
     const left = Math.max(0, game.endsAt - (Date.now() + drift));
-    chip.textContent = '⏱ ' + Math.ceil(left / 1000) + 's';
+    chip.textContent = Math.ceil(left / 1000) + 's';
     chip.className = 'chip' + (left < 5200 ? ' warn' : '');
     if (left <= 0) clearInterval(ticker);
   };

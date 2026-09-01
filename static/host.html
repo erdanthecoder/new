@@ -15,6 +15,7 @@
 .pin-big{font-size:clamp(3.2rem,9vw,5.6rem);font-weight:900;letter-spacing:.16em;line-height:1;
   background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .join-url{font-size:1.15rem;font-weight:700}
+.mini-face{display:inline-flex;line-height:0;vertical-align:middle}
 .mode-badge{display:inline-flex;gap:9px;align-items:center;padding:9px 16px;border-radius:99px;font-weight:750;font-size:.9rem}
 .mode-normal{background:rgba(124,92,255,.18);border:1px solid rgba(124,92,255,.45);color:#cfc4ff}
 .mode-laser{background:rgba(255,77,94,.16);border:1px solid rgba(255,77,94,.45);color:#ffb3ba}
@@ -49,7 +50,8 @@
 .ask h1{flex:1;text-align:center;font-size:clamp(1.6rem,4.2vw,3.4rem);line-height:1.14;
   font-weight:850;letter-spacing:-.02em;margin:0}
 .dial{position:relative;flex:none;width:clamp(80px,7.4vw,116px);aspect-ratio:1}
-.dial svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dial > svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dial .num svg{width:auto;height:auto;transform:none}
 .dial .num{position:absolute;inset:0;display:grid;place-items:center;
   font-size:clamp(1.7rem,2.6vw,2.6rem);font-weight:900;color:#161036}
 .dial.low .num{color:#F4364C}
@@ -190,7 +192,7 @@
 
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="/quiz"><div class="brand-mark">⚡</div><div>QuizNova<small id="qt">live game</small></div></a>
+    <a class="brand" href="/quiz"><div class="brand-mark" id="brand-mark"></div><div>QuizNova<small id="qt">live game</small></div></a>
     <div class="grow"></div>
     <span class="chip" id="conn"><span class="dot"></span> live</span>
     <span class="chip" id="count">0 players</span>
@@ -201,6 +203,7 @@
 
 <main class="stage" id="stage"></main>
 
+<script src="/sprites.js"></script>
 <script src="/nova.js"></script>
 <script src="/qr.js"></script>
 <script>
@@ -214,6 +217,8 @@ let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 const joinUrl = () => location.origin + '/play?pin=' + pin;
 const joinLabel = () => location.host + '/play';
 
+const mark = document.getElementById('brand-mark');
+if (mark) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
 if (!pin) location.href = '/quiz';
 if (!hostToken) toast('You are watching this game. Only the teacher device can control it.', 'bad');
 
@@ -225,7 +230,7 @@ function connect() {
 }
 
 function fail() {
-  $('#stage').innerHTML = `<div class="card pad empty"><span class="em">👻</span>
+  $('#stage').innerHTML = `<div class="card pad empty"><span class="em">${Sprite.icon('ghost', 48)}</span>
     That game is no longer running.<br><a class="btn sm" style="margin-top:16px" href="/quiz">Back to quizzes</a></div>`;
 }
 
@@ -267,10 +272,59 @@ function morph(cur, next) {
 /** Draw `build()` into `host`, morphing onto what is already there unless the
  *  screen genuinely changed (new question, new phase). */
 function paint(host, build, fresh) {
+  const before = seats();
   const next = build();
-  if (fresh || !host.firstElementChild) { host.innerHTML = ''; host.append(next); return true; }
+  if (fresh || !host.firstElementChild) { host.innerHTML = ''; host.append(next); slide(before); return true; }
   morph(host.firstElementChild, next);
+  slide(before);
   return false;
+}
+
+/* When the scores change the table reorders, and a row that simply appears in its
+ * new place tells nobody anything. So: note where every row is, let the update
+ * happen, then start each row from where it used to be and let it travel. The
+ * browser does the moving; we only hand it the distance. */
+function seats() {
+  const map = new Map();
+  document.querySelectorAll('.lb-row[data-id]').forEach(node => {
+    map.set(node.dataset.id, {
+      top: node.getBoundingClientRect().top,
+      score: node.querySelector('.score') ? node.querySelector('.score').textContent : null
+    });
+  });
+  return map;
+}
+
+/* A score that jumps from 108 to 227 is just a different number. Counting it up
+ * is how a child sees they gained something. */
+function countUp(node, fromText, toText) {
+  const from = parseFloat(String(fromText).replace(/[^0-9.-]/g, ''));
+  const to = parseFloat(String(toText).replace(/[^0-9.-]/g, ''));
+  if (!isFinite(from) || !isFinite(to) || from === to) return;
+  const suffix = String(toText).replace(/^-?[\d.,]+/, '');
+  const started = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - started) / 700);
+    const eased = 1 - Math.pow(1 - t, 3);
+    node.textContent = Math.round(from + (to - from) * eased) + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function slide(before) {
+  if (!before.size) return;
+  document.querySelectorAll('.lb-row[data-id]').forEach(node => {
+    const was = before.get(node.dataset.id);
+    if (!was) return;
+    const shift = was.top - node.getBoundingClientRect().top;
+    if (Math.abs(shift) >= 2) {
+      node.animate([{ transform: `translateY(${shift}px)` }, { transform: 'none' }],
+                   { duration: 520, easing: 'cubic-bezier(.2,.9,.25,1)' });
+    }
+    const score = node.querySelector('.score');
+    if (score && was.score !== null) countUp(score, was.score, score.textContent);
+  });
 }
 
 function render(fresh) {
@@ -301,19 +355,22 @@ function lobbyView() {
   const crowd = el('div', { class: 'crowd' });
   if (!game.players.length) {
     crowd.append(el('div', { class: 'nobody' },
-      el('div', { style: 'font-size:2.6rem' }, '👋'),
+      el('div', { class: 'mini-face', html: Sprite.icon('wave', 44) }),
       el('div', { style: 'margin-top:8px' }, 'Waiting for the class to join')));
   } else {
     game.players.forEach(p => crowd.append(el('div', { class: 'face ' + (game.mode === 'laser' ? p.team : '') },
-      el('span', { class: 'av' }, p.avatar), p.name)));
+      el('span', { class: 'av', html: Sprite.face(p.avatar, 40) }), p.name)));
   }
   root.append(crowd);
 
   root.append(el('div', { class: 'lobbybar' },
-    el('button', { class: 'btn primary lg', id: 'start', disabled: hostToken ? null : true }, 'Start game'),
-    el('button', { class: 'btn', id: 'cp' }, 'Copy join link'),
+    el('button', { class: 'btn primary lg', id: 'start', disabled: hostToken ? null : true },
+       el('span', { class: 'mini-face', html: Sprite.icon('play', 18) }), 'Start game'),
+    el('button', { class: 'btn', id: 'cp' },
+       el('span', { class: 'mini-face', html: Sprite.icon('copy', 16) }), 'Copy join link'),
     el('span', { class: 'mode-badge ' + (game.mode === 'laser' ? 'mode-laser' : 'mode-normal') },
-       `${(game.modeInfo && game.modeInfo.icon) || '🎯'} ${(game.modeInfo && game.modeInfo.label) || 'Normal'}`),
+       el('span', { class: 'mini-face', html: Sprite.icon((game.modeInfo && game.modeInfo.icon) || 'target', 18) }),
+       (game.modeInfo && game.modeInfo.label) || 'Normal'),
     el('span', { class: 'muted' },
        `${game.players.length} player${game.players.length === 1 ? '' : 's'} · ${game.total} questions`),
     game.mode === 'laser'
@@ -419,7 +476,7 @@ function runTimer() {
   const dial = document.getElementById('timer');
   if (!num) return;
   if (game.state !== 'question' || !game.endsAt) {
-    num.textContent = '✓'; dial?.classList.remove('low');
+    num.innerHTML = Sprite.icon('tick', 34, '#161036'); dial?.classList.remove('low');
     if (ring) ring.style.strokeDashoffset = 276.5;
     return;
   }
@@ -457,15 +514,16 @@ function raceTrack() {
   game.players.forEach((p, i) => {
     const pct = Math.min(100, (p.distance || 0) / longest * 100);
     const lane = el('div', { class: 'lane' });
-    lane.append(el('span', { class: 'who' }, `${p.avatar} ${p.name}`));
+    lane.append(el('span', { class: 'who' }, el('span', { class: 'mini-face', html: Sprite.face(p.avatar, 22) }), p.name));
     const road = el('div', { class: 'road' });
-    road.append(el('span', { class: 'kart' + (p.streak >= 3 ? ' boost' : ''), style: `left:${pct}%` }, '🏎️'));
+    road.append(el('span', { class: 'kart' + (p.streak >= 3 ? ' boost' : ''), style: `left:${pct}%`,
+                             html: Sprite.icon('kart', 26, KART_COLOURS[i % 6]) }));
     lane.append(road, el('span', { class: 'm' }, `${p.distance || 0}m`));
     box.append(lane);
   });
   if (!game.players.length) box.append(el('p', { class: 'faint tiny' }, 'No racers yet.'));
   box.append(el('p', { class: 'tiny faint', style: 'margin-top:6px' },
-    'Answer faster to drive further. Three right in a row gives a 🚀 boost.'));
+    'Answer faster to drive further. Three right in a row gives a boost.'));
   return box;
 }
 
@@ -477,7 +535,7 @@ function skyline() {
     for (let b = 0; b < Math.min(p.blocks || 0, 14); b++) {
       stack.append(el('span', { class: 'blk', style: `background:${KART_COLOURS[i % 6]};animation-delay:${b * 25}ms` }));
     }
-    tower.append(el('span', { class: 'cap' }, (p.blocks || 0) > 0 ? p.avatar : '·'), stack,
+    tower.append(el('span', { class: 'cap', html: (p.blocks || 0) > 0 ? Sprite.face(p.avatar, 26) : '' }), stack,
                  el('span', { class: 'who' }, `${p.name} · ${p.blocks || 0}`));
     box.append(tower);
   });
@@ -489,7 +547,7 @@ function treasureBoard() {
   const box = el('div', { class: 'chests' });
   game.players.slice(0, 12).forEach(p => {
     box.append(el('div', { class: 'chest' },
-      el('div', { style: 'font-size:1.5rem' }, p.avatar),
+      el('div', { class: 'mini-face', html: Sprite.face(p.avatar, 34) }),
       el('div', { class: 'coins' }, String(p.coins || 0)),
       el('div', { style: 'font-weight:700;font-size:.84rem' }, p.name),
       el('div', { class: 'tag' }, p.chest || '')));
@@ -503,8 +561,8 @@ function bossArena() {
   const hurt = boss.hp < (lastBossHp ?? boss.hp);
   lastBossHp = boss.hp;
   const box = el('div', { class: 'boss' + (hurt ? ' hurt' : '') });
-  box.append(el('div', { class: 'face' }, boss.hp > 0 ? '🐉' : '💀'),
-    el('h2', {}, boss.hp > 0 ? boss.name : `${boss.name} is defeated!`),
+  box.append(el('div', { class: 'face', html: Sprite.icon(boss.hp > 0 ? 'dragon' : 'ghost', 62) }),
+    el('h2', {}, boss.hp > 0 ? boss.name : `${boss.name} is defeated`),
     el('div', { class: 'bar' }, el('i', { style: `width:${Math.max(0, boss.hp / boss.max * 100)}%` })),
     el('p', { class: 'tiny faint', style: 'margin-top:6px' }, `${boss.hp} / ${boss.max} HP`),
     el('p', { class: 'tiny', style: 'margin-top:14px;font-weight:800' }, `Class health · ${boss.classHp}%`),
@@ -516,8 +574,8 @@ function bossArena() {
 let lastBossHp = null;
 
 const unitFor = (p) => game.mode === 'kart' ? `${p.distance || 0}m`
-  : game.mode === 'tower' ? `${p.blocks || 0} 🧱`
-  : game.mode === 'treasure' ? `${p.coins || 0} 🪙`
+  : game.mode === 'tower' ? `${p.blocks || 0} blocks`
+  : game.mode === 'treasure' ? `${p.coins || 0} coins`
   : String(p.score);
 
 /* Who climbed and who slipped. The comparison is against where everyone stood at
@@ -538,20 +596,21 @@ function rankBaseline() {
 function leaderboard({ from = 0, title } = {}) {
   const card = el('div', { class: 'card pad', style: 'margin-top:14px' },
     el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' },
-      title || (game.mode === 'boss' ? '⚔️ Damage dealt' : '🏆 Leaderboard')));
+      title || (game.mode === 'boss' ? 'Damage dealt' : 'Leaderboard')));
   const lb = el('div', { class: 'lb' });
   const baseline = rankBaseline();
   game.players.slice(from, from + 8).forEach((p, offset) => {
     const i = from + offset;
     const was = baseline[p.id];
     const moved = was === undefined ? 0 : was - i;
-    lb.append(el('div', { class: 'lb-row' + (i === 0 ? ' top' : '') },
+    lb.append(el('div', { class: 'lb-row' + (i === 0 ? ' top' : ''), 'data-id': p.id },
       el('span', { class: 'rank' }, '#' + (i + 1)),
       el('span', { class: 'move ' + (moved > 0 ? 'up' : moved < 0 ? 'down' : 'same') },
          moved > 0 ? '▲' + moved : moved < 0 ? '▼' + (-moved) : '·'),
-      el('span', { style: 'font-size:1.2rem' }, p.avatar),
+      el('span', { class: 'mini-face', html: Sprite.face(p.avatar, 30) }),
       el('span', {}, p.name),
-      p.streak >= 3 ? el('span', { class: 'chip warn' }, `🔥 ${p.streak}`) : '',
+      p.streak >= 3 ? el('span', { class: 'chip warn' },
+         el('span', { class: 'mini-face', html: Sprite.icon('flame', 14) }), String(p.streak)) : '',
       p.answered && game.state === 'question' ? el('span', { class: 'chip live' }, 'in') : '',
       el('span', { class: 'score' }, unitFor(p))));
   });
@@ -569,16 +628,17 @@ function arena() {
     const maxHp = Math.max(100, 100 * members.length);
     const panel = el('div', { class: 'team ' + side });
     panel.append(el('div', { class: 'spread' },
-      el('strong', {}, (side === 'red' ? '🔴 ' : '🔵 ') + team.name),
+      el('strong', {}, team.name),
       el('span', { class: 'tiny faint' }, `${Math.max(0, team.hp)} HP`)));
     panel.append(el('div', { class: 'hpbar' }, el('i', { style: `width:${Math.max(0, team.hp / maxHp * 100)}%` })));
     members.forEach(p => {
       const row = el('div', { class: 'fighter' + (p.down ? ' down' : '') },
-        el('span', { style: 'font-size:1.15rem' }, p.avatar),
+        el('span', { class: 'mini-face', html: Sprite.face(p.avatar, 26) }),
         el('span', { style: 'width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.86rem' }, p.name),
         el('span', { class: 'mini' }, el('i', { style: `width:${p.hp}%;background:${p.hp > 50 ? '#34e0a1' : p.hp > 20 ? '#ffc857' : '#ff4d5e'}` })),
         el('span', { class: 'tiny faint', style: 'width:34px;text-align:right' }, p.down ? 'down' : p.hp),
-        p.streak >= 3 ? el('span', { class: 'chip warn', style: 'padding:1px 7px' }, '⚡') : '');
+        p.streak >= 3 ? el('span', { class: 'chip warn', style: 'padding:1px 7px',
+            html: Sprite.icon('flame', 13) }) : '');
       if (lastHp[p.id] !== undefined && p.hp < lastHp[p.id]) row.classList.add('hit');
       lastHp[p.id] = p.hp;
       panel.append(row);
@@ -606,21 +666,21 @@ function overView() {
   const top = game.players.slice(0, 3);
   const root = el('div', { class: 'finale' });
 
-  let headline = '🏁 Final scores', sub = game.quizTitle;
+  let headline = 'Final scores', sub = game.quizTitle;
   if (game.mode === 'laser') {
     const red = game.teams.red, blue = game.teams.blue;
     const winner = red.hp === blue.hp ? null : (red.hp > blue.hp ? red : blue);
-    headline = winner ? `${winner === red ? '🔴' : '🔵'} ${winner.name} wins` : '🤝 A draw';
+    headline = winner ? `${winner.name} wins` : 'A draw';
     sub = `${red.name} ${Math.max(0, red.hp)} HP · ${blue.name} ${Math.max(0, blue.hp)} HP`;
   } else if (game.mode === 'boss') {
     const boss = game.boss || { hp: 0, name: 'The boss' };
-    headline = boss.hp === 0 ? `🎉 The class beat ${boss.name}` : `🐉 ${boss.name} survived`;
+    headline = boss.hp === 0 ? `The class beat ${boss.name}` : `${boss.name} survived`;
     sub = boss.hp === 0 ? 'Every right answer landed a blow.' : `${boss.hp} HP left. Closer next lesson.`;
   } else if (top[0]) {
-    const win = { kart: ['🏁', `${top[0].distance}m driven`], tower: ['🏗️', `${top[0].blocks} blocks high`],
-                  treasure: ['💎', `${top[0].coins} coins`] }[game.mode];
-    headline = `${win ? win[0] : '🏆'} ${top[0].avatar} ${top[0].name} wins`;
-    sub = win ? win[1] : `${top[0].score} points`;
+    const win = { kart: `${top[0].distance}m driven`, tower: `${top[0].blocks} blocks high`,
+                  treasure: `${top[0].coins} coins` }[game.mode];
+    headline = `${top[0].name} wins`;
+    sub = win || `${top[0].score} points`;
   }
   const crown = el('div', { class: 'crown' });
   crown.append(el('h1', {}, headline), el('p', {}, sub));
@@ -631,8 +691,8 @@ function overView() {
     if (!p) return;
     const place = p === top[0] ? 1 : p === top[1] ? 2 : 3;
     podium.append(el('div', { class: 'stand p' + place, style: `animation-delay:${i * 150}ms` },
-      el('div', { class: 'medal' }, place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'),
-      el('div', { style: 'font-size:2.1rem;line-height:1;margin-top:4px' }, p.avatar),
+      el('div', { class: 'medal', html: Sprite.icon('medal', 30, place === 1 ? '#E8A400' : place === 2 ? '#93A0BC' : '#B4713A') }),
+      el('div', { class: 'mini-face', html: Sprite.face(p.avatar, 54) }),
       el('div', { class: 'who' }, p.name),
       el('div', { class: 'pts' }, game.mode === 'laser' ? p.score + ' dmg' : unitFor(p))));
   });

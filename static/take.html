@@ -56,9 +56,22 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
+<script src="/sprites.js"></script>
 <script src="/nova.js"></script>
 <script>
 const { $, api, el, esc, qs, toast, confetti } = Nova;
+
+/* Interface icons are drawn, not typed: emoji change shape on every device. */
+function paintIcons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(node => {
+    if (node.firstElementChild) return;
+    node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
+  });
+  const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+}
+document.addEventListener('DOMContentLoaded', () => paintIcons());
+paintIcons();
 // A quiz reaches a student either as ?id= (server edition) or as a #d= payload
 // inside the link itself (static edition) — accept both.
 const quizId = qs('id');
@@ -76,13 +89,13 @@ async function boot() {
   cover();
 }
 
-const fail = (msg) => { $('#app').innerHTML = `<div class="card pad empty"><span class="em">🙈</span>${esc(msg)}</div>`; };
+const fail = (msg) => { $('#app').innerHTML = `<div class="card pad empty"><span class="em" data-icon="ghost"></span>${esc(msg)}</div>`; };
 
 function cover() {
   const totalPoints = quiz.questions.reduce((s, q) => s + (q.points || 100), 0);
   $('#app').innerHTML = `
     <div class="card cover fade-up">
-      <span class="chip">⚡ QuizNova</span>
+      <span class="chip">QuizNova</span>
       <h1 style="margin-top:14px">${esc(quiz.title)}</h1>
       <p class="muted">${esc(quiz.description || 'Answer every question, then submit. Good luck!')}</p>
       <div class="facts">
@@ -205,12 +218,12 @@ function showResult(result) {
   const pct = result.total ? Math.round(result.score / result.total * 100) : 0;
   const circumference = 2 * Math.PI * 74;
   const stroke = circumference * (1 - pct / 100);
-  const mood = pct >= 90 ? ['Outstanding!', '🏆'] : pct >= 70 ? ['Great work!', '🎉']
-             : pct >= 50 ? ['Good effort!', '💪'] : ['Keep practising!', '🌱'];
+  const mood = pct >= 90 ? ['Outstanding', 'trophy'] : pct >= 70 ? ['Great work', 'medal']
+             : pct >= 50 ? ['Good effort', 'flag'] : ['Keep practising', 'spark'];
 
   const box = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:38px' });
   box.innerHTML = `
-    <div style="font-size:2.6rem;margin-bottom:6px">${mood[1]}</div>
+    <div style="line-height:0;margin-bottom:10px">${Sprite.icon(mood[1], 52, 'var(--grape)')}</div>
     <h1 style="font-size:1.9rem;margin-bottom:6px">${mood[0]}</h1>
     <p class="muted" style="margin-bottom:26px">${esc(result.name)} · ${result.score} of ${result.total} points</p>
     <div class="score-ring">
