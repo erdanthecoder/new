@@ -52,6 +52,9 @@
 .big.good{background:linear-gradient(165deg,#12BE8E,#0B8F6B);color:#fff}
 .big.bad{background:linear-gradient(165deg,#F4364C,#B31F32);color:#fff}
 .big.wait{background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.big .you{font-size:clamp(3.6rem,22vw,5.5rem);line-height:1;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px)}}
+.big .sub.dim{opacity:.5;font-size:.9rem}
 .big.late{background:linear-gradient(165deg,#5A5170,#3A3350);color:#fff}
 
 .verdict{padding:44px 24px;text-align:center;border-radius:var(--r-xl);animation:fadeUp .4s var(--ease) both}
@@ -192,7 +195,7 @@ function patch() {
   const hudNode = document.querySelector('#app .hud');
   if (hudNode) hudNode.replaceWith(hud());
   const players = document.getElementById('lobby-count');
-  if (players) players.textContent = game.players.length + ' player' + (game.players.length === 1 ? '' : 's') + ' in the lobby';
+  if (players) players.textContent = game.players.length + ' player' + (game.players.length === 1 ? '' : 's') + ' waiting';
   const counts = document.querySelectorAll('[data-team-count]');
   counts.forEach(node => {
     const side = node.getAttribute('data-team-count');
@@ -232,17 +235,18 @@ function render(fresh) {
 }
 
 function lobbyCard() {
-  const card = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:34px 22px' });
-  card.innerHTML = `
-    <div class="waiting"><div class="pulse"></div></div>
-    <h1 style="font-size:1.45rem;margin-bottom:6px">You are in!</h1>
-    <p class="muted tiny">${esc(game.quizTitle)} · ${game.total} questions</p>
-    <p class="muted" style="margin-top:16px">${esc((game.modeInfo && game.modeInfo.blurb) || 'Waiting for your teacher to start…')}</p>
-    <p class="tiny faint" style="margin-top:6px">Waiting for your teacher to start…</p>
-    <p class="tiny faint" style="margin-top:8px" id="lobby-count">${game.players.length} player${game.players.length === 1 ? '' : 's'} in the lobby</p>`;
+  const card = el('div', { class: 'play' });
+  const panel = el('div', { class: 'big wait' });
+  panel.innerHTML = `
+    <div class="you">${esc(me.avatar)}</div>
+    <h2>You are in</h2>
+    <p class="sub">${esc(game.quizTitle)}</p>
+    <p class="sub" style="margin-top:14px">${esc((game.modeInfo && game.modeInfo.blurb) || '')}</p>
+    <p class="sub dim" id="lobby-count">${game.players.length} player${game.players.length === 1 ? '' : 's'} waiting</p>`;
+  card.append(panel);
 
   if (game.mode === 'laser') {
-    const pick = el('div', { class: 'team-pick' });
+    const pick = el('div', { class: 'team-pick', style: 'flex:none' });
     ['red', 'blue'].forEach(side => {
       const count = game.players.filter(p => p.team === side).length;
       pick.append(el('div', { class: `team-btn ${side}` + (me.team === side ? ' on' : ''), onclick: async () => {
@@ -252,7 +256,7 @@ function lobbyCard() {
       } }, (side === 'red' ? '🔴 Crimson' : '🔵 Cobalt'),
          el('div', { class: 'tiny faint', 'data-team-count': side }, count + ' players')));
     });
-    card.append(el('p', { class: 'label', style: 'margin-top:22px' }, 'Your team'), pick);
+    card.append(el('p', { class: 'label', style: 'margin-top:14px;flex:none' }, 'Pick your team'), pick);
   }
   return card;
 }

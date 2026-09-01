@@ -158,13 +158,25 @@
 .lb-row.top{background:linear-gradient(90deg,rgba(255,200,87,.2),rgba(255,255,255,.04));border-color:rgba(255,200,87,.45)}
 .lb-row .score{margin-left:auto;font-weight:800;font-size:1.05rem}
 
-.podium{display:flex;gap:16px;align-items:flex-end;justify-content:center;margin:34px 0}
+.finale{display:flex;flex-direction:column;gap:16px;height:calc(100vh - 128px);min-height:520px}
+.crown{flex:none;background:#fff;color:#161036;border:3px solid #0b0718;border-radius:24px;padding:20px 28px;
+  text-align:center;box-shadow:0 13px 0 -3px rgba(0,0,0,.5)}
+.crown h1{font-size:clamp(1.6rem,4vw,3rem);font-weight:900;letter-spacing:-.02em;margin:0;line-height:1.12}
+.crown p{margin:6px 0 0;font-weight:600;opacity:.6}
+.podium{flex:none;display:flex;gap:16px;align-items:flex-end;justify-content:center;margin:20px 0 8px}
 .stand{width:150px;border-radius:20px 20px 0 0;display:flex;flex-direction:column;justify-content:flex-end;
   align-items:center;padding:16px 12px;text-align:center;animation:rise .8s var(--ease) both}
 @keyframes rise{from{transform:scaleY(.2);opacity:0;transform-origin:bottom}}
-.stand.p1{height:220px;background:linear-gradient(180deg,rgba(255,200,87,.35),rgba(255,200,87,.08));border:1px solid rgba(255,200,87,.5)}
-.stand.p2{height:170px;background:linear-gradient(180deg,rgba(190,200,230,.28),rgba(190,200,230,.06));border:1px solid rgba(190,200,230,.4)}
-.stand.p3{height:135px;background:linear-gradient(180deg,rgba(205,127,50,.3),rgba(205,127,50,.07));border:1px solid rgba(205,127,50,.45)}
+.stand.p1{height:min(280px,34vh);background:linear-gradient(180deg,#FFE08A,#FFC53D);border:3px solid #0b0718}
+.stand.p2{height:min(215px,26vh);background:linear-gradient(180deg,#E6EAF5,#BFC7DA);border:3px solid #0b0718}
+.stand.p3{height:min(175px,21vh);background:linear-gradient(180deg,#F0BD8B,#D08C4B);border:3px solid #0b0718}
+.stand.p1,.stand.p2,.stand.p3{color:#161036;box-shadow:0 11px 0 -3px rgba(0,0,0,.45)}
+.stand .medal{font-size:2.2rem;line-height:1}
+.stand .who{font-size:clamp(1rem,1.5vw,1.35rem);font-weight:900;margin-top:4px}
+.stand .pts{font-weight:800;opacity:.66;font-size:.95rem}
+.finale .rest{flex:1;min-height:0;overflow:auto}
+.lb-row .move{font-weight:800;font-size:.85rem;width:34px;text-align:right}
+.lb-row .move.up{color:#12BE8E}.lb-row .move.down{color:#FF8A9B}.lb-row .move.same{opacity:.3}
 
 @media (max-width:900px){
   .pin-panel{grid-template-columns:1fr}
@@ -508,21 +520,42 @@ const unitFor = (p) => game.mode === 'kart' ? `${p.distance || 0}m`
   : game.mode === 'treasure' ? `${p.coins || 0} 🪙`
   : String(p.score);
 
-function leaderboard() {
-  const card = el('div', { class: 'card pad', style: 'margin-top:18px' },
+/* Who climbed and who slipped. The comparison is against where everyone stood at
+ * the previous question, captured once when that question's result first appeared:
+ * comparing the current standings with themselves would always read "no change",
+ * and re-capturing on every render would wipe the arrows a second after they showed. */
+let prevRanks = {}, thisRanks = null, ranksFor = -1;
+function rankBaseline() {
+  if (game.state === 'reveal' && ranksFor !== game.index) {
+    if (thisRanks) prevRanks = thisRanks;          // last question's finish is the new baseline
+    thisRanks = {};
+    game.players.forEach((p, i) => { thisRanks[p.id] = i; });
+    ranksFor = game.index;
+  }
+  return prevRanks;
+}
+
+function leaderboard({ from = 0, title } = {}) {
+  const card = el('div', { class: 'card pad', style: 'margin-top:14px' },
     el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' },
-      game.mode === 'boss' ? '⚔️ Damage dealt' : '🏆 Leaderboard'));
+      title || (game.mode === 'boss' ? '⚔️ Damage dealt' : '🏆 Leaderboard')));
   const lb = el('div', { class: 'lb' });
-  game.players.slice(0, 8).forEach((p, i) => {
+  const baseline = rankBaseline();
+  game.players.slice(from, from + 8).forEach((p, offset) => {
+    const i = from + offset;
+    const was = baseline[p.id];
+    const moved = was === undefined ? 0 : was - i;
     lb.append(el('div', { class: 'lb-row' + (i === 0 ? ' top' : '') },
       el('span', { class: 'rank' }, '#' + (i + 1)),
+      el('span', { class: 'move ' + (moved > 0 ? 'up' : moved < 0 ? 'down' : 'same') },
+         moved > 0 ? '▲' + moved : moved < 0 ? '▼' + (-moved) : '·'),
       el('span', { style: 'font-size:1.2rem' }, p.avatar),
       el('span', {}, p.name),
       p.streak >= 3 ? el('span', { class: 'chip warn' }, `🔥 ${p.streak}`) : '',
       p.answered && game.state === 'question' ? el('span', { class: 'chip live' }, 'in') : '',
       el('span', { class: 'score' }, unitFor(p))));
   });
-  if (!game.players.length) lb.append(el('p', { class: 'faint tiny' }, 'No players.'));
+  if (game.players.length <= from) lb.append(el('p', { class: 'faint tiny' }, 'Nobody else.'));
   card.append(lb);
   return card;
 }
@@ -571,58 +604,48 @@ function arena() {
 /* ── final ─────────────────────────────────────── */
 function overView() {
   const top = game.players.slice(0, 3);
-  const card = el('div', { class: 'card pad', style: 'text-align:center;padding:36px' });
+  const root = el('div', { class: 'finale' });
 
+  let headline = '🏁 Final scores', sub = game.quizTitle;
   if (game.mode === 'laser') {
     const red = game.teams.red, blue = game.teams.blue;
     const winner = red.hp === blue.hp ? null : (red.hp > blue.hp ? red : blue);
-    card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' },
-      winner ? `${winner === red ? '🔴' : '🔵'} ${winner.name} wins!` : '🤝 It is a draw!'),
-      el('p', { class: 'muted' }, `${red.name} ${Math.max(0, red.hp)} HP · ${blue.name} ${Math.max(0, blue.hp)} HP`));
+    headline = winner ? `${winner === red ? '🔴' : '🔵'} ${winner.name} wins` : '🤝 A draw';
+    sub = `${red.name} ${Math.max(0, red.hp)} HP · ${blue.name} ${Math.max(0, blue.hp)} HP`;
   } else if (game.mode === 'boss') {
-    const boss = game.boss || { hp: 0, classHp: 0, name: 'The Boss' };
-    const won = boss.hp === 0;
-    card.append(el('div', { style: 'font-size:3.4rem' }, won ? '🎉' : '🐉'),
-      el('h1', { style: 'font-size:2.1rem;margin:8px 0' },
-        won ? `The class defeated ${boss.name}!` : `${boss.name} survived this time`),
-      el('p', { class: 'muted' }, won ? 'Every right answer landed a blow.' : `${boss.hp} HP left. Closer next lesson.`));
-  } else if (game.mode === 'kart') {
-    const first = game.players[0];
-    card.append(el('div', { style: 'font-size:3.4rem' }, '🏁'),
-      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} takes the flag!` : 'Race over'),
-      el('p', { class: 'muted' }, first ? `${first.distance}m driven` : ''));
-  } else if (game.mode === 'tower') {
-    const first = game.players[0];
-    card.append(el('div', { style: 'font-size:3.4rem' }, '🏗️'),
-      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} built the tallest tower!` : 'Building over'),
-      el('p', { class: 'muted' }, first ? `${first.blocks} blocks high` : ''));
-  } else if (game.mode === 'treasure') {
-    const first = game.players[0];
-    card.append(el('div', { style: 'font-size:3.4rem' }, '💎'),
-      el('h1', { style: 'font-size:2.1rem;margin:8px 0' }, first ? `${first.avatar} ${first.name} is the richest!` : 'Hunt over'),
-      el('p', { class: 'muted' }, first ? `${first.coins} coins` : ''));
-  } else {
-    card.append(el('h1', { style: 'font-size:2.1rem;margin-bottom:8px' }, '🏁 Final results'),
-                el('p', { class: 'muted' }, esc(game.quizTitle)));
+    const boss = game.boss || { hp: 0, name: 'The boss' };
+    headline = boss.hp === 0 ? `🎉 The class beat ${boss.name}` : `🐉 ${boss.name} survived`;
+    sub = boss.hp === 0 ? 'Every right answer landed a blow.' : `${boss.hp} HP left. Closer next lesson.`;
+  } else if (top[0]) {
+    const win = { kart: ['🏁', `${top[0].distance}m driven`], tower: ['🏗️', `${top[0].blocks} blocks high`],
+                  treasure: ['💎', `${top[0].coins} coins`] }[game.mode];
+    headline = `${win ? win[0] : '🏆'} ${top[0].avatar} ${top[0].name} wins`;
+    sub = win ? win[1] : `${top[0].score} points`;
   }
+  const crown = el('div', { class: 'crown' });
+  crown.append(el('h1', {}, headline), el('p', {}, sub));
+  root.append(crown);
 
   const podium = el('div', { class: 'podium' });
-  const order = [top[1], top[0], top[2]];
-  order.forEach((p, i) => {
+  [top[1], top[0], top[2]].forEach((p, i) => {
     if (!p) return;
     const place = p === top[0] ? 1 : p === top[1] ? 2 : 3;
-    podium.append(el('div', { class: 'stand p' + place, style: `animation-delay:${i * 140}ms` },
-      el('div', { style: 'font-size:2.2rem' }, p.avatar),
-      el('strong', { style: 'margin-top:6px' }, p.name),
-      el('span', { class: 'tiny faint' }, game.mode === 'laser' ? p.score + ' dmg' : unitFor(p)),
-      el('div', { style: 'font-size:1.4rem;margin-top:8px' }, place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉')));
+    podium.append(el('div', { class: 'stand p' + place, style: `animation-delay:${i * 150}ms` },
+      el('div', { class: 'medal' }, place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'),
+      el('div', { style: 'font-size:2.1rem;line-height:1;margin-top:4px' }, p.avatar),
+      el('div', { class: 'who' }, p.name),
+      el('div', { class: 'pts' }, game.mode === 'laser' ? p.score + ' dmg' : unitFor(p))));
   });
-  card.append(podium);
-  card.append(leaderboard());
-  card.append(el('div', { class: 'row', style: 'justify-content:center;margin-top:24px;gap:10px' },
+  root.append(podium);
+
+  const rest = el('div', { class: 'rest' });
+  if (game.players.length > 3) rest.append(leaderboard({ from: 3, title: 'Everyone else' }));
+  root.append(rest);
+
+  root.append(el('div', { class: 'row', style: 'justify-content:center;gap:10px;flex:none' },
     el('a', { class: 'btn', href: '/quiz' }, 'Back to quizzes'),
     el('button', { class: 'btn primary', onclick: () => location.href = '/studio?id=' + (game.quizId || '') }, 'Edit this quiz')));
-  return card;
+  return root;
 }
 
 $('#end').onclick = async () => {
