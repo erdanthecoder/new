@@ -48,6 +48,9 @@
 .big.good{background:linear-gradient(165deg,#12BE8E,#0B8F6B);color:#fff}
 .big.bad{background:linear-gradient(165deg,#F4364C,#B31F32);color:#fff}
 .big.wait{background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.big .lobby-art{line-height:0;border-radius:16px;overflow:hidden;width:min(300px,86%);margin-bottom:6px;
+  border:2px solid rgba(255,255,255,.14)}
+.big .lobby-art svg{display:block;width:100%;height:auto}
 .big .you{line-height:0;animation:bob 2.4s ease-in-out infinite}
 .big .you svg{width:clamp(96px,30vw,150px);height:auto}
 .mini-face{display:inline-flex;line-height:0;vertical-align:middle}
@@ -79,7 +82,7 @@
 <body class="dark">
 <main class="shell" id="app"></main>
 
-<script src="sprites.js?v=e3d62bbc"></script>
+<script src="sprites.js?v=50ac52cf"></script>
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
@@ -234,6 +237,7 @@ function lobbyCard() {
   const card = el('div', { class: 'play' });
   const panel = el('div', { class: 'big wait' });
   panel.innerHTML = `
+    <div class="lobby-art">${Sprite.scene(game.mode, 300)}</div>
     <div class="you">${drawFace(me, 120)}</div>
     <h2>You are in</h2>
     <p class="sub">${esc(game.quizTitle)}</p>

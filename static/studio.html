@@ -132,17 +132,17 @@ tr:hover td{background:var(--paper)}
 }
 
 /* live game picker */
-.modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
-.modecard{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 16px 18px;cursor:pointer;
-  border-radius:18px;border:var(--line-w) solid var(--line);background:var(--card);color:var(--ink);
-  text-align:left;font:inherit;box-shadow:var(--pop-1);transition:transform .14s var(--ease),box-shadow .14s}
-.modecard:hover{transform:translate(-2px,-2px);box-shadow:var(--pop-2)}
+.modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.modecard{display:flex;flex-direction:column;padding:0;overflow:hidden;cursor:pointer;
+  border-radius:20px;border:var(--line-w) solid var(--line);background:var(--card);color:var(--ink);
+  text-align:left;font:inherit;box-shadow:var(--pop-1);transition:transform .16s var(--ease),box-shadow .16s}
+.modecard:hover{transform:translate(-3px,-3px);box-shadow:var(--pop-2)}
 .modecard:active{transform:translate(1px,1px);box-shadow:var(--pop-1)}
-.modecard .ic{font-size:30px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.12))}
-.modecard strong{font-size:1.05rem}
-.modecard .sub{font-size:.82rem;color:var(--ink-soft);line-height:1.32}
-.modecard.c0{background:#FFE9EC}.modecard.c1{background:#E7ECFF}.modecard.c2{background:#FFF4D6}
-.modecard.c3{background:#DEF7EE}.modecard.c4{background:#EFE8FF}.modecard.c5{background:#E3F4FF}
+.modecard .art{display:block;line-height:0;border-bottom:var(--line-w) solid var(--line)}
+.modecard .art svg{width:100%;height:auto;display:block}
+.modecard .body{display:block;padding:13px 15px 16px}
+.modecard strong{display:block;font-size:1.06rem;margin-bottom:2px}
+.modecard .sub{font-size:.83rem;color:var(--ink-soft);line-height:1.34}
 </style>
 </head>
 <body>
@@ -160,7 +160,7 @@ tr:hover td{background:var(--paper)}
       <button data-tab="responses">Responses</button>
       <button data-tab="settings">Settings</button>
     </div>
-    <button class="btn sm" id="share">Share</button>
+    <button class="btn sm" id="share"><span class="mini-face" data-icon="link" data-size="15"></span> Share</button>
     <button class="btn sm primary" id="present">▶ Play live</button>
   </div>
 </header>
@@ -232,7 +232,7 @@ tr:hover td{background:var(--paper)}
       <div class="prompts" id="prompts"></div>
       <div class="ai-input">
         <textarea id="ai-text" rows="1" placeholder="Add 5 harder questions about fractions…"></textarea>
-        <button class="btn primary" id="ai-send" style="height:44px;width:46px;padding:0">➤</button>
+        <button class="btn primary" id="ai-send" style="height:44px;width:46px;padding:0" data-icon="send" data-size="18"></button>
       </div>
     </div>
   </aside>
@@ -280,7 +280,7 @@ async function boot() {
 }
 
 function markSaving() { const s = $('#save'); s.textContent = 'saving…'; s.className = 'chip'; }
-function markSaved() { const s = $('#save'); s.textContent = '✓ saved'; s.className = 'chip live'; }
+function markSaved() { const s = $('#save'); s.textContent = 'saved'; s.className = 'chip live'; }
 
 function save(immediate = false) {
   markSaving();
@@ -436,13 +436,13 @@ function questionCard(q, i) {
     q.choices.forEach((c, ci) => {
       const row = el('div', { class: 'choice' + (c.correct ? ' right' : '') + (q.type === 'multi' ? ' square' : '') });
       row.append(el('button', {
-        class: 'mark', title: 'Mark correct',
+        class: 'mark', title: 'Mark correct', html: Sprite.icon('tick', 15),
         onclick: () => {
           if (q.type === 'multi') c.correct = !c.correct;
           else q.choices.forEach(x => x.correct = (x === c));
           renderQuestions(); save();
         }
-      }, '✓'));
+      }));
       const inp = el('input', {
         class: 'line-input grow', 'data-path': `${q.id}:c${c.id}`,
         placeholder: 'Option ' + (ci + 1), readonly: q.type === 'tf' ? 'readonly' : null,
@@ -451,9 +451,9 @@ function questionCard(q, i) {
       inp.value = c.text || '';
       row.append(inp);
       if (q.type !== 'tf') row.append(el('button', {
-        class: 'icon-btn kill', title: 'Remove option',
+        class: 'icon-btn kill', title: 'Remove option', html: Sprite.icon('cross', 15),
         onclick: () => { q.choices = q.choices.filter(x => x !== c); renderQuestions(); save(); }
-      }, '✕'));
+      }));
       body.append(row);
     });
     if (q.type !== 'tf' && q.choices.length < 6) {
@@ -485,10 +485,10 @@ function questionCard(q, i) {
       copyQ.id = Math.random().toString(36).slice(2, 10);
       copyQ.choices = copyQ.choices.map(c => ({ ...c, id: Math.random().toString(36).slice(2, 8) }));
       quiz.questions.splice(i + 1, 0, copyQ); focused = copyQ.id; renderAll(); save();
-    } }, '⧉ Duplicate'),
+    }, html: Sprite.icon('copy', 15) + ' Duplicate' }),
     el('button', { class: 'btn sm danger', onclick: () => {
       quiz.questions = quiz.questions.filter(x => x.id !== q.id); renderAll(); save();
-    } }, 'Delete')));
+    }, html: Sprite.icon('trash', 15) + ' Delete' })));
 
   return card;
 }
@@ -651,7 +651,7 @@ function describe(op) {
   if (op.op === 'add_question') {
     const q = op.question || {};
     const right = (q.choices || []).find(c => c.correct);
-    return `${esc(q.text || 'New question')}${right ? ` <span style="color:var(--mint)">✓ ${esc(right.text)}</span>` : ''}`;
+    return `${esc(q.text || 'New question')}${right ? ` <span style="color:var(--mint)">${esc(right.text)}</span>` : ''}`;
   }
   if (op.op === 'delete_question') {
     const q = quiz.questions.find(x => x.id === op.id);
@@ -683,12 +683,12 @@ function showOps(bubble, ops) {
       quiz = res.quiz;
       $('#title').value = quiz.title; $('#desc').value = quiz.description || '';
       renderAll(); markSaved();
-      res.log.forEach(line => addBubble('sys', '✓ ' + esc(line)));
+      res.log.forEach(line => addBubble('sys', esc(line)));
       flashChanges(ops);
       toast('Applied ' + ops.length + ' change' + (ops.length === 1 ? '' : 's'), 'good');
       pendingOps = null;
-    } }, '✓ Approve'),
-    el('button', { class: 'btn sm ghost', onclick: () => { actions.remove(); addBubble('sys', '✕ Rejected'); pendingOps = null; } }, 'Reject'));
+    } }, 'Approve'),
+    el('button', { class: 'btn sm ghost', onclick: () => { actions.remove(); addBubble('sys', 'Rejected'); pendingOps = null; } }, 'Reject'));
   bubble.append(actions);
 }
 
@@ -724,7 +724,7 @@ async function askAI() {
       quiz = res.quiz;
       $('#title').value = quiz.title; $('#desc').value = quiz.description || '';
       renderAll(); markSaved();
-      (res.log || []).forEach(line => addBubble('sys', '✓ ' + esc(line)));
+      (res.log || []).forEach(line => addBubble('sys', esc(line)));
       flashChanges(res.ops || []);
     } else if ((res.ops || []).length) {
       pendingOps = res.ops;
@@ -789,11 +789,12 @@ $('#present').onclick = () => {
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
       if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
       list.innerHTML = '';
-      modes.forEach((m, i) => {
-        const btn = el('button', { class: 'modecard c' + (i % 6), 'data-mode': m.id });
-        btn.append(el('span', { class: 'ic', html: Sprite.icon(m.icon, 30) }),
-                   el('strong', {}, m.label),
-                   el('span', { class: 'sub' }, m.blurb));
+      modes.forEach(m => {
+        const btn = el('button', { class: 'modecard', 'data-mode': m.id });
+        btn.append(el('span', { class: 'art', html: Sprite.scene(m.id, 320) }),
+                   el('span', { class: 'body' },
+                      el('strong', {}, m.label),
+                      el('span', { class: 'sub' }, m.blurb)));
         list.append(btn);
       });
       box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {

@@ -56,7 +56,7 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
-<script src="sprites.js?v=e3d62bbc"></script>
+<script src="sprites.js?v=50ac52cf"></script>
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
@@ -262,7 +262,8 @@ function showResult(result) {
       review.append(el('div', { class: 'review ' + (ok ? 'ok' : 'no'), style: 'text-align:left' },
         el('div', { class: 'spread', style: 'align-items:flex-start;gap:12px' },
           el('strong', { style: 'font-size:.96rem' }, `${i + 1}. ${q.text || 'Untitled'}`),
-          el('span', { class: 'chip ' + (ok ? 'live' : '') }, ok ? '✓ correct' : '✕ missed')),
+          el('span', { class: 'chip ' + (ok ? 'live' : ''),
+        html: Sprite.icon(ok ? 'tick' : 'cross', 13) + (ok ? ' correct' : ' missed') })),
         el('p', { class: 'tiny muted', style: 'margin-top:8px' }, `You answered: ${given}`),
         ok ? '' : el('p', { class: 'tiny', style: 'margin-top:4px;font-weight:800' }, `Correct: ${right}`),
         q.explanation ? el('p', { class: 'tiny faint', style: 'margin-top:8px;font-style:italic' }, q.explanation) : ''));

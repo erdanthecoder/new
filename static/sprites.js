@@ -1,64 +1,103 @@
-/* Drawings, not emoji.
+/* The artwork: characters, scenes and icons, all drawn here.
  *
- * Emoji were doing two jobs badly. As player characters they came out of a
- * random pick, so a child could get a different animal every time they joined
- * and two children in the same class could end up as the same one. As interface
- * icons they render differently on every device and look like filler.
+ * Nothing on screen is an emoji. Emoji are somebody else's drawings, they come
+ * out different on every device, and a child cannot be reliably given one.
+ * These are built from shapes instead, so they scale to a projector, keep their
+ * colour, and can be handed out and remembered.
  *
- * So both are drawn here as SVG: one character set built from a colour and a
- * silhouette (96 combinations, chosen by index, never at random), and one flat
- * icon set. Everything scales, keeps its colour on a projector, and looks the
- * same on a school laptop as on a phone.
+ *   Sprite.face(n, size)   one child's character: 12 colours x 12 silhouettes
+ *   Sprite.scene(name, w)  an illustration, one per game
+ *   Sprite.icon(name, s)   a small interface mark
  */
 (function (global) {
   'use strict';
 
-  const SKIN = ['#F4364C', '#4F6BFF', '#FFC53D', '#12BE8E', '#6C4CF1', '#2BA8FF', '#FF7A45', '#00B8A9',
-                '#E8467C', '#7BC62D', '#FF9A3D', '#3AC0D8'];
+  const SKIN = ['#F4364C', '#4F6BFF', '#FFC53D', '#12BE8E', '#7C4DFF', '#2BA8FF',
+                '#FF7A45', '#00B8A9', '#E8467C', '#7BC62D', '#FF9A3D', '#3AC0D8'];
+  const INK = '#181030';
 
-  /* Each silhouette is what sits on top of the same round body, so a child can
-   * tell their character from the back of the classroom by shape alone. */
-  const CREST = [
-    // Every silhouette is anchored inside the head so it reads as part of the
-    // character rather than something balanced on top of it.
-    '<path d="M10 22 C8 14 10 8 14 6 C18 8 20 14 20 20 Z"/><path d="M38 22 C40 14 38 8 34 6 C30 8 28 14 28 20 Z"/>',   // wide ears
-    '<rect x="14" y="4" width="7" height="20" rx="3.5"/><rect x="27" y="4" width="7" height="20" rx="3.5"/>',            // long ears
-    '<path d="M24 4 C27 10 28 16 27 22 L21 22 C20 16 21 10 24 4 Z"/>',                                                   // single horn
-    '<circle cx="12" cy="8" r="3.6"/><circle cx="36" cy="8" r="3.6"/><path d="M12 8 C13 14 16 17 19 19 M36 8 C35 14 32 17 29 19" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>', // antennae
-    '<path d="M24 3 C27 9 28 14 27 20 L21 20 C20 14 21 9 24 3 Z"/><path d="M14 9 C18 13 19 17 19 21 L13 21 C12 17 12 12 14 9 Z"/><path d="M34 9 C30 13 29 17 29 21 L35 21 C36 17 36 12 34 9 Z"/>', // crest of three
-    '<circle cx="11" cy="15" r="7.5"/><circle cx="37" cy="15" r="7.5"/>',                                                // round ears
-    '<path d="M9 22 C9 10 16 4 24 4 C32 4 39 10 39 22 Z"/>',                                                             // dome
-    '<path d="M6 22 C8 12 15 6 24 10 C33 6 40 12 42 22 Z"/>',                                                            // wide frill
-    '<rect x="21.5" y="6" width="5" height="14" rx="2.5"/><circle cx="24" cy="5" r="5.5"/>',                              // bobble
-    '<path d="M24 4 C31 9 35 15 36 22 L12 22 C13 15 17 9 24 4 Z"/>',                                                     // peak
-    '<path d="M24 5 C28 9 30 14 30 20 L18 20 C18 14 20 9 24 5 Z"/><path d="M13 12 C17 15 18 18 18 21 L11 21 C10 18 11 14 13 12 Z"/><path d="M35 12 C31 15 30 18 30 21 L37 21 C38 18 37 14 35 12 Z"/>', // sprout
-    '<circle cx="24" cy="8" r="6.5"/><circle cx="12" cy="16" r="5"/><circle cx="36" cy="16" r="5"/>'                     // three tufts
-  ];
-
-  const dark = '#181030';
-
-  /** A player's character. `index` is stored with the player, so it never changes. */
-  function face(index, size = 48) {
-    const n = Math.abs(Math.round(Number(index) || 0));
-    const colour = SKIN[n % SKIN.length];
-    const crest = CREST[Math.floor(n / SKIN.length) % CREST.length];
-    return `<svg class="face-svg" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">
-      <g fill="${colour}" color="${colour}">${crest}</g>
-      <circle cx="24" cy="30" r="16" fill="${colour}"/>
-      <circle cx="18" cy="27" r="3.1" fill="${dark}"/>
-      <circle cx="30" cy="27" r="3.1" fill="${dark}"/>
-      <circle cx="19.1" cy="26" r="1.05" fill="#fff"/>
-      <circle cx="31.1" cy="26" r="1.05" fill="#fff"/>
-      <path d="M19 35 Q24 39 29 35" stroke="${dark}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-    </svg>`;
+  /** Mix a hex colour towards black (t below 0) or white (t above 0). */
+  function shade(hex, t) {
+    const n = parseInt(hex.slice(1), 16);
+    const mix = (c) => Math.round(t > 0 ? c + (255 - c) * t : c * (1 + t));
+    const parts = [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => mix(c).toString(16).padStart(2, '0'));
+    return '#' + parts.join('');
   }
 
-  const COMBINATIONS = SKIN.length * CREST.length;
+  /* The twelve silhouettes. Each is drawn behind the head and anchored inside it,
+   * so it reads as part of the character rather than something balanced on top.
+   * Coordinates are a 64x64 box with the head centred at (32, 26). */
+  const CREST = [
+    '<path d="M17 30 C14 20 16 12 21 9 C26 12 28 21 27 29 Z"/><path d="M47 30 C50 20 48 12 43 9 C38 12 36 21 37 29 Z"/>',
+    '<rect x="20" y="4" width="9" height="26" rx="4.5"/><rect x="35" y="4" width="9" height="26" rx="4.5"/>',
+    '<path d="M32 3 C36 11 38 20 36 30 L28 30 C26 20 28 11 32 3 Z"/>',
+    '<circle cx="17" cy="9" r="5"/><circle cx="47" cy="9" r="5"/>' +
+      '<path d="M17 9 C18 18 22 23 26 26 M47 9 C46 18 42 23 38 26" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/>',
+    '<path d="M32 3 C36 10 37 18 36 27 L28 27 C27 18 28 10 32 3 Z"/>' +
+      '<path d="M19 11 C24 16 26 21 26 27 L18 27 C16 21 16 15 19 11 Z"/>' +
+      '<path d="M45 11 C40 16 38 21 38 27 L46 27 C48 21 48 15 45 11 Z"/>',
+    '<circle cx="15" cy="18" r="9.5"/><circle cx="49" cy="18" r="9.5"/>',
+    '<path d="M13 30 C13 13 21 5 32 5 C43 5 51 13 51 30 Z"/>',
+    '<path d="M8 30 C10 16 20 8 32 13 C44 8 54 16 56 30 Z"/>',
+    '<rect x="29" y="8" width="6" height="18" rx="3"/><circle cx="32" cy="7" r="7"/>',
+    '<path d="M32 5 C41 11 47 19 48 30 L16 30 C17 19 23 11 32 5 Z"/>',
+    '<path d="M32 6 C37 11 40 18 40 26 L24 26 C24 18 27 11 32 6 Z"/>' +
+      '<path d="M17 15 C22 19 24 23 24 28 L14 28 C13 23 14 18 17 15 Z"/>' +
+      '<path d="M47 15 C42 19 40 23 40 28 L50 28 C51 23 50 18 47 15 Z"/>',
+    '<circle cx="32" cy="9" r="8"/><circle cx="16" cy="20" r="6.5"/><circle cx="48" cy="20" r="6.5"/>'
+  ];
 
-  /* Handing out 0, 1, 2, 3 would give the first twelve children the same silhouette
-   * in twelve colours, which is exactly the thing that makes a class look alike.
-   * Stepping by 13 through 144 visits every combination once (13 and 144 share no
-   * factor) and changes both the colour and the shape each time. */
+  const COMBINATIONS = SKIN.length * CREST.length;
+  let uid = 0;
+
+  /**
+   * One child's character, drawn whole: feet, arms, body, head, face.
+   * `index` is stored with the player, so their character never changes.
+   */
+  function face(index, size = 48) {
+    const n = Math.abs(Math.round(Number(index) || 0));
+    const base = SKIN[n % SKIN.length];
+    const crest = CREST[Math.floor(n / SKIN.length) % CREST.length];
+    const deep = shade(base, -0.3);
+    const id = 'sp' + (++uid);
+    return '<svg class="face-svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true">' +
+      '<defs>' +
+        '<linearGradient id="' + id + 'b" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="' + shade(base, 0.26) + '"/><stop offset="1" stop-color="' + base + '"/></linearGradient>' +
+        '<linearGradient id="' + id + 'h" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="' + shade(base, 0.44) + '"/><stop offset="1" stop-color="' + base + '"/></linearGradient>' +
+      '</defs>' +
+      // the tallest silhouettes reach past the top of the box, so the whole
+      // character is scaled to sit inside it
+      '<g transform="translate(32,32) scale(.86) translate(-32,-32)">' +
+      '<ellipse cx="32" cy="59.5" rx="17" ry="3.2" fill="rgba(0,0,0,.16)"/>' +
+      // the silhouette is what tells two children apart across a classroom, so it
+      // is pushed out past the head rather than tucked behind it
+      '<g fill="' + deep + '" color="' + deep + '" transform="translate(32,26) scale(1.26,1.18) translate(-32,-26) translate(0,-5)">' + crest + '</g>' +
+      '<path d="M22 52 h7 v6 a3.5 3.5 0 0 1-7 0z" fill="' + deep + '"/>' +
+      '<path d="M35 52 h7 v6 a3.5 3.5 0 0 1-7 0z" fill="' + deep + '"/>' +
+      '<rect x="9" y="34" width="8" height="19" rx="4" fill="' + deep + '" transform="rotate(-14 13 43)"/>' +
+      '<rect x="47" y="34" width="8" height="19" rx="4" fill="' + deep + '" transform="rotate(14 51 43)"/>' +
+      '<path d="M32 27 c11 0 16 8 16 16 v3 c0 6-7 9-16 9 s-16-3-16-9 v-3 c0-8 5-16 16-16z" fill="url(#' + id + 'b)"/>' +
+      '<ellipse cx="32" cy="47" rx="9" ry="7" fill="rgba(255,255,255,.34)"/>' +
+      '<circle cx="32" cy="26" r="18" fill="url(#' + id + 'h)"/>' +
+      '<ellipse cx="20" cy="32" rx="4" ry="2.6" fill="rgba(0,0,0,.09)"/>' +
+      '<ellipse cx="44" cy="32" rx="4" ry="2.6" fill="rgba(0,0,0,.09)"/>' +
+      '<ellipse cx="25.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
+      '<ellipse cx="38.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
+      '<circle cx="26.3" cy="25.4" r="2.7" fill="' + INK + '"/>' +
+      '<circle cx="39.3" cy="25.4" r="2.7" fill="' + INK + '"/>' +
+      '<circle cx="27.4" cy="24.2" r="1.05" fill="#fff"/>' +
+      '<circle cx="40.4" cy="24.2" r="1.05" fill="#fff"/>' +
+      '<path d="M27 33.5 q5 4.5 10 0" stroke="' + INK + '" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '</g>' +
+    '</svg>';
+  }
+
+  /* Handing out 0, 1, 2, 3 would give the first twelve children one silhouette in
+   * twelve colours, which is the very thing that makes a class look alike.
+   * Stepping by 13 through 144 visits every pair once (13 and 144 share no factor)
+   * and changes both the colour and the shape each time. */
   const STRIDE = 13;
   const nth = (k) => (k * STRIDE) % COMBINATIONS;
 
@@ -67,6 +106,80 @@
     const used = new Set((taken || []).map(Number));
     for (let k = 0; k < COMBINATIONS; k++) if (!used.has(nth(k))) return nth(k);
     return nth(Math.floor(Math.random() * COMBINATIONS));
+  }
+
+  /* An illustration for each game, so picking one shows what happens in it
+   * rather than naming it. Drawn in a 160x100 box. */
+  const SCENE = {
+    normal:
+      '<rect width="160" height="100" fill="#FFF3D6"/>' +
+      '<circle cx="133" cy="22" r="15" fill="#FFD86B"/>' +
+      '<rect x="22" y="58" width="30" height="34" rx="4" fill="#BFC7DA"/>' +
+      '<rect x="60" y="40" width="30" height="52" rx="4" fill="#FFC53D"/>' +
+      '<rect x="98" y="66" width="30" height="26" rx="4" fill="#E0A46B"/>' +
+      '<circle cx="75" cy="28" r="9" fill="#F4364C"/><rect x="69" y="30" width="12" height="4" rx="2" fill="#C42539"/>' +
+      '<circle cx="37" cy="47" r="7.5" fill="#4F6BFF"/><rect x="31" y="49" width="12" height="4" rx="2" fill="#3B51C9"/>' +
+      '<circle cx="113" cy="55" r="7.5" fill="#12BE8E"/><rect x="107" y="57" width="12" height="4" rx="2" fill="#0C8E6A"/>' +
+      '<rect y="92" width="160" height="8" fill="#E7D7B4"/>',
+    laser:
+      '<rect width="160" height="100" fill="#EDF1FF"/>' +
+      '<circle cx="34" cy="50" r="17" fill="#F4364C"/><circle cx="29" cy="45" r="3.6" fill="#fff"/>' +
+      '<circle cx="126" cy="50" r="17" fill="#4F6BFF"/><circle cx="131" cy="45" r="3.6" fill="#fff"/>' +
+      '<rect x="53" y="46" width="54" height="8" rx="4" fill="#FFC53D"/>' +
+      '<path d="M107 41 l15 9 -15 9z" fill="#FF7A45"/><path d="M53 41 l-15 9 15 9z" fill="#FF7A45"/>' +
+      '<rect x="18" y="76" width="32" height="7" rx="3.5" fill="#F4364C" opacity=".45"/>' +
+      '<rect x="110" y="76" width="32" height="7" rx="3.5" fill="#4F6BFF" opacity=".45"/>' +
+      '<rect y="92" width="160" height="8" fill="#D6DDF6"/>',
+    kart:
+      '<rect width="160" height="100" fill="#E8F6FF"/>' +
+      '<rect y="56" width="160" height="36" fill="#4A4560"/>' +
+      '<g fill="#FFF6D8"><rect x="8" y="72" width="16" height="4" rx="2"/><rect x="36" y="72" width="16" height="4" rx="2"/>' +
+      '<rect x="64" y="72" width="16" height="4" rx="2"/><rect x="92" y="72" width="16" height="4" rx="2"/>' +
+      '<rect x="120" y="72" width="16" height="4" rx="2"/></g>' +
+      '<path d="M44 65 h44 l-6-13 h-9 l-5-8 h-13 l-3 8 h-5z" fill="#F4364C"/>' +
+      '<circle cx="55" cy="67" r="7.5" fill="#241C38"/><circle cx="55" cy="67" r="2.8" fill="#BFC7DA"/>' +
+      '<circle cx="80" cy="67" r="7.5" fill="#241C38"/><circle cx="80" cy="67" r="2.8" fill="#BFC7DA"/>' +
+      '<circle cx="66" cy="45" r="7.5" fill="#FFC53D"/>' +
+      '<g fill="#2BA8FF" opacity=".75"><rect x="10" y="40" width="24" height="4" rx="2"/><rect x="18" y="50" width="15" height="4" rx="2"/></g>' +
+      '<rect y="92" width="160" height="8" fill="#39344D"/>',
+    tower:
+      '<rect width="160" height="100" fill="#EAFBF3"/>' +
+      '<rect x="46" y="76" width="34" height="15" rx="3" fill="#F4364C"/>' +
+      '<rect x="46" y="60" width="34" height="15" rx="3" fill="#FFC53D"/>' +
+      '<rect x="46" y="44" width="34" height="15" rx="3" fill="#4F6BFF"/>' +
+      '<rect x="46" y="28" width="34" height="15" rx="3" fill="#12BE8E"/>' +
+      '<rect x="106" y="14" width="6" height="78" fill="#8A93A8"/>' +
+      '<rect x="72" y="14" width="42" height="6" fill="#8A93A8"/>' +
+      '<rect x="74" y="20" width="3" height="9" fill="#8A93A8"/>' +
+      '<rect x="66" y="28" width="20" height="9" rx="2" fill="#7C4DFF"/>' +
+      '<rect y="91" width="160" height="9" fill="#CFEEDF"/>',
+    treasure:
+      '<rect width="160" height="100" fill="#FFF0F5"/>' +
+      '<path d="M48 45 a32 22 0 0 1 64 0z" fill="#B4713A"/>' +
+      '<rect x="46" y="45" width="68" height="33" rx="5" fill="#D4924E"/>' +
+      '<rect x="46" y="51" width="68" height="7" fill="#8C5A2B"/>' +
+      '<rect x="74" y="45" width="12" height="20" rx="2" fill="#8C5A2B"/>' +
+      '<circle cx="80" cy="57" r="3.4" fill="#FFC53D"/>' +
+      '<g fill="#FFC53D"><circle cx="36" cy="72" r="7"/><circle cx="126" cy="70" r="7"/><circle cx="30" cy="84" r="5.5"/></g>' +
+      '<path d="M120 16 l5 11 11 5 -11 5 -5 11 -5-11 -11-5 11-5z" fill="#2BA8FF"/>' +
+      '<path d="M34 24 l3.5 8 8 3.5 -8 3.5 -3.5 8 -3.5-8 -8-3.5 8-3.5z" fill="#E8467C"/>' +
+      '<rect y="91" width="160" height="9" fill="#F3D9E3"/>',
+    boss:
+      '<rect width="160" height="100" fill="#F1ECFF"/>' +
+      '<path d="M56 30 a28 26 0 0 1 56 0 v13 a20 20 0 0 1-20 20 h-16 a20 20 0 0 1-20-20z" fill="#7C4DFF"/>' +
+      '<path d="M62 11 l10 15 M106 11 l-10 15" stroke="#5B33D6" stroke-width="7" stroke-linecap="round" fill="none"/>' +
+      '<circle cx="74" cy="33" r="6.5" fill="#fff"/><circle cx="94" cy="33" r="6.5" fill="#fff"/>' +
+      '<circle cx="75.5" cy="34" r="3" fill="#241C38"/><circle cx="95.5" cy="34" r="3" fill="#241C38"/>' +
+      '<path d="M74 50 q10 8 20 0" stroke="#3F1FA6" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="26" cy="78" r="10" fill="#12BE8E"/><circle cx="50" cy="83" r="8" fill="#FFC53D"/>' +
+      '<circle cx="124" cy="80" r="9" fill="#F4364C"/><circle cx="144" cy="85" r="7" fill="#2BA8FF"/>' +
+      '<rect y="91" width="160" height="9" fill="#DED2FF"/>'
+  };
+
+  function scene(name, width = 160) {
+    const body = SCENE[name] || SCENE.normal;
+    return '<svg class="scene" viewBox="0 0 160 100" width="' + width + '" height="' + Math.round(width / 1.6) + '"' +
+           ' preserveAspectRatio="xMidYMid slice" aria-hidden="true">' + body + '</svg>';
   }
 
   /* ── interface icons ─────────────────────────────────────
@@ -94,7 +207,10 @@
     ghost:    '<path d="M4 21V11a8 8 0 0 1 16 0v10l-3-2-2.5 2L12 19l-2.5 2L7 19z"/><circle cx="9.5" cy="10" r="1.9" fill="#fff"/><circle cx="14.5" cy="10" r="1.9" fill="#fff"/>',
     warn:     '<path d="M12 2 23 21H1z"/><rect x="10.8" y="8" width="2.4" height="7" rx="1.2" fill="#fff"/><circle cx="12" cy="17.6" r="1.4" fill="#fff"/>',
     wave:     '<path d="M7 12V4.5a1.8 1.8 0 0 1 3.5 0V11V3a1.8 1.8 0 0 1 3.5 0v8V5a1.8 1.8 0 0 1 3.5 0v8.5c0 4.5-2.5 7.5-6 7.5s-6-2.6-7-6l-1-3.4a1.7 1.7 0 0 1 3-1.6z"/>',
-    handshake:'<path d="M2 8.5h5.5L12 6l4.5 2.5H22v6.5h-4l-2.5 3.5-3.5-2.5-3.5 2.5L6 15H2z"/>'
+    handshake:'<path d="M2 8.5h5.5L12 6l4.5 2.5H22v6.5h-4l-2.5 3.5-3.5-2.5-3.5 2.5L6 15H2z"/>',
+    send:     '<path d="M2.5 21 22 12 2.5 3 2.5 10l13 2-13 2z"/>',
+    trash:    '<path d="M9 2h6l1 2h4v2H4V4h4z"/><path d="M6 8h12l-1 13a1.6 1.6 0 0 1-1.6 1.5H8.6A1.6 1.6 0 0 1 7 21z"/>',
+    link:     '<path d="M9.5 13.5a4.4 4.4 0 0 0 6.2 0l3.4-3.4a4.4 4.4 0 0 0-6.2-6.2L11 5.8l1.8 1.8 1.9-1.9a1.9 1.9 0 0 1 2.6 2.6l-3.4 3.4a1.9 1.9 0 0 1-2.6 0z"/><path d="M14.5 10.5a4.4 4.4 0 0 0-6.2 0l-3.4 3.4a4.4 4.4 0 0 0 6.2 6.2l1.9-1.9-1.8-1.8-1.9 1.9a1.9 1.9 0 0 1-2.6-2.6l3.4-3.4a1.9 1.9 0 0 1 2.6 0z"/>'
   };
 
   function icon(name, size = 20, colour) {
@@ -104,7 +220,8 @@
            `${colour ? ` style="color:${colour}"` : ''} fill="currentColor">${body}</svg>`;
   }
 
-  global.Sprite = { face, icon, freeFace, COMBINATIONS, names: Object.keys(ICON) };
+  global.Sprite = { face, icon, scene, freeFace, COMBINATIONS,
+                    names: Object.keys(ICON), scenes: Object.keys(SCENE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 if (typeof module !== 'undefined') module.exports = globalThis.Sprite;

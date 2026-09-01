@@ -258,7 +258,8 @@ function showResult(result) {
       review.append(el('div', { class: 'review ' + (ok ? 'ok' : 'no'), style: 'text-align:left' },
         el('div', { class: 'spread', style: 'align-items:flex-start;gap:12px' },
           el('strong', { style: 'font-size:.96rem' }, `${i + 1}. ${q.text || 'Untitled'}`),
-          el('span', { class: 'chip ' + (ok ? 'live' : '') }, ok ? '✓ correct' : '✕ missed')),
+          el('span', { class: 'chip ' + (ok ? 'live' : ''),
+        html: Sprite.icon(ok ? 'tick' : 'cross', 13) + (ok ? ' correct' : ' missed') })),
         el('p', { class: 'tiny muted', style: 'margin-top:8px' }, `You answered: ${given}`),
         ok ? '' : el('p', { class: 'tiny', style: 'margin-top:4px;font-weight:800' }, `Correct: ${right}`),
         q.explanation ? el('p', { class: 'tiny faint', style: 'margin-top:8px;font-style:italic' }, q.explanation) : ''));

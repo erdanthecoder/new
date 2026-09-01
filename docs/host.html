@@ -32,8 +32,10 @@
 .board,.lobby{display:flex;flex-direction:column;gap:14px;height:calc(100vh - 128px);min-height:520px}
 .joinbar{flex:none;display:flex;align-items:center;gap:30px;background:#fff;color:#161036;border:3px solid #0b0718;
   border-radius:24px;padding:16px 26px;box-shadow:0 13px 0 -3px rgba(0,0,0,.5)}
+.lobby-art{flex:none;line-height:0;border-radius:16px;overflow:hidden;border:3px solid #0b0718}
+.lobby-art svg{display:block}
 .joinbar .lab{font-size:.66rem;letter-spacing:.17em;text-transform:uppercase;font-weight:800;opacity:.5}
-.joinbar .where{font-size:clamp(1rem,1.9vw,1.6rem);font-weight:850;line-height:1.15;word-break:break-word}
+.joinbar .where{font-size:clamp(.95rem,1.6vw,1.35rem);font-weight:850;line-height:1.18;word-break:break-word}
 .pinhuge{font-size:clamp(2.4rem,6.6vw,5rem);font-weight:900;letter-spacing:.1em;line-height:1.05}
 .qrbox{flex:none;background:#fff;border-radius:12px}
 .crowd{flex:1;min-height:0;overflow:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:12px}
@@ -203,7 +205,7 @@
 
 <main class="stage" id="stage"></main>
 
-<script src="sprites.js?v=e3d62bbc"></script>
+<script src="sprites.js?v=50ac52cf"></script>
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
@@ -345,9 +347,12 @@ function lobbyView() {
 
   const bar = el('div', { class: 'joinbar' });
   bar.innerHTML = `
+    <div class="lobby-art">${Sprite.scene(game.mode, 190)}</div>
     <div style="flex:1">
-      <div class="lab">Join at</div>
-      <div class="where">${esc(joinLabel())}</div>
+      <div class="lab">Playing</div>
+      <div class="where">${esc((game.modeInfo && game.modeInfo.label) || 'Normal')}</div>
+      <div class="lab" style="margin-top:10px">Join at</div>
+      <div class="where" id="join-where">${esc(joinLabel())}</div>
     </div>
     <div style="text-align:center">
       <div class="lab">Game PIN</div>
