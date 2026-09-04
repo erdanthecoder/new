@@ -1,5 +1,7 @@
 {
   "hosting": {
+    "//": "One line to change once a nicer Hosting site name is claimed in the console.",
+    "site": "quiznova-88751",
     "public": "docs",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
