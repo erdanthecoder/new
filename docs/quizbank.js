@@ -1,4 +1,4 @@
-/* QuizNova question engine — the co-pilot's brain when there is no API key.
+/* Quoldek question engine — the co-pilot's brain when there is no API key.
  *
  * Two sources:
  *   • generators  — maths and language questions built from rules, so the

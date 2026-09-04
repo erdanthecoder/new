@@ -1,4 +1,4 @@
-/* QuizNova — static edition.
+/* Quoldek — static edition.
  *
  * GitHub Pages serves files; it cannot run the Python server. This file
  * re-implements the API the pages call, entirely in the browser:
@@ -107,7 +107,7 @@
     try {
       quiz = unpackQuiz(packed);
     } catch {
-      throw new Error('That does not look like a QuizNova link or code.');
+      throw new Error('That does not look like a Quoldek link or code.');
     }
     if (!quiz.questions || !quiz.questions.length) throw new Error('That quiz has no questions in it.');
     const all = allQuizzes();
@@ -133,7 +133,7 @@
   const setKey = (k) => { try { k ? localStorage.setItem(KEY_STORE, k) : localStorage.removeItem(KEY_STORE); } catch { /* private mode */ } };
   Nova.aiKey = { get: getKey, set: setKey };
 
-  const AI_SYSTEM = `You are the quiz co-pilot inside QuizNova, a classroom quiz builder.
+  const AI_SYSTEM = `You are the quiz co-pilot inside Quoldek, a classroom quiz builder.
 You edit a quiz by returning JSON operations. Never return prose outside the JSON object.
 
 Return exactly this shape:
@@ -535,7 +535,7 @@ Rules:
       Nova.modal(`
         <h2 style="margin-bottom:6px">Import a quiz</h2>
         <p class="muted tiny" style="margin-bottom:18px">
-          Paste a QuizNova share link or code. Handy when someone sends you a quiz — or when you ask
+          Paste a Quoldek share link or code. Handy when someone sends you a quiz — or when you ask
           Claude in a chat to write one for you and it hands you the code.
         </p>
         <div class="field"><label class="label" for="code">Link or code</label>

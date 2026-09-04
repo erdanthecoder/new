@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova quiz</title>
+<title>Quoldek quiz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="/nova.css">
@@ -95,7 +95,7 @@ function cover() {
   const totalPoints = quiz.questions.reduce((s, q) => s + (q.points || 100), 0);
   $('#app').innerHTML = `
     <div class="card cover fade-up">
-      <span class="chip">QuizNova</span>
+      <span class="chip">Quoldek</span>
       <h1 style="margin-top:14px">${esc(quiz.title)}</h1>
       <p class="muted">${esc(quiz.description || 'Answer every question, then submit. Good luck!')}</p>
       <div class="facts">

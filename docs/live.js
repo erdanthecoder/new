@@ -1,4 +1,4 @@
-/* QuizNova live games, without a server of our own.
+/* Quoldek live games, without a server of our own.
  *
  * GitHub Pages only serves files, so the sync has to happen somewhere else:
  * three small Supabase tables reached with the PUBLISHABLE key (the one meant

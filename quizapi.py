@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QuizNova API — realtime quiz builder, AI co-editor and live game arena.
+Quoldek API — realtime quiz builder, AI co-editor and live game arena.
 
 Everything lives behind /api and is served by server.py (Flask).
 Realtime is done with Server-Sent Events (no extra dependencies) plus a
@@ -625,7 +625,7 @@ def quiz_responses(qid):
 
 # ────────────────────────────────────────────── AI ──
 
-AI_SYSTEM = """You are the quiz co-pilot inside QuizNova, a classroom quiz builder.
+AI_SYSTEM = """You are the quiz co-pilot inside Quoldek, a classroom quiz builder.
 You edit a quiz by returning JSON operations. Never return prose outside the JSON object.
 
 Return exactly this shape:

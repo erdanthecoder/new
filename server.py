@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KidWorld + QuizNova server
+KidWorld + Quoldek server
 Run: python server.py   →   http://localhost:5000
 """
 from flask import Flask, send_from_directory, redirect
@@ -20,7 +20,7 @@ def index():
     return send_from_directory(STATIC, "index.html")
 
 
-# Friendly URLs for QuizNova — the ones teachers paste into Google Classroom.
+# Friendly URLs for Quoldek — the ones teachers paste into Google Classroom.
 @app.route("/quiz")
 def quiz_home():
     return send_from_directory(STATIC, "quiznova.html")
@@ -66,7 +66,7 @@ def no_cache(resp):
 if __name__ == "__main__":
     print()
     print("  ╔══════════════════════════════════════════════╗")
-    print("  ║        🌍 KidWorld  ·  ⚡ QuizNova           ║")
+    print("  ║        🌍 KidWorld  ·  ⚡ Quoldek           ║")
     print("  ╠══════════════════════════════════════════════╣")
     print(f"  ║  http://localhost:{PORT}".ljust(48) + "║")
     print("  ║                                              ║")

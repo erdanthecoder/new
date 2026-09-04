@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the static (GitHub Pages) edition of QuizNova into docs/.
+"""Build the static (GitHub Pages) edition of Quoldek into docs/.
 
 GitHub Pages serves files, it cannot run Python — so this build swaps the
 Flask API for an in-browser one (nova-local.js) and drops the live-game pages,

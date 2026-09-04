@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova Studio</title>
+<title>Quoldek Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="nova.css?v=bcdd0d0d">
@@ -239,12 +239,12 @@ tr:hover td{background:var(--paper)}
 </main>
 
 <script src="sprites.js?v=50ac52cf"></script>
-<script src="nova.js?v=67dabb23"></script>
-<script src="quizbank.js?v=9c4f8a9a"></script>
+<script src="nova.js?v=30a2cc36"></script>
+<script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
-<script src="live.js?v=bd2138d7"></script>
-<script src="nova-local.js?v=a1acb008"></script>
+<script src="live.js?v=b83aed17"></script>
+<script src="nova-local.js?v=88828067"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
@@ -768,7 +768,7 @@ $('#share').onclick = () => {
     <div class="row" style="margin-top:18px;gap:10px">
       <button class="btn grow" id="cp">Copy</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on QuizNova.'))}">Google Classroom</a>
+         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on Quoldek.'))}">Google Classroom</a>
     </div>`, { onMount(box) {
       box.querySelector('#cp').onclick = () => copy(link);
       const code = window.QR && QR.svg(link, { size: 150 });

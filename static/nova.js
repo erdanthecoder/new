@@ -1,4 +1,4 @@
-/* QuizNova shared runtime: tiny DOM helpers, API client, realtime stream. */
+/* Quoldek shared runtime: tiny DOM helpers, API client, realtime stream. */
 (function (global) {
   'use strict';
 

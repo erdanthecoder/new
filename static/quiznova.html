@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QuizNova</title>
+<title>Quoldek</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
 <link rel="stylesheet" href="/nova.css">
@@ -92,7 +92,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
   <div class="topbar-inner">
     <a class="brand" href="/quiz">
       <div class="brand-mark" id="brand-mark"></div>
-      <div>QuizNova<small>realtime quiz studio</small></div>
+      <div>Quoldek<small>realtime quiz studio</small></div>
     </a>
     <div class="grow"></div>
     <span id="store-pill" class="chip hide-sm">checking</span>
@@ -159,7 +159,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
   </section>
 
   <footer>
-    QuizNova · works offline-friendly, deploys anywhere Flask runs.
+    Quoldek · works offline-friendly, deploys anywhere Flask runs.
     Set <span class="mono">ANTHROPIC_API_KEY</span> to switch the co-pilot from its built-in question bank to live Claude.
   </footer>
 </main>
@@ -306,7 +306,7 @@ function share(q) {
     <div class="row" style="margin-top:18px;gap:10px">
       <button class="btn grow" id="cp">Copy link</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on QuizNova.'))}">Send to Google Classroom</a>
+         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on Quoldek.'))}">Send to Google Classroom</a>
     </div>`, {
     onMount(box) {
       box.querySelector('#cp').onclick = () => copy(link);

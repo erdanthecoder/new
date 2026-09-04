@@ -1,9 +1,9 @@
 # Publishes the same docs/ folder to Firebase Hosting, so the site also lives at
-# a quiznova.web.app address. Schools that block github.io can still reach it.
+# a quoldek.web.app address. Schools that block github.io can still reach it.
 #
 # This runs only once the FIREBASE_SERVICE_ACCOUNT secret exists, so it stays
 # quiet until Firebase is connected rather than failing on every push.
-name: Publish to quiznova.web.app
+name: Publish to quoldek.web.app
 
 on:
   push:
