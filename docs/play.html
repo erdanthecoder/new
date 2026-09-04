@@ -9,33 +9,91 @@
 <link rel="stylesheet" href="nova.css?v=bcdd0d0d">
 <style>
 .shell{max-width:640px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;display:flex;flex-direction:column}
-.hud{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:16px;background:rgba(255,255,255,.05);
-  border:1px solid var(--line);margin-bottom:14px;position:sticky;top:12px;z-index:20;backdrop-filter:blur(14px)}
-.hud .who{display:flex;gap:8px;align-items:center;font-weight:700}
-.hud .stat{margin-left:auto;text-align:right}
-.hud .stat b{display:block;font-size:1.05rem;line-height:1.1}
-.hud .stat span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.hud{display:flex;gap:9px;align-items:center;padding:8px 12px;border-radius:99px;background:rgba(255,255,255,.06);
+  border:1px solid var(--line-soft);margin-bottom:12px;position:sticky;top:8px;z-index:20;backdrop-filter:blur(14px)}
+.hud .who{display:flex;gap:7px;align-items:center;font-weight:800;font-size:.95rem}
+.hud .stat{margin-left:auto;text-align:right;line-height:1}
+.hud .stat b{display:block;font-size:1.15rem;line-height:1.1}
+.hud .stat span{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:800}
 
 
 
 /* the phone is the controller: the buttons get the whole screen */
 .play{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
 #app{display:flex;flex-direction:column;min-height:100dvh}
-.qhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.qtext{font-size:clamp(1.25rem,5.6vw,1.8rem);font-weight:850;line-height:1.24;margin:2px 0 6px}
-.opts{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:11px;min-height:0}
-.opt-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;
-  padding:14px;border-radius:20px;border:none;
-  cursor:pointer;font-weight:850;font-size:clamp(1.3rem,6vw,2rem);color:#fff;background:var(--c);
-  transition:transform .14s var(--ease),filter .2s,opacity .2s;box-shadow:0 10px 0 -3px rgba(0,0,0,.32);
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:.7rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.qhead .left{font-size:1.5rem;letter-spacing:0;font-weight:900;color:var(--text);
+  font-variant-numeric:tabular-nums;line-height:1}
+.qhead .left.hurry{color:#FF6B5A}
+
+/* The clock is a bar that empties, not a number to squint at: a child can see
+ * how long is left without reading anything. */
+.timerbar{height:12px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;
+  border:1px solid var(--line-soft);margin:6px 0 12px;flex:none}
+.timerbar i{display:block;height:100%;width:100%;border-radius:99px;
+  background:linear-gradient(90deg,#12BE8E,#7BC62D);transition:width .25s linear}
+.timerbar i.warn{background:linear-gradient(90deg,#FFC53D,#FF9A3D)}
+.timerbar i.hurry{background:linear-gradient(90deg,#FF4D5E,#FF7A45);animation:throb .6s ease-in-out infinite}
+@keyframes throb{50%{opacity:.55}}
+
+/* The question sits on paper, dark type on light, so it is the thing you read
+ * first — on the old screen it was small grey text above four huge slabs. */
+.qcard{background:#FFFDF7;color:#1B1233;border-radius:20px;padding:18px 16px;text-align:center;
+  border:2px solid var(--line);box-shadow:0 8px 0 -2px rgba(0,0,0,.35);flex:none;
   animation:tileIn .3s var(--ease) both}
+.qtext{font-size:clamp(1.3rem,6.4vw,2rem);font-weight:900;line-height:1.2;letter-spacing:-.01em}
+.qcard .askn{display:block;font-size:.66rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
+  color:#8478A8;margin-bottom:6px}
+
+/* Tiles sized like buttons, not like wallpaper, and sat at the bottom of the
+ * screen where a thumb actually reaches. */
+.opts{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(84px,132px);
+  align-content:end;gap:10px;min-height:0;margin-top:12px;padding-bottom:2px}
+.opt-btn{display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:12px;
+  padding:14px 16px;border-radius:20px;border:2px solid rgba(0,0,0,.35);
+  cursor:pointer;font-weight:900;font-size:clamp(1.15rem,5.2vw,1.7rem);color:#fff;background:var(--c);
+  transition:transform .12s var(--ease),filter .2s,opacity .2s;
+  box-shadow:0 8px 0 -1px rgba(0,0,0,.4),inset 0 -14px 24px -14px rgba(0,0,0,.45);
+  animation:tileIn .3s var(--ease) both;overflow:hidden}
 @keyframes tileIn{from{opacity:0;transform:translateY(12px)}}
-.opt-btn .shape{width:clamp(36px,10vw,52px);height:clamp(36px,10vw,52px);fill:#fff;filter:drop-shadow(0 2px 0 rgba(0,0,0,.2))}
-.opt-btn:active{transform:translateY(4px);box-shadow:0 5px 0 -3px rgba(0,0,0,.32)}
+.opt-btn .shape{width:34px;height:34px;flex:none;fill:#fff;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.opt-btn:active{transform:translateY(6px);box-shadow:0 2px 0 -1px rgba(0,0,0,.4)}
 .opt-btn:disabled{opacity:.4}
-.opt-btn.chosen{outline:4px solid #fff;transform:scale(1.02)}
-.opt-btn .lbl{line-height:1.2}
+.opt-btn.chosen{border-color:#fff;transform:translateY(3px);box-shadow:0 5px 0 -1px rgba(0,0,0,.4)}
+.opt-btn .lbl{line-height:1.15;min-width:0;overflow-wrap:anywhere}
 .opts.one{grid-template-columns:1fr}
+.opts.one .opt-btn{justify-content:center;text-align:center}
+/* a long answer should shrink to fit rather than push the tile out of shape */
+.opt-btn .lbl.long{font-size:clamp(.95rem,3.6vw,1.15rem)}
+
+/* The middle of the screen was dead space under the question. It belongs to the
+ * game: whatever the mode is, this is where a child sees their own side of it —
+ * their kart, their fort, their balloons — while the question is still open. */
+.stagebox{flex:1;min-height:0;margin-top:12px;border-radius:20px;position:relative;overflow:hidden;
+  border:2px solid var(--line-soft);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.22));
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;
+  animation:tileIn .35s var(--ease) both}
+.stagebox .cap{font-size:.64rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.stagebox .big-num{font-size:2.5rem;font-weight:900;line-height:1;letter-spacing:-.02em}
+.stagebox .mini-face svg{width:74px;height:74px}
+.stagebox .rowline{display:flex;align-items:center;gap:10px}
+
+/* a little track, tower, fort or bar, depending on the game */
+.minitrack{width:100%;height:22px;border-radius:99px;background:rgba(0,0,0,.32);position:relative;
+  border:1px solid var(--line-soft);overflow:hidden}
+.minitrack i{position:absolute;top:2px;bottom:2px;left:2px;border-radius:99px;
+  background:linear-gradient(90deg,#4F6BFF,#2BA8FF);transition:width .8s var(--ease)}
+.minitrack .flag{position:absolute;right:5px;top:3px;bottom:3px;width:4px;border-radius:2px;background:#FFC53D}
+.ministack{display:flex;flex-direction:column-reverse;gap:3px;align-items:center}
+.ministack i{width:52px;height:13px;border-radius:3px;background:var(--c,#7C4DFF);
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.22);animation:tileIn .3s var(--ease) both}
+.minifort{display:flex;flex-direction:column-reverse;gap:3px;align-items:center}
+.minifort .row{display:flex;gap:3px}
+.minifort i{width:26px;height:14px;border-radius:3px;background:var(--c,#4F6BFF);box-shadow:inset 0 -4px 0 rgba(0,0,0,.24)}
+.minifort i.gone{background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 2px rgba(255,255,255,.16)}
+.answeredbar{width:100%;height:10px;border-radius:99px;background:rgba(0,0,0,.32);overflow:hidden;border:1px solid var(--line-soft)}
+.answeredbar i{display:block;height:100%;background:linear-gradient(90deg,#7C4DFF,#2BA8FF);transition:width .5s var(--ease)}
 
 /* the arena on a phone */
 .arena-wrap{gap:8px}
@@ -557,11 +615,88 @@ function askArenaQuestion() {
             }
           }, right ? 420 : 760);
         } });
-        btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl">${esc(c.text || '')}</span>`;
+        const text = c.text || '';
+      btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl${text.length > 16 ? ' long' : ''}">${esc(text)}</span>`;
         wrap.append(btn);
       });
     }
   });
+}
+
+/* Your own side of whatever game is being played, under the question.
+ *
+ * The board shows the whole class; this shows only you, because a child looking
+ * down at their phone should still be able to tell how they are doing without
+ * looking up. Each mode fills it with its own thing. */
+function stagePanel() {
+  const box = el('div', { class: 'stagebox', id: 'stagebox' });
+  const rank = game.players.findIndex(p => p.id === me.id) + 1;
+  const answered = game.players.filter(p => p.answered).length;
+
+  if (game.mode === 'kart') {
+    const far = Math.max(1, game.trackLength || 1000);
+    box.append(el('span', { class: 'cap' }, 'Your kart'),
+      el('div', { class: 'rowline' },
+        el('span', { class: 'mini-face', html: Sprite.icon('kart', 44, '#FFC53D') }),
+        el('span', { class: 'big-num' }, `${me.distance || 0}m`)),
+      el('div', { class: 'minitrack' },
+        el('i', { style: `width:${Math.max(4, Math.min(96, (me.distance || 0) / far * 96))}%` }),
+        el('span', { class: 'flag' })));
+  } else if (game.mode === 'tower') {
+    const stack = el('div', { class: 'ministack' });
+    for (let i = 0; i < Math.min(8, me.blocks || 0); i++) {
+      stack.append(el('i', { style: `--c:${['#F4364C', '#FFC53D', '#4F6BFF', '#12BE8E'][i % 4]};animation-delay:${i * 40}ms` }));
+    }
+    box.append(el('span', { class: 'cap' }, 'Your tower'),
+               stack.children.length ? stack : el('span', { class: 'cap' }, 'Nothing built yet'),
+               el('span', { class: 'big-num' }, String(me.blocks || 0)));
+  } else if (game.mode === 'treasure') {
+    box.append(el('span', { class: 'cap' }, 'Your coins'),
+      el('div', { class: 'rowline' },
+        el('span', { class: 'mini-face', html: Sprite.icon('gem', 40, '#FFC53D') }),
+        el('span', { class: 'big-num' }, String(me.coins || 0))));
+  } else if (game.mode === 'boss' && game.boss) {
+    box.append(el('span', { class: 'cap' }, game.boss.name),
+      el('span', { class: 'mini-face', html: Sprite.icon('dragon', 58, '#9B7BFF') }),
+      el('div', { class: 'answeredbar' },
+         el('i', { style: `width:${Math.max(0, game.boss.hp / game.boss.max * 100)}%;background:linear-gradient(90deg,#F4364C,#FF7A45)` })),
+      el('span', { class: 'cap' }, `${game.boss.hp} HP left`));
+  } else if (game.mode === 'snow') {
+    const foe = game.teams[me.team === 'red' ? 'blue' : 'red'] || { blocks: 0, max: 0, name: '' };
+    const fort = el('div', { class: 'minifort' });
+    const rows = Math.max(1, Math.ceil((foe.max || 1) / 3));
+    for (let r = 0; r < rows; r++) {
+      const row = el('div', { class: 'row' });
+      for (let c = 0; c < 3; c++) {
+        const nth = r * 3 + c;
+        if (nth >= (foe.max || 0)) continue;
+        row.append(el('i', { class: nth < foe.blocks ? '' : 'gone',
+                             style: `--c:${me.team === 'red' ? '#4F6BFF' : '#F4364C'}` }));
+      }
+      fort.append(row);
+    }
+    box.append(el('span', { class: 'cap' }, `Knock down the ${foe.name} fort`), fort,
+               el('span', { class: 'cap' }, `${foe.blocks} block${foe.blocks === 1 ? '' : 's'} standing`));
+  } else if (game.mode === 'balloon') {
+    const strip = el('div', { class: 'balloons' });
+    for (let b = 0; b < 3; b++) {
+      strip.append(el('i', { class: b < (me.balloons || 0) ? '' : 'popped',
+                             style: `--c:${['#F4364C', '#FFC53D', '#2BA8FF'][b]}` }));
+    }
+    box.append(el('span', { class: 'cap' }, 'Your balloons'), strip,
+      el('span', { class: 'cap' }, (me.balloons || 0) > 0
+        ? `Get it wrong and one pops` : 'All gone — play on for points'));
+  } else {
+    box.append(el('span', { class: 'mini-face', html: drawFace(me, 74) }),
+      el('span', { class: 'big-num' }, rank ? '#' + rank : '—'),
+      el('span', { class: 'cap' }, `of ${game.players.length} playing`));
+  }
+
+  // everybody's game shows how much of the class is still thinking
+  box.append(el('div', { class: 'answeredbar', style: 'margin-top:6px' },
+      el('i', { style: `width:${game.players.length ? answered / game.players.length * 100 : 0}%` })),
+    el('span', { class: 'cap' }, `${answered} of ${game.players.length} answered`));
+  return box;
 }
 
 function questionCard(fresh) {
@@ -578,9 +713,11 @@ function questionCard(fresh) {
   }
 
   card.append(el('div', { class: 'qhead' },
-    el('span', { class: 'chip' }, `Q${game.index + 1} / ${game.total}`),
-    el('span', { class: 'chip', id: 'ptimer' }, '')));
-  card.append(el('h2', { class: 'qtext' }, q.text || 'Question'));
+    el('span', { class: 'left', id: 'ptimer' }, ''),
+    el('span', {}, `Question ${game.index + 1} of ${game.total}`)));
+  card.append(el('div', { class: 'timerbar' }, el('i', { id: 'ptimerbar' })));
+  card.append(el('div', { class: 'qcard' }, el('h2', { class: 'qtext' }, q.text || 'Question')));
+  card.append(stagePanel());
   if (game.mode === 'laser' && me.down)
     card.append(el('p', { class: 'tiny', style: 'color:var(--amber)' },
       'You are down. A right answer heals a teammate.'));
@@ -603,7 +740,8 @@ function questionCard(fresh) {
           btn.classList.toggle('chosen', chosen.has(c.id));
         } else answer(c.id);
       } });
-      btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl">${esc(c.text || '')}</span>`;
+      const text = c.text || '';
+      btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl${text.length > 16 ? ' long' : ''}">${esc(text)}</span>`;
       wrap.append(btn);
     });
     card.append(wrap);
@@ -749,16 +887,22 @@ function overCard() {
 
 function runTimer() {
   clearInterval(ticker);
-  const chip = document.getElementById('ptimer');
-  if (!chip || game.state !== 'question' || !game.endsAt) return;
+  const count = document.getElementById('ptimer');
+  const bar = document.getElementById('ptimerbar');
+  if (!count || game.state !== 'question' || !game.endsAt) return;
+  const total = Math.max(1000, (game.question && game.question.time ? game.question.time * 1000 : 20000));
   const paint = () => {
     const left = Math.max(0, game.endsAt - (Date.now() + drift));
-    chip.textContent = Math.ceil(left / 1000) + 's';
-    chip.className = 'chip' + (left < 5200 ? ' warn' : '');
+    count.textContent = Math.ceil(left / 1000);
+    count.className = 'left' + (left < 5200 ? ' hurry' : '');
+    if (bar) {
+      bar.style.width = Math.max(0, Math.min(100, left / total * 100)) + '%';
+      bar.className = left < 5200 ? 'hurry' : left < 10200 ? 'warn' : '';
+    }
     if (left <= 0) clearInterval(ticker);
   };
   paint();
-  ticker = setInterval(paint, 250);
+  ticker = setInterval(paint, 200);
 }
 </script>
 </body>
