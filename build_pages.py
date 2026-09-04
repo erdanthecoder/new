@@ -16,7 +16,7 @@ SRC = os.path.join(ROOT, "static")
 OUT = os.path.join(ROOT, "docs")
 
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
-ASSETS = ["nova.css", "sprites.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "live.js", "nova-local.js"]
+ASSETS = ["nova.css", "sprites.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "live.js", "nova-local.js"]
 
 
 def build():
@@ -47,6 +47,7 @@ def build():
                             '<script src="quizbank.js"></script>\n'
                             '<script src="realtime.js"></script>\n'
                             '<script src="arena.js"></script>\n'
+                            '<script src="paste.js"></script>\n'
                             '<script src="live.js"></script>\n'
                             '<script src="nova-local.js"></script>')
         html = html.replace('<script src="/qr.js"></script>', '<script src="qr.js"></script>')

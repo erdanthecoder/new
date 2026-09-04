@@ -44,6 +44,22 @@
    * stored with the player so it never changes underneath them. */
   const freeFace = (taken) => (global.Sprite ? global.Sprite.freeFace(taken) : (taken || []).length);
 
+  /* The character a child asked for, or the closest one still free. Two children
+   * with the same colour and silhouette cannot be told apart across a classroom,
+   * so a taken choice keeps its colour and steps the silhouette on. */
+  function wantedFace(wanted, taken) {
+    const S = global.Sprite;
+    const n = Number(wanted);
+    if (!S || !Number.isFinite(n) || n < 0) return freeFace(taken);
+    const used = new Set((taken || []).map(String));
+    const { colour, shape } = S.partsOf(n);
+    for (let step = 0; step < S.SHAPES; step++) {
+      const candidate = String(S.combine(colour, shape + step));
+      if (!used.has(candidate)) return candidate;
+    }
+    return freeFace(taken);
+  }
+
   const MODES = {
     normal:   { label: 'Normal',       icon: 'target', blurb: 'Fastest right answer scores the most' },
     laser:    { label: 'Laser Tag',    icon: 'laser', blurb: 'Two teams. Right answers fire, wrong ones cost shield' },
@@ -389,7 +405,7 @@
       const blue = already.filter(p => p.team === 'blue').length;
       const row = {
         id: rid(10), pin, name: (body.name || 'Player').slice(0, 16),
-        avatar: String(freeFace(already.map(p => p.avatar))),
+        avatar: String(wantedFace(body.avatar, already.map(p => p.avatar))),
         team: red <= blue ? 'red' : 'blue'
       };
       await rest('POST', '/quiznova_live_players', row, { prefer: 'return=minimal' });

@@ -125,6 +125,27 @@
 .big-timer{font-size:2.6rem;font-weight:900;text-align:center;letter-spacing:-.03em}
 .waiting .pulse{width:60px;height:60px;border-radius:50%;background:var(--grad-brand);margin:0 auto 18px;animation:breathe 2s infinite}
 @keyframes breathe{50%{transform:scale(1.18);opacity:.75}}
+
+/* choosing a character */
+.picker{margin-top:18px}
+.picker .preview{display:flex;justify-content:center;line-height:0;margin-bottom:4px}
+.picker .preview svg{width:118px;height:118px;transition:transform .25s var(--ease)}
+.picker .preview.bump svg{animation:pop .32s var(--ease)}
+.picker h2{font-size:.76rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin:14px 0 8px}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.swatch{aspect-ratio:1;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.22);transition:transform .15s var(--ease)}
+.swatch:active{transform:scale(.9)}
+.swatch.on{border-color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.22),0 0 0 3px rgba(255,255,255,.28)}
+/* not .shape — that is the marker on an answer button */
+.sils{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sil{aspect-ratio:1.3;border-radius:14px;border:2px solid var(--line);background:rgba(255,255,255,.05);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;padding:9px;line-height:0;
+  transition:transform .15s var(--ease),border-color .15s,background .15s}
+.sil:active{transform:scale(.92)}
+.sil.on{border-color:#fff;background:rgba(255,255,255,.14)}
+.sil svg{width:100%;height:100%}
 </style>
 </head>
 <body class="dark">
@@ -187,24 +208,76 @@ function askPin() {
 }
 
 function askName() {
+  /* A character is a colour and a silhouette. The game suggests one nobody in the
+   * room is likely to have, and the child changes either half if they want to. */
+  let colour = 0, shape = 0;
+  const saved = Number(store.get('avatar'));
+  const start = Number.isFinite(saved) && saved > 0 ? saved
+              : Math.floor(Math.random() * Sprite.COMBINATIONS);
+  ({ colour, shape } = Sprite.partsOf(start));
+  const chosen = () => Sprite.combine(colour, shape);
+
   $('#app').innerHTML = `
-    <div class="card pad fade-up" style="margin-top:10vh">
+    <div class="card pad fade-up" style="margin-top:6vh">
       <span class="chip">PIN ${esc(pin)}</span>
       <h1 style="font-size:1.7rem;margin:14px 0 4px">What is your name?</h1>
       <p class="muted tiny">The class sees this on the big screen.</p>
       <div class="field" style="margin-top:16px">
         <input class="input" id="nm" maxlength="16" placeholder="e.g. Sam" value="${esc(store.get('studentName') || '')}"></div>
+
+      <div class="picker">
+        <div class="preview" id="pv"></div>
+        <h2>Colour</h2>
+        <div class="swatches" id="cols"></div>
+        <h2>Shape</h2>
+        <div class="sils" id="shps"></div>
+      </div>
+
       <button class="btn primary lg block" style="margin-top:18px" id="join">Join the game</button>
       <p class="tiny faint" style="margin-top:10px;text-align:center">Wrong PIN? <a href="/play" style="text-decoration:underline">Change it</a></p>
     </div>`;
+
+  const pv = $('#pv');
+  const all = (sel) => Array.from(document.querySelectorAll(sel));
+  // repainting the whole preview restarts its little pop, which is the feedback
+  // that something changed on a tap. The shape thumbnails take the chosen colour
+  // too, so the row shows twelve of the character being made, not twelve strangers.
+  const paint = () => {
+    pv.innerHTML = Sprite.face(chosen(), 118);
+    pv.classList.remove('bump'); void pv.offsetWidth; pv.classList.add('bump');
+    all('.swatch').forEach((b, i) => b.classList.toggle('on', i === colour));
+    all('.sil').forEach((b, i) => {
+      b.classList.toggle('on', i === shape);
+      b.innerHTML = Sprite.crest(i, 46, Sprite.palette[colour]);
+    });
+  };
+
+  const cols = $('#cols');
+  Sprite.palette.forEach((hex, i) => {
+    const b = el('button', { class: 'swatch', type: 'button', title: 'Colour ' + (i + 1) });
+    b.style.background = hex;
+    b.onclick = () => { colour = i; paint(); };
+    cols.append(b);
+  });
+  const shps = $('#shps');
+  for (let i = 0; i < Sprite.SHAPES; i++) {
+    const b = el('button', { class: 'sil', type: 'button', title: 'Shape ' + (i + 1) });
+    b.onclick = () => { shape = i; paint(); };
+    shps.append(b);
+  }
+  paint();
+
   const join = async () => {
     const name = ($('#nm').value || '').trim();
     if (!name) return toast('Type your name first', 'bad');
     store.set('studentName', name);
+    store.set('avatar', String(chosen()));
     try {
-      // the game picks a character nobody else in the room has
-      const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name } });
+      const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name, avatar: chosen() } });
       me = res.player;
+      // the game keeps two children from looking alike, so say so rather than
+      // quietly handing back a different character
+      if (Number(me.avatar) !== chosen()) toast('Someone had that one. You got the next shape.');
       store.set('player:' + pin, me);
       connect();
     } catch (err) { toast(err.message, 'bad'); }

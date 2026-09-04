@@ -220,7 +220,36 @@
            `${colour ? ` style="color:${colour}"` : ''} fill="currentColor">${body}</svg>`;
   }
 
-  global.Sprite = { face, icon, scene, freeFace, COMBINATIONS,
+  /**
+   * Just the silhouette, on its own and filling the box.
+   *
+   * On the whole character the silhouette is a small part of a small drawing,
+   * and at thumbnail size twelve of them look identical — which is no use when
+   * a child is choosing between them. Here it is drawn alone and large.
+   */
+  function crest(shape, size = 44, colour) {
+    const body = CREST[((Math.round(Number(shape) || 0) % CREST.length) + CREST.length) % CREST.length];
+    const paint = colour || SKIN[0];
+    // the silhouettes are drawn in the top half of a 64x64 box; this lifts that
+    // half out and fills the tile with it
+    return '<svg viewBox="6 2 52 30" width="' + size + '" height="' + size +
+      '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+      '<g fill="' + paint + '" color="' + paint + '">' + body + '</g></svg>';
+  }
+
+  /* A character is a colour and a silhouette: index = colour + 12 x shape.
+   * The join screen needs both halves separately so a child can change one
+   * without losing the other. */
+  const COLOURS = SKIN.length, SHAPES = CREST.length;
+  const combine = (colour, shape) =>
+    ((shape % SHAPES) + SHAPES) % SHAPES * COLOURS + ((colour % COLOURS) + COLOURS) % COLOURS;
+  const partsOf = (index) => {
+    const n = Math.abs(Math.round(Number(index) || 0)) % COMBINATIONS;
+    return { colour: n % COLOURS, shape: Math.floor(n / COLOURS) % SHAPES };
+  };
+
+  global.Sprite = { face, icon, scene, crest, freeFace, COMBINATIONS, COLOURS, SHAPES,
+                    palette: SKIN.slice(), combine, partsOf,
                     names: Object.keys(ICON), scenes: Object.keys(SCENE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 

@@ -118,6 +118,36 @@
     return quiz;
   };
 
+  /* Questions a chatbot wrote, pasted straight in.
+   *
+   * Nothing is invented here: a question whose answer could not be identified is
+   * still added with the first option marked, because a teacher fixing four
+   * questions in the studio is better off than one who lost all ten.
+   */
+  Nova.importPasted = (text) => {
+    const read = window.NovaPaste && NovaPaste.parse(text);
+    if (!read || !read.questions.length) {
+      throw new Error('I could not find any questions in that. Paste the questions themselves, or a Quoldek link.');
+    }
+    const quiz = newQuiz(read.title || 'Pasted quiz');
+    quiz.questions = read.questions.map(q => {
+      const kind = q.options.length ? 'mc' : 'short';
+      const made = blankQuestion(kind);
+      made.text = q.text;
+      made.explanation = q.why || '';
+      if (kind === 'short') {
+        made.answer = q.written || '';
+      } else {
+        made.choices = q.options.map((text, i) => blankChoice(text, i === q.correct));
+      }
+      return made;
+    });
+    const all = allQuizzes();
+    all[quiz.id] = quiz;
+    saveQuizzes(all);
+    return quiz;
+  };
+
   Nova.shareLink = (quizId) => {
     const quiz = allQuizzes()[quizId];
     const base = location.href.replace(/[^/]*$/, '') + 'take.html';
@@ -531,36 +561,88 @@ Rules:
     paint();
   }
 
+  /* What to ask a chatbot for. Deliberately plain: it asks for the layout these
+   * tools already produce when left alone, so it works even when the teacher
+   * forgets to send it and just says "write me ten questions about the Romans".
+   */
+  const GEMINI_PROMPT =
+    'Write TOPIC questions for a school class aged AGE.\n\n' +
+    'Use exactly this layout, and nothing else:\n\n' +
+    '1. The question goes here?\n' +
+    'A) First option\n' +
+    'B) Second option\n' +
+    'C) Third option\n' +
+    'D) Fourth option\n' +
+    'Answer: B\n' +
+    'Explanation: one short sentence saying why.\n\n' +
+    'Then a blank line, then question 2, and so on. Four options each. ' +
+    'No introduction and no closing remarks.';
+
   function openImportDialog() {
       Nova.modal(`
-        <h2 style="margin-bottom:6px">Import a quiz</h2>
-        <p class="muted tiny" style="margin-bottom:18px">
-          Paste a Quoldek share link or code. Handy when someone sends you a quiz — or when you ask
-          Claude in a chat to write one for you and it hands you the code.
+        <h2 style="margin-bottom:6px">Add questions</h2>
+        <p class="muted tiny" style="margin-bottom:16px">
+          Paste anything: a Quoldek share link, or the questions themselves as any chatbot wrote
+          them — Gemini, ChatGPT, Claude. The layout does not have to be tidy.
         </p>
-        <div class="field"><label class="label" for="code">Link or code</label>
-          <textarea class="textarea mono" id="code" style="min-height:120px;font-size:.8rem"
-                    placeholder="https://…/take.html#d=eyJpIjoi…  — or just the code"></textarea></div>
-        <div class="row" style="margin-top:20px;justify-content:flex-end">
+        <div class="field">
+          <textarea class="textarea" id="code" style="min-height:150px;font-size:.86rem"
+                    placeholder="1. What is 7 x 8?&#10;A) 54&#10;B) 56&#10;C) 48&#10;D) 64&#10;Answer: B"></textarea>
+        </div>
+        <div id="read-out" class="tiny" style="min-height:20px;margin-top:8px;color:var(--muted)"></div>
+        <div class="row" style="margin-top:18px;gap:10px;align-items:center">
+          <button class="btn ghost sm" id="copy-prompt" type="button">Copy a prompt for Gemini</button>
+          <div class="grow"></div>
           <button class="btn ghost" id="cancel-import">Cancel</button>
-          <button class="btn primary" id="do-import">Import quiz</button>
+          <button class="btn primary" id="do-import">Add them</button>
         </div>`, {
         onMount(box, close) {
+          const area = box.querySelector('#code');
+          const readOut = box.querySelector('#read-out');
           box.querySelector('#cancel-import').onclick = close;
+
+          box.querySelector('#copy-prompt').onclick = async (e) => {
+            const button = e.currentTarget;
+            try { await navigator.clipboard.writeText(GEMINI_PROMPT); }
+            catch { area.value = GEMINI_PROMPT; return Nova.toast('Copy it from the box above.'); }
+            button.textContent = 'Copied — paste it into Gemini';
+            setTimeout(() => { button.textContent = 'Copy a prompt for Gemini'; }, 3000);
+          };
+
+          /* Say what was understood before anything is added, so a paste that came
+           * out wrong is caught here rather than in front of a class. */
+          const preview = () => {
+            const text = area.value.trim();
+            if (!text) { readOut.textContent = ''; return; }
+            if (looksLikeCode(text)) { readOut.textContent = 'A Quoldek quiz link.'; return; }
+            const read = window.NovaPaste && NovaPaste.parse(text);
+            if (!read) { readOut.textContent = 'Nothing readable yet — keep pasting.'; return; }
+            const n = read.questions.length;
+            readOut.textContent = `Read ${n} question${n === 1 ? '' : 's'}` +
+              (read.unsure ? ` — ${read.unsure} without an answer marked, so the first option is used. Check those.` : '.');
+          };
+          area.addEventListener('input', preview);
+
           box.querySelector('#do-import').onclick = () => {
+            const text = area.value.trim();
             try {
-              const quiz = Nova.importQuiz(box.querySelector('#code').value);
+              const quiz = looksLikeCode(text) ? Nova.importQuiz(text) : Nova.importPasted(text);
               close();
-              Nova.toast(`Imported “${quiz.title}” — ${quiz.questions.length} questions`, 'good');
+              Nova.toast(`Added “${quiz.title}” — ${quiz.questions.length} questions`, 'good');
               location.href = 'studio.html?id=' + quiz.id;
             } catch (err) {
               Nova.toast(err.message, 'bad');
             }
           };
-          box.querySelector('#code').focus();
+          area.focus();
         }
       });
   }
+
+  /* A share link, or the base64 blob out of one. Anything else is treated as
+   * questions a person or a chatbot wrote. */
+  const looksLikeCode = (text) =>
+    /[?#&]d=/.test(text) || (/^[A-Za-z0-9\-_]{80,}$/.test(text.replace(/\s+/g, '')));
 
   /* Two entry points, because a button tucked beside Search is easy to miss:
    * one in the top bar that is on screen the moment the page opens, and one as
@@ -576,8 +658,8 @@ Rules:
       const button = document.createElement('button');
       button.id = 'import-top';
       button.className = 'btn sm';
-      button.innerHTML = Sprite.icon('inbox', 16) + ' Import';
-      button.title = 'Paste a quiz code or share link';
+      button.innerHTML = Sprite.icon('inbox', 16) + ' Paste';
+      button.title = 'Paste questions written elsewhere, or a share link';
       button.onclick = openImportDialog;
       top.insertBefore(button, newBtn);
     }
@@ -592,8 +674,8 @@ Rules:
       card.style.borderColor = 'rgba(52,224,161,.45)';
       card.innerHTML = `
         <div class="plus" style="background:var(--grad-mint);color:#03251b">${Sprite.icon('inbox', 20)}</div>
-        <strong>Import a quiz</strong>
-        <span class="tiny faint">Paste a code Claude wrote for you</span>`;
+        <strong>Paste questions in</strong>
+        <span class="tiny faint">From Gemini, ChatGPT, or a shared link</span>`;
       card.onclick = openImportDialog;
       anchor.after(card);
     };

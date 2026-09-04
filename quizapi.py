@@ -904,7 +904,9 @@ BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
 # Characters are numbers drawn by sprites.js in the browser: 12 colours x 12
 # silhouettes. One is handed out per game so no two children in the same room
 # look alike, and it is stored with the player so it never changes.
-FACE_COMBINATIONS = 144
+FACE_COLOURS = 12          # must match the palette in static/sprites.js
+FACE_SHAPES = 12
+FACE_COMBINATIONS = FACE_COLOURS * FACE_SHAPES
 
 
 def free_face(taken):
@@ -919,6 +921,30 @@ def free_face(taken):
         if candidate not in used:
             return candidate
     return str(random.randrange(FACE_COMBINATIONS))
+
+
+def wanted_face(wanted, taken):
+    """The character a child asked for, or the closest one still free.
+
+    Two children with the same colour and silhouette cannot be told apart across
+    a classroom, which is the whole reason the characters exist. So a choice is
+    honoured when it is free, and otherwise the colour is kept and the silhouette
+    steps on until one is going spare.
+    """
+    try:
+        n = int(wanted)
+    except (TypeError, ValueError):
+        return free_face(taken)
+    if n < 0:
+        return free_face(taken)
+    n %= FACE_COMBINATIONS
+    used = {str(t) for t in taken}
+    colour, shape = n % FACE_COLOURS, n // FACE_COLOURS
+    for step in range(FACE_SHAPES):
+        candidate = str((shape + step) % FACE_SHAPES * FACE_COLOURS + colour)
+        if candidate not in used:
+            return candidate
+    return free_face(taken)
 
 def public_game(game: dict, include_answers: bool = False) -> dict:
     quiz = _store["quizzes"].get(game["quizId"], {})
@@ -1053,7 +1079,8 @@ def join_game(pin):
         player = {
             "id": nid(10),
             "name": name,
-            "avatar": free_face(p.get("avatar") for p in game["players"].values()),
+            "avatar": wanted_face(body.get("avatar"),
+                                  [p.get("avatar") for p in game["players"].values()]),
             "team": "red" if red <= blue else "blue",
             "score": 0,
             "hp": 100,
