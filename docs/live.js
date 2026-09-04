@@ -66,7 +66,6 @@
   const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
 
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
-  const AIM_SECONDS = 20;   // a round of free shooting before the question
   const TEAM_HP_FLOOR = 400, TEAM_HP_PER_PLAYER = 250, MAX_PLAYER_HIT = 40;
 
   /* ── marking, shared with the rest of the app ─────────── */
@@ -226,7 +225,10 @@
       state: game.state, index: idx, total: questions.length,
       quizTitle: game.quizTitle, quizId: game.quizId, question, endsAt: game.endsAt, serverNow: now(),
       players, teams: game.teams, counts: game.counts || {}, lastEvents: game.lastEvents || [],
-      aimSeconds: AIM_SECONDS,
+      // Laser Tag asks each child their own questions as their bar runs out, so
+      // their phone needs the set. A child who digs into the page can read the
+      // answers; the same is true of every game of this shape.
+      quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
       boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal
     };
   }
@@ -246,22 +248,9 @@
     if (game.index >= game.questions.length) { game.state = 'over'; game.endsAt = null; return; }
     Object.values(game.players).forEach(p => {
       p.answered = false; p.correct = null; p.lastDamage = 0; p.lastGain = 0; p.chest = '';
-      if (game.mode === 'laser') p.target = '';
     });
-    if (game.mode === 'laser') {
-      game.state = 'aim';
-      game.endsAt = now() + AIM_SECONDS * 1000;
-      return;
-    }
     beginQuestion(game);
   }
-
-  /* Targets are a column on the players table, so they outlive the round that set
-   * them. Without this the next countdown would open with everyone already aimed
-   * and skip itself. */
-  const clearTargets = (pin) =>
-    rest('PATCH', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}`,
-         { target: '' }, { prefer: 'return=minimal' });
 
   const readPlayers = (pin) =>
     rest('GET', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}&select=*`);
@@ -284,14 +273,14 @@
       }
     }
 
-    if (game.state === 'aim') {
+    if (game.state === 'arena') {
+      // the scores are earned in the arena and each phone saves its own
       for (const row of playerRows || []) {
         const player = game.players[row.id];
-        if (player && (row.target || '') !== (player.target || '')) {
-          player.target = row.target || ''; changed = true;
+        if (player && Number(row.score || 0) !== player.score) {
+          player.score = Number(row.score || 0); changed = true;
         }
       }
-      if (game.endsAt && now() >= game.endsAt) { beginQuestion(game); changed = true; }
     }
 
     if (game.state === 'question') {
@@ -407,11 +396,10 @@
       return { player: blankPlayer(row), game: publicView(game) };
     }
 
-    if (tail === '/target' && method === 'POST') {
-      if (game.state !== 'aim') throw new Error('The shooting round is over.');
+    if (tail === '/score' && method === 'POST') {
       await rest('PATCH', `/quiznova_live_players?id=eq.${encodeURIComponent(body.playerId)}`,
-                 { target: String(body.targetId || '') }, { prefer: 'return=minimal' });
-      return { target: body.targetId || '' };
+                 { score: Math.max(0, Math.round(Number(body.score) || 0)) }, { prefer: 'return=minimal' });
+      return { ok: true };
     }
 
     if (tail === '/team' && method === 'POST') {
@@ -444,6 +432,15 @@
     if (tail === '/start') {
       await reconcile(pin, game);
       if (game.mode === 'laser') {
+        // one long round: the arena runs until the teacher stops it, and each
+        // child's own energy bar decides when they break off to answer
+        game.state = 'arena';
+        game.index = 0;
+        game.endsAt = null;
+        await writeGame(pin, game);
+        return publicView(game);
+      }
+      if (game.mode === 'laser') {
         for (const side of ['red', 'blue']) {
           const n = Object.values(game.players).filter(p => p.team === side).length;
           game.teams[side].hp = Math.max(TEAM_HP_FLOOR, TEAM_HP_PER_PLAYER * n);
@@ -455,17 +452,12 @@
                       classHp: 100, classMax: 100 };
       }
       openQuestion(game);
-      if (game.state === 'aim') await clearTargets(pin);
       await writeGame(pin, game);
       return publicView(game);
     }
     if (tail === '/next') {
-      if (game.state === 'aim') beginQuestion(game);              // stop waiting, ask the question
-      else if (game.state === 'question') { game.state = 'reveal'; game.endsAt = null; }
-      else {
-        openQuestion(game);
-        if (game.state === 'aim') await clearTargets(pin);
-      }
+      if (game.state === 'question') { game.state = 'reveal'; game.endsAt = null; }
+      else openQuestion(game);
       await writeGame(pin, game);
       return publicView(game);
     }

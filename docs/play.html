@@ -37,6 +37,19 @@
 .opt-btn .lbl{line-height:1.2}
 .opts.one{grid-template-columns:1fr}
 
+/* the arena on a phone */
+.arena-wrap{gap:8px}
+.arena-shell{position:relative;flex:1;min-height:240px;border-radius:20px;overflow:hidden;
+  border:2px solid rgba(255,255,255,.12);touch-action:none}
+.arena-canvas{position:absolute;inset:0;display:block;width:100%;height:100%;background:#0D0A1C}
+.energy{position:absolute;left:10px;right:10px;bottom:10px;height:12px;border-radius:99px;
+  background:rgba(0,0,0,.55);overflow:hidden;border:1px solid rgba(255,255,255,.16)}
+.energy i{display:block;height:100%;width:100%;border-radius:99px;
+  background:linear-gradient(90deg,#12BE8E,#7BC62D);transition:width .12s linear}
+.energy i.low{background:linear-gradient(90deg,#FF6B5A,#FFC53D)}
+.opt-btn.right{outline:4px solid #12BE8E}
+.opt-btn.wrong{outline:4px solid #F4364C;opacity:.75}
+
 /* the shooting range: an arena to swing a crosshair across, and the controls */
 .range{position:relative;flex:1;min-height:230px;border-radius:20px;overflow:hidden;
   background:radial-gradient(120% 90% at 50% 0%,#2C2752,#100C22);
@@ -118,13 +131,15 @@
 <main class="shell" id="app"></main>
 
 <script src="sprites.js?v=50ac52cf"></script>
+
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
-<script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=4d1b15b6"></script>
-<script src="nova-local.js?v=878ba367"></script>
+<script src="realtime.js?v=75e1623c"></script>
+<script src="arena.js?v=134a5fcf"></script>
+<script src="live.js?v=bd2138d7"></script>
+<script src="nova-local.js?v=a1acb008"></script>
 <script>
-const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
+const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, modal } = Nova;
 
 const drawFace = (p, size) => Sprite.face(p && p.avatar, size);
 const paintMark = () => { const m = document.getElementById('brand-mark');
@@ -272,7 +287,8 @@ function render(fresh) {
   app.append(hud());
 
   if (game.state === 'lobby') return app.append(lobbyCard());
-  if (game.state === 'aim') { app.append(aimCard()); return runAimClock(); }
+  if (game.state === 'arena') return app.append(arenaCard());
+  if (arena) { arena.stop(); arena = null; }
   if (game.state === 'over') return app.append(overCard());
   if (game.state === 'reveal') return app.append(revealCard());
   app.append(questionCard(fresh));
@@ -307,75 +323,70 @@ function lobbyCard() {
   return card;
 }
 
-/* Laser Tag: twenty seconds of shooting, then the question.
+/* Laser Tag: one arena, and your own energy bar decides when you answer.
  *
- * The arena is drawn on the phone. A thumb on the joystick swings the crosshair
- * across it and the fire button shoots whoever is under it, so the phone is a
- * controller rather than a list of names to tap. A mouse works the same way:
- * move the pointer, click to fire. */
-function aimCard() {
-  const card = el('div', { class: 'play' });
-  const foes = game.players.filter(p => p.team !== me.team && !p.down);
+ * Play until the bar empties or somebody tags you, answer a question to get back
+ * in with a full bar, and carry on. Ten points for an alien, a hundred for another
+ * player. The joystick walks and aims at once; a keyboard uses WASD and the mouse.
+ */
+let arena = null, arenaQ = 0, arenaAsking = false;
+
+function arenaCard() {
+  const card = el('div', { class: 'play arena-wrap' });
   card.append(el('div', { class: 'qhead' },
-    el('span', { class: 'chip' }, 'Round ' + (game.index + 1)),
-    el('span', { class: 'chip', id: 'aim-clock' }, ''),
-    el('span', { class: 'chip', id: 'shot-count' }, '0 hits')));
+    el('span', { class: 'chip', id: 'a-score' }, '0'),
+    el('span', { class: 'chip', id: 'a-power' }, ''),
+    el('span', { class: 'chip', id: 'a-alive' }, 'In play')));
 
-  if (me.down || !foes.length) {
-    card.append(el('div', { class: 'big wait' },
-      el('div', { class: 'mark', html: Sprite.icon(me.down ? 'flame' : 'laser', 74) }),
-      el('h2', {}, me.down ? 'You are down' : 'Nobody left to hit'),
-      el('p', { class: 'sub' }, me.down ? 'A right answer heals a teammate'
-                                        : 'Answer well to help your team')));
-    return card;
-  }
-
-  const range = el('div', { class: 'range', id: 'range' });
-  foes.forEach((f, i) => {
-    const across = foes.length === 1 ? 50 : 12 + i * (76 / (foes.length - 1));
-    const up = 18 + (i % 3) * 22;
-    const mark = el('div', { class: 'foe', 'data-id': f.id,
-      style: `left:${across}%;bottom:${up}%;animation-delay:${i * 320}ms` });
-    mark.innerHTML = Sprite.face(f.avatar, 62) +
-      `<span class="hp"><i style="width:${f.hp}%"></i></span><span class="nm">${esc(f.name)}</span>`;
-    range.append(mark);
-  });
-  range.append(el('div', { class: 'cross', id: 'cross' }));
-  card.append(range);
+  const shell = el('div', { class: 'arena-shell' });
+  const canvas = el('canvas', { class: 'arena-canvas', id: 'arena' });
+  const bar = el('div', { class: 'energy' }, el('i', { id: 'a-energy' }));
+  shell.append(canvas, bar);
+  card.append(shell);
 
   const pad = el('div', { class: 'gamepad' });
   pad.innerHTML = `<div class="stick" id="stick"><span class="knob" id="knob"></span></div>
     <button class="fire" id="fire">FIRE</button>`;
   card.append(pad);
-  setTimeout(wireControls, 0);
+  setTimeout(startArena, 0);
   return card;
 }
 
-/* One crosshair, driven by a thumb on the stick or by the pointer. */
-function wireControls() {
-  const range = document.getElementById('range');
-  const cross = document.getElementById('cross');
+function startArena() {
+  const canvas = document.getElementById('arena');
+  if (!canvas || arena) return;
+  arena = NovaArena.start({
+    canvas, me,
+    send: (event, payload) => Nova.arenaSend && Nova.arenaSend(pin, event, payload),
+    onScore: (score) => { const n = document.getElementById('a-score'); if (n) n.textContent = score; },
+    onSave: (score) => api(`/games/${pin}/score`, { method: 'POST', body: { playerId: me.id, score } })
+                         .catch(() => {}),
+    onQuestion: () => askArenaQuestion()
+  });
+  if (Nova.arenaListen) Nova.arenaListen(pin, (event, payload) => arena && arena.heard(event, payload));
+  wireStick();
+  paintArenaHud();
+}
+
+function paintArenaHud() {
+  if (!arena) return;
+  const bar = document.getElementById('a-energy');
+  if (!bar) return;                                  // the screen moved on
+  bar.style.width = Math.max(0, arena.energy) + '%';
+  bar.classList.toggle('low', arena.energy < 28);
+  const power = document.getElementById('a-power');
+  if (power) { power.textContent = arena.power || 'no power-up'; power.classList.toggle('live', !!arena.power); }
+  const alive = document.getElementById('a-alive');
+  if (alive) alive.textContent = arena.alive ? 'In play' : 'Out';
+  requestAnimationFrame(paintArenaHud);
+}
+
+/* The stick both walks and aims, so a thumb never has to do two jobs. */
+function wireStick() {
   const stick = document.getElementById('stick');
   const knob = document.getElementById('knob');
   const fire = document.getElementById('fire');
-  if (!range || !cross) return;
-
-  let x = 50, y = 45, vx = 0, vy = 0, hits = 0;
-  const place = () => { cross.style.left = x + '%'; cross.style.bottom = y + '%'; };
-  place();
-
-  const glide = () => {
-    if (!document.body.contains(cross)) return;
-    if (vx || vy) {
-      x = Math.max(4, Math.min(96, x + vx * 1.6));
-      y = Math.max(6, Math.min(92, y + vy * 1.6));
-      place();
-    }
-    requestAnimationFrame(glide);
-  };
-  requestAnimationFrame(glide);
-
-  // the stick: how far the thumb is from the middle is how fast the aim travels
+  if (!stick) return;
   const grip = (e) => {
     const t = e.touches ? e.touches[0] : e;
     const box = stick.getBoundingClientRect();
@@ -383,11 +394,11 @@ function wireControls() {
     const dy = (t.clientY - (box.top + box.height / 2)) / (box.height / 2);
     const len = Math.min(1, Math.hypot(dx, dy));
     const ang = Math.atan2(dy, dx);
-    vx = Math.cos(ang) * len; vy = -Math.sin(ang) * len;
+    if (arena) arena.stick(Math.cos(ang) * len, Math.sin(ang) * len);
     knob.style.transform = `translate(${Math.cos(ang) * len * 26}px,${Math.sin(ang) * len * 26}px)`;
     e.preventDefault();
   };
-  const release = () => { vx = vy = 0; knob.style.transform = 'none'; };
+  const release = () => { if (arena) arena.stick(0, 0); knob.style.transform = 'none'; };
   ['touchstart', 'touchmove'].forEach(ev => stick.addEventListener(ev, grip, { passive: false }));
   ['touchend', 'touchcancel'].forEach(ev => stick.addEventListener(ev, release));
   stick.addEventListener('mousedown', (e) => {
@@ -396,64 +407,53 @@ function wireControls() {
     const up = () => { release(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
   });
-
-  // a mouse can also just point at the arena
-  range.addEventListener('mousemove', (e) => {
-    const box = range.getBoundingClientRect();
-    x = ((e.clientX - box.left) / box.width) * 100;
-    y = ((box.bottom - e.clientY) / box.height) * 100;
-    place();
-  });
-
-  const shoot = async () => {
-    const cb = cross.getBoundingClientRect();
-    const cx = cb.left + cb.width / 2, cy = cb.top + cb.height / 2;
-    let hit = null;
-    range.querySelectorAll('.foe').forEach(node => {
-      const b = node.getBoundingClientRect();
-      if (cx >= b.left - 6 && cx <= b.right + 6 && cy >= b.top - 6 && cy <= b.bottom + 6) hit = node;
-    });
-    cross.classList.remove('bang'); void cross.offsetWidth; cross.classList.add('bang');
-    if (!hit) { toast('Missed', 'bad'); return; }
-    hit.classList.remove('struck'); void hit.offsetWidth; hit.classList.add('struck');
-    if (navigator.vibrate) navigator.vibrate(24);
-    hits += 1;
-    const chip = document.getElementById('shot-count');
-    if (chip) chip.textContent = hits + (hits === 1 ? ' hit' : ' hits');
-    try {
-      // the last player hit is the one this round's answer fires at
-      await api(`/games/${pin}/target`, { method: 'POST', body: { playerId: me.id, targetId: hit.dataset.id } });
-      me.target = hit.dataset.id;
-    } catch { /* the round may have just closed */ }
-  };
-  fire.addEventListener('click', shoot);
-  range.addEventListener('click', shoot);
-  // tapping someone is the quickest shot of all, and is what a thumb reaches for
-  range.querySelectorAll('.foe').forEach(node => node.addEventListener('click', (e) => {
-    const b = node.getBoundingClientRect(), rb = range.getBoundingClientRect();
-    x = ((b.left + b.width / 2 - rb.left) / rb.width) * 100;
-    y = ((rb.bottom - (b.top + b.height / 2)) / rb.height) * 100;
-    place();
-    e.stopPropagation();
-    shoot();
-  }));
-  document.addEventListener('keydown', function once(e) {
-    if (e.code === 'Space') { e.preventDefault(); shoot(); }
-  });
+  let held = null;
+  const hold = (e) => { e.preventDefault(); if (arena) arena.fire(); held = setInterval(() => arena && arena.fire(), 90); };
+  const drop = () => { clearInterval(held); held = null; };
+  fire.addEventListener('touchstart', hold, { passive: false });
+  ['touchend', 'touchcancel'].forEach(ev => fire.addEventListener(ev, drop));
+  fire.addEventListener('mousedown', hold);
+  window.addEventListener('mouseup', drop);
 }
 
-function runAimClock() {
-  clearInterval(ticker);
-  const chip = document.getElementById('aim-clock');
-  if (!chip || !game.endsAt) return;
-  const paint = () => {
-    const left = Math.max(0, game.endsAt - (Date.now() + drift));
-    chip.textContent = Math.ceil(left / 1000) + 's';
-    chip.classList.toggle('warn', left < 5200);
-    if (left <= 0) clearInterval(ticker);
-  };
-  paint();
-  ticker = setInterval(paint, 200);
+/* Out of energy, or tagged: one question buys the way back in. */
+function askArenaQuestion() {
+  if (arenaAsking) return;
+  arenaAsking = true;
+  const set = (game.quiz && game.quiz.length) ? game.quiz : [];
+  if (!set.length) { arenaAsking = false; if (arena) arena.revive(); return; }
+  const q = set[arenaQ % set.length];
+  arenaQ += 1;
+
+  const close = modal(`
+    <p class="label" style="margin-bottom:6px">Answer to get back in</p>
+    <h2 style="margin-bottom:16px">${esc(q.text || 'Question')}</h2>
+    <div class="opts" id="q-opts" style="min-height:180px"></div>`, {
+    onMount(box) {
+      const wrap = box.querySelector('#q-opts');
+      (q.choices || []).forEach((c, i) => {
+        const btn = el('button', { class: `opt-btn a${i % 6}`, onclick: () => {
+          const right = !!c.correct;
+          btn.classList.add(right ? 'right' : 'wrong');
+          if (navigator.vibrate) navigator.vibrate(right ? [18, 40, 18] : 80);
+          setTimeout(() => {
+            if (right) {
+              close();
+              arenaAsking = false;
+              if (arena) arena.revive();
+            } else {
+              // wrong keeps you out: try the next one
+              close();
+              arenaAsking = false;
+              askArenaQuestion();
+            }
+          }, right ? 420 : 760);
+        } });
+        btn.innerHTML = `${SHAPES[i % 6]}<span class="lbl">${esc(c.text || '')}</span>`;
+        wrap.append(btn);
+      });
+    }
+  });
 }
 
 function questionCard(fresh) {

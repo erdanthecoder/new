@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 data/
 .DS_Store
+
+# Firebase service-account keys are private: they must never reach a public repo
+*firebase-adminsdk*.json
+*service-account*.json
+serviceAccountKey.json
+.firebase/

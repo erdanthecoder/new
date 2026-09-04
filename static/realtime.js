@@ -18,12 +18,18 @@
   const BACKOFF = [1000, 2000, 5000, 10000, 20000];
 
   /**
-   * watch(pin, onChange, onStatus) → { close }
-   *   onChange()          something about this game changed; read it again
-   *   onStatus('live'|'off')  whether the connection is currently carrying changes
+   * watch(pin, onChange, onStatus, onBroadcast) → { close, send }
+   *   onChange()              a row changed; read the game again
+   *   onStatus('live'|'off')  whether the connection is carrying anything
+   *   onBroadcast(event, payload)  a message from another device on this game
+   *
+   * Broadcast is how the Laser Tag arena moves: thirty children sending their
+   * position ten times a second is far too much to write to a database, and none
+   * of it is worth keeping once the round is over. It goes device to device
+   * through the same socket and never lands in a table.
    */
-  function watch(pin, onChange, onStatus) {
-    let ws = null, closed = false, attempt = 0, beat = null, joinTimer = null, live = false;
+  function watch(pin, onChange, onStatus, onBroadcast) {
+    let ws = null, closed = false, attempt = 0, beat = null, joinTimer = null, live = false, msgRef = 1;
 
     const setLive = (value) => {
       if (live === value) return;
@@ -61,7 +67,7 @@
           ref: '1',
           payload: {
             config: {
-              broadcast: { self: false },
+              broadcast: { self: false, ack: false },
               presence: { key: '' },
               postgres_changes: TABLES.map(table => ({
                 event: '*', schema: 'public', table, filter: 'pin=eq.' + pin
@@ -88,6 +94,9 @@
         if (msg.event === 'phx_error' || msg.event === 'phx_close') return retry();
         // any row change on this game is the same message to us: read it again
         if (msg.event === 'postgres_changes') { try { onChange(); } catch { /* caller's problem */ } }
+        if (msg.event === 'broadcast' && onBroadcast && msg.payload) {
+          try { onBroadcast(msg.payload.event, msg.payload.payload); } catch { /* caller's problem */ }
+        }
       };
 
       socket.onerror = () => { /* onclose follows */ };
@@ -95,7 +104,19 @@
     }
 
     connect();
-    return { close() { closed = true; cleanup(); } };
+    return {
+      close() { closed = true; cleanup(); },
+      /** Send a message to every other device on this game. Dropped if not connected. */
+      send(event, payload) {
+        if (!live || !ws) return false;
+        try {
+          ws.send(JSON.stringify({ topic: 'realtime:quiznova-' + pin, event: 'broadcast',
+                                   ref: String(++msgRef),
+                                   payload: { type: 'broadcast', event, payload } }));
+          return true;
+        } catch { return false; }
+      }
+    };
   }
 
   global.NovaRealtime = { watch, available: typeof WebSocket !== 'undefined' };

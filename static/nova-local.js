@@ -333,6 +333,15 @@ Rules:
   const gameKicks = new Set();
   let liveGamePace = 'idle';
 
+  /* The Laser Tag arena moves far too fast to write down: positions and shots go
+   * straight between the devices on the game's live connection. Nova.stream owns
+   * that connection, so it parks it here for the arena to borrow. */
+  let liveLink = null;
+  const arenaEars = new Set();
+  Nova.arenaSend = (pin, event, payload) => liveLink && liveLink.send(event, payload);
+  Nova.arenaListen = (pin, fn) => { arenaEars.add(fn); return () => arenaEars.delete(fn); };
+  Nova.arenaHeard = (event, payload) => arenaEars.forEach(fn => { try { fn(event, payload); } catch { /* caller */ } });
+
   Nova.api = async function (path, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const body = options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : {};
@@ -630,8 +639,9 @@ Rules:
         ? window.NovaRealtime.watch(pin, nudge, (status) => {
             connected = status === 'live';
             if (connected) tick();   // catch up on whatever happened while connecting
-          })
+          }, (event, payload) => Nova.arenaHeard(event, payload))
         : null;
+      liveLink = realtime;
 
       let timer = setTimeout(tick, 60);
       // this device just did something (answered, started, advanced): do not make it
@@ -640,6 +650,7 @@ Rules:
       return { close() {
         stop = true; clearTimeout(timer); clearTimeout(soon);
         gameKicks.delete(tick);
+        if (liveLink === realtime) liveLink = null;
         if (realtime) realtime.close();
       } };
     }

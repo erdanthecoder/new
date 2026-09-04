@@ -106,14 +106,14 @@
 .floor .line{position:absolute;left:0;right:0;height:3px;background:rgba(255,255,255,.22)}
 .floor .finish{position:absolute;top:0;bottom:0;width:12px;
   background:repeating-linear-gradient(180deg,#fff 0 10px,#241C38 10px 20px)}
-.stand{position:absolute;bottom:0;transform-style:preserve-3d;transform:rotateX(-58deg);
+.figure{position:absolute;bottom:0;transform-style:preserve-3d;transform:rotateX(-58deg);
   transform-origin:bottom center;display:flex;flex-direction:column;align-items:center;gap:2px;
   transition:left .9s var(--ease),bottom .9s var(--ease)}
-.stand .tag{font-size:.72rem;font-weight:800;white-space:nowrap;padding:2px 7px;border-radius:99px;
+.figure .tag{font-size:.72rem;font-weight:800;white-space:nowrap;padding:2px 7px;border-radius:99px;
   background:rgba(10,7,20,.72);border:1px solid rgba(255,255,255,.16)}
-.stand .shadow{position:absolute;bottom:-4px;width:70%;height:8px;border-radius:50%;
+.figure .shadow{position:absolute;bottom:-4px;width:70%;height:8px;border-radius:50%;
   background:rgba(0,0,0,.45);filter:blur(2px);transform:rotateX(58deg)}
-.stand.lead .tag{background:var(--sun);color:#1b1330;border-color:#0b0718}
+.figure.lead .tag{background:var(--sun);color:#1b1330;border-color:#0b0718}
 .pillar{width:34px;border-radius:6px 6px 0 0;background:var(--c,#7C4DFF);
   box-shadow:inset -6px 0 0 rgba(0,0,0,.22),0 0 18px rgba(0,0,0,.35);transition:height .8s var(--ease)}
 .beam{position:absolute;height:7px;border-radius:4px;transform-origin:0 50%;
@@ -148,16 +148,10 @@
 .scene.map-volcano{filter:hue-rotate(-40deg) saturate(1.4)}
 .scene.map-ruins{filter:hue-rotate(60deg) saturate(.6)}
 
-/* the Laser Tag countdown */
-.aim{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%}
-.aim .num{font-size:clamp(4rem,14vw,9rem);font-weight:900;line-height:1;color:#fff;
-  text-shadow:0 0 40px rgba(255,197,61,.6);animation:beat 1s infinite}
-@keyframes beat{50%{transform:scale(1.08)}}
-.aim .said{font-size:clamp(1.1rem,2.4vw,1.8rem);font-weight:800;opacity:.85}
-.aim .rows{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
-.aim .who{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;font-weight:800;
-  background:rgba(255,255,255,.07);border:2px solid var(--line)}
-.aim .who.ready{border-color:var(--mint);background:rgba(18,190,142,.16)}
+/* the arena on the big screen */
+.arena-board{position:relative;flex:1;min-height:0;border-radius:22px;overflow:hidden;
+  border:3px solid #0b0718;box-shadow:0 22px 50px -24px rgba(0,0,0,.9)}
+.arena-board canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 
 /* laser arena */
 .arena{display:grid;grid-template-columns:1fr 74px 1fr;gap:14px;align-items:stretch;margin-top:18px}
@@ -290,6 +284,7 @@
 <main class="stage" id="stage"></main>
 
 <script src="/sprites.js"></script>
+<script src="/arena.js"></script>
 <script src="/nova.js"></script>
 <script src="/qr.js"></script>
 <script>
@@ -417,7 +412,8 @@ function render(fresh) {
   const stage = $('#stage');
   if (game.state === 'lobby') { if (paint(stage, lobbyView, fresh)) bindLobby(); return; }
   if (game.state === 'over')  { if (paint(stage, overView, fresh)) { cancelAnimationFrame(ticker); announce(); } return; }
-  if (game.state === 'aim')   { if (paint(stage, aimView, fresh)) runAimClock(); return; }
+  if (game.state === 'arena') { if (paint(stage, arenaView, fresh)) watchArena(); return; }
+  if (boardArena) { boardArena.stop(); boardArena = null; }
   if (!game.question) return;
   if (paint(stage, () => questionView(fresh), fresh)) { bindQuestion(); runTimer(); }
 }
@@ -495,45 +491,34 @@ function drawQR(url) {
     '<div style="color:#0b1020;font-size:.66rem;font-weight:800;letter-spacing:.06em;text-align:center;margin-top:4px">SCAN TO JOIN</div>');
 }
 
-/* ── the Laser Tag countdown ───────────────────── */
-function aimView() {
+/* ── the Laser Tag arena, on the big screen ────── */
+let boardArena = null;
+
+function arenaView() {
   const root = el('div', { class: 'board' });
   const panel = el('div', { class: 'ask' });
-  panel.innerHTML = `<h1>Take aim</h1>`;
+  panel.innerHTML = `<h1>Laser Tag</h1>
+    <div class="tally"><b>${game.players.length}</b><span>in the arena</span></div>`;
   root.append(panel);
-
-  const aim = el('div', { class: 'aim' });
-  aim.append(el('div', { class: 'num', id: 'aim-num' }, String(game.aimSeconds || 6)),
-             el('div', { class: 'said' }, 'Everyone pick who you are shooting at'));
-  const rows = el('div', { class: 'rows' });
-  game.players.forEach(p => rows.append(el('div', { class: 'who' + (p.target ? ' ready' : '') },
-    el('span', { class: 'mini-face', html: Sprite.face(p.avatar, 26) }), p.name)));
-  aim.append(rows);
-  root.append(aim);
-
+  root.append(el('div', { class: 'arena-board' }, el('canvas', { id: 'board-arena' })));
+  // the arena is the thing worth watching, so the table stays short
+  const rest = el('div', { class: 'rest' });
+  rest.append(leaderboard({ rows: 4, title: 'Top of the arena' }));
+  root.append(rest);
   if (hostToken) root.append(el('div', { class: 'row', style: 'justify-content:center;flex:none' },
-    el('button', { class: 'btn lg', id: 'advance' }, 'Ask the question now')));
+    el('button', { class: 'btn lg primary', id: 'advance' }, 'Finish and show the scores')));
   return root;
 }
 
-/* The countdown is painted here rather than from the game state, so it runs at
- * screen rate instead of jumping whenever an update happens to arrive. */
-function runAimClock() {
-  cancelAnimationFrame(ticker); clearInterval(ticker);
-  bindQuestion();
-  const num = document.getElementById('aim-num');
-  if (!num || !game.endsAt) return;
-  let fired = false;
-  const frame = () => {
-    const left = Math.max(0, game.endsAt - (Date.now() + drift));
-    num.textContent = Math.ceil(left / 1000) || 'Fire';
-    if (left <= 0) {
-      if (!fired && hostToken) { fired = true; api(`/games/${pin}/tick`, { method: 'POST', body: { hostToken } }).catch(() => {}); }
-      return;
-    }
-    ticker = requestAnimationFrame(frame);
-  };
-  frame();
+function watchArena() {
+  const canvas = document.getElementById('board-arena');
+  if (!canvas || boardArena) return;
+  // the board is a spectator: it draws everyone and controls nobody
+  boardArena = NovaArena.start({ canvas, watching: true, send: () => {} });
+  if (Nova.arenaListen) Nova.arenaListen(pin, (event, payload) => boardArena && boardArena.heard(event, payload));
+  const advance = document.getElementById('advance');
+  if (advance) advance.onclick = () => api(`/games/${pin}/end`, { method: 'POST', body: { hostToken } })
+    .catch(e => toast(e.message, 'bad'));
 }
 
 /* ── question ──────────────────────────────────── */
@@ -652,7 +637,7 @@ function stage(fill) {
 
 /** One figure standing on the floor at x% across and y% back. */
 function standing(p, x, y, label, extra) {
-  const node = el('div', { class: 'stand' + (extra || ''), 'data-id': p.id,
+  const node = el('div', { class: 'figure' + (extra || ''), 'data-id': p.id,
     style: `left:${x}%;bottom:${y}%;margin-left:-26px` });
   node.append(el('div', { class: 'shadow' }),
               el('div', { class: 'mini-face', html: Sprite.face(p.avatar, 58) }),
@@ -682,7 +667,7 @@ function skyline() {
   return stage((world) => {
     game.players.slice(0, 10).forEach((p, i) => {
       const x = 8 + i * (84 / Math.max(1, Math.min(10, game.players.length)));
-      const node = el('div', { class: 'stand' + (i === 0 ? ' lead' : ''), 'data-id': p.id,
+      const node = el('div', { class: 'figure' + (i === 0 ? ' lead' : ''), 'data-id': p.id,
         style: `left:${x}%;bottom:14%;margin-left:-17px` });
       const stack = el('div', { class: 'pillar',
         style: `height:${Math.max(4, (p.blocks || 0) / tallest * 150)}px;--c:${KART_COLOURS[i % 6]}` });
@@ -713,7 +698,7 @@ function bossArena() {
 
   const wrap = el('div', { class: 'boss-wrap' });
   wrap.append(stage((world) => {
-    const beast = el('div', { class: 'stand boss-figure' + (hurt ? ' hurt' : ''),
+    const beast = el('div', { class: 'figure boss-figure' + (hurt ? ' hurt' : ''),
       style: 'left:50%;bottom:72%;margin-left:-60px' });
     beast.append(el('div', { class: 'shadow', style: 'width:120px;height:14px' }),
                  el('div', { class: 'mini-face',
@@ -758,13 +743,13 @@ function rankBaseline() {
   return prevRanks;
 }
 
-function leaderboard({ from = 0, title } = {}) {
+function leaderboard({ from = 0, title, rows = 8 } = {}) {
   const card = el('div', { class: 'card pad', style: 'margin-top:14px' },
     el('h3', { style: 'font-size:1.05rem;margin-bottom:14px' },
       title || (game.mode === 'boss' ? 'Damage dealt' : 'Leaderboard')));
   const lb = el('div', { class: 'lb' });
   const baseline = rankBaseline();
-  game.players.slice(from, from + 8).forEach((p, offset) => {
+  game.players.slice(from, from + rows).forEach((p, offset) => {
     const i = from + offset;
     const was = baseline[p.id];
     const moved = was === undefined ? 0 : was - i;

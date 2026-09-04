@@ -897,7 +897,7 @@ def maps_for(mode):
     return [{"id": i, "label": label} for i, label in MAPS.get(mode, MAPS["normal"])]
 
 
-AIM_SECONDS = 20           # a round of free shooting before a Laser Tag question
+ARENA_SECONDS = 20         # a full energy bar, in the Laser Tag arena
 TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
 
@@ -946,7 +946,10 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "pin": game["pin"],
         "mode": game["mode"],
         "map": game.get("map") or maps_for(game["mode"])[0]["id"],
-        "aimSeconds": AIM_SECONDS,
+        # Laser Tag asks each child their own questions as their bar empties, so
+        # their phone needs the set. A child who digs into the page can read the
+        # answers; that is true of every game built this way.
+        "quiz": game["questions"] if game["mode"] == "laser" and game["state"] == "arena" else None,
         "state": game["state"],
         "index": idx,
         "total": len(questions),
@@ -1072,6 +1075,22 @@ def join_game(pin):
     return jsonify({"player": player, "game": public_game(game)}), 201
 
 
+@api.post("/games/<pin>/score")
+def save_score(pin):
+    """Laser Tag: a phone reports the score it has earned in the arena."""
+    body = request.get_json(silent=True) or {}
+    with _lock:
+        game, err = game_or_404(pin)
+        if err:
+            return err
+        player = game["players"].get(body.get("playerId"))
+        if not player:
+            return jsonify({"error": "Unknown player"}), 404
+        player["score"] = max(0, int(body.get("score") or 0))
+        broadcast_game(game)
+        return jsonify({"ok": True})
+
+
 @api.post("/games/<pin>/target")
 def choose_target(pin):
     """Laser Tag: during the countdown, pick who this shot is aimed at."""
@@ -1122,12 +1141,7 @@ def begin_question(game: dict) -> None:
 
 
 def open_question(game: dict) -> None:
-    """Start the next round.
-
-    Laser Tag runs on a two-beat round, the way a shooting game does: a short
-    countdown where everyone lines up a shot, then one question that decides
-    whether the shot lands. Every other game goes straight to the question.
-    """
+    """Start the next round."""
     game["index"] += 1
     game["counts"] = {}
     game["lastEvents"] = []
@@ -1141,12 +1155,6 @@ def open_question(game: dict) -> None:
         player["lastDamage"] = 0
         player["lastGain"] = 0
         player["chest"] = ""
-        if game["mode"] == "laser":
-            player["target"] = ""
-    if game["mode"] == "laser":
-        game["state"] = "aim"
-        game["endsAt"] = now_ms() + AIM_SECONDS * 1000
-        return
     begin_question(game)
 
 
@@ -1168,7 +1176,14 @@ def start_game(pin):
             total = max(1, len(game["questions"]))
             game["boss"] = {"hp": BOSS_HP_PER_QUESTION * total, "max": BOSS_HP_PER_QUESTION * total,
                             "name": pick_boss_name(), "classHp": 100, "classMax": 100}
-        open_question(game)
+        if game["mode"] == "laser":
+            # one long round: the arena runs until the teacher stops it, and each
+            # child's own energy bar decides when they break off to answer
+            game["state"] = "arena"
+            game["index"] = 0
+            game["endsAt"] = None
+        else:
+            open_question(game)
     broadcast_game(game)
     return jsonify(public_game(game))
 
@@ -1413,9 +1428,7 @@ def tick_game(pin):
             return err
         if not host_check(game, body):
             return jsonify({"error": "forbidden"}), 403
-        if game["state"] == "aim" and game.get("endsAt") and now_ms() >= game["endsAt"]:
-            begin_question(game)
-        elif game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
+        if game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
             game["state"] = "reveal"
             game["endsAt"] = None
             for player in game["players"].values():
