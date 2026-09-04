@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Settings</title>
+<style>
+:root{
+  --paper:#F7F3EA; --card:#fff; --ink:#1B1233; --line:#1B1233; --muted:#5F5680; --faint:#8C86A6;
+  --brand:#6C4CF1; --brand-2:#2BA8FF; --mint:#12BE8E;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#120C24; --card:#221541; --ink:#F6F2FF; --line:#0A0616; --muted:#C9BEEA; --faint:#8C7EB8 }
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:15px/1.45 -apple-system,'Segoe UI',system-ui,sans-serif;background:var(--paper);color:var(--ink);
+  padding:22px 24px 18px;-webkit-font-smoothing:antialiased;user-select:none}
+h1{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;margin-bottom:2px}
+.lede{color:var(--muted);font-size:.86rem;margin-bottom:18px}
+
+.group{background:var(--card);border:2px solid var(--line);border-radius:16px;overflow:hidden;
+  margin-bottom:14px;box-shadow:0 3px 0 -1px var(--line)}
+.group h2{font-size:.68rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+  padding:11px 15px 7px}
+
+/* one row per setting: what it is on the left, the control on the right */
+.row{display:flex;align-items:center;gap:14px;padding:11px 15px;border-top:1px solid rgba(127,127,127,.18)}
+.row:first-of-type{border-top:none}
+.row .what{flex:1;min-width:0}
+.row .what b{display:block;font-weight:650;font-size:.94rem}
+.row .what span{display:block;color:var(--faint);font-size:.78rem;margin-top:1px}
+
+/* a switch, because a tick box does not read as "on" across a room */
+.switch{position:relative;width:46px;height:27px;flex:none;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.switch i{position:absolute;inset:0;border-radius:99px;background:rgba(127,127,127,.32);
+  transition:background .18s ease}
+.switch i::after{content:'';position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .18s cubic-bezier(.2,.9,.3,1.4)}
+.switch input:checked + i{background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+.switch input:checked + i::after{transform:translateX(19px)}
+.switch input:focus-visible + i{outline:2px solid var(--brand);outline-offset:2px}
+
+/* a slider that says its own value, so nothing has to be typed */
+.slide{display:flex;align-items:center;gap:10px;flex:none;width:210px}
+.slide input{flex:1;accent-color:var(--brand)}
+.slide b{min-width:62px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:.88rem}
+
+.seg{display:flex;flex:none;border:2px solid var(--line);border-radius:99px;overflow:hidden}
+.seg button{border:none;background:transparent;color:var(--muted);font:inherit;font-weight:700;
+  font-size:.82rem;padding:5px 13px;cursor:pointer}
+.seg button.on{background:var(--brand);color:#fff}
+
+.num{width:110px;flex:none;font:inherit;font-weight:700;padding:7px 10px;border-radius:10px;
+  border:2px solid var(--line);background:transparent;color:inherit}
+
+.note{display:flex;gap:10px;align-items:flex-start;padding:11px 15px;background:rgba(108,76,241,.09);
+  border-top:1px solid rgba(127,127,127,.18);font-size:.8rem;color:var(--muted)}
+.note code{font-family:ui-monospace,Consolas,monospace;font-size:.82rem;color:var(--ink);user-select:text}
+
+.btns{display:flex;gap:10px;align-items:center;margin-top:4px}
+.btn{font:inherit;font-weight:700;font-size:.88rem;padding:9px 16px;border-radius:11px;cursor:pointer;
+  border:2px solid var(--line);background:var(--card);color:inherit;box-shadow:0 2px 0 -1px var(--line)}
+.btn:active{transform:translateY(1px);box-shadow:none}
+.btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand-2));color:#fff}
+.grow{flex:1}
+.saved{color:var(--mint);font-weight:700;font-size:.82rem;opacity:0;transition:opacity .2s}
+.saved.on{opacity:1}
+</style>
+</head>
+<body>
+<h1>Settings</h1>
+<p class="lede">Everything saves as you change it.</p>
+
+<div class="group">
+  <h2>The game</h2>
+  <div class="row">
+    <div class="what"><b>Music on the board</b><span>A quiet tune on the big screen. Never on the phones.</span></div>
+    <label class="switch"><input type="checkbox" id="music"><i></i></label>
+  </div>
+  <div class="row">
+    <div class="what"><b>Seconds a question</b><span>What a new question starts with.</span></div>
+    <div class="slide"><input type="range" id="defaultTime" min="5" max="120" step="5"><b id="defaultTime-v"></b></div>
+  </div>
+  <div class="row">
+    <div class="what"><b>Points a question</b><span>What a right answer is worth before speed.</span></div>
+    <div class="slide"><input type="range" id="defaultPoints" min="50" max="1000" step="50"><b id="defaultPoints-v"></b></div>
+  </div>
+</div>
+
+<div class="group">
+  <h2>The board</h2>
+  <div class="row">
+    <div class="what"><b>Open on the second screen</b><span>The projector, when one is plugged in.</span></div>
+    <label class="switch"><input type="checkbox" id="boardOnSecondScreen"><i></i></label>
+  </div>
+  <div class="row">
+    <div class="what"><b>Full screen</b><span>No window edges on the projector.</span></div>
+    <label class="switch"><input type="checkbox" id="boardFullScreen"><i></i></label>
+  </div>
+  <div class="row">
+    <div class="what"><b>Colours</b><span>Follow Windows, or pick one.</span></div>
+    <div class="seg" id="theme">
+      <button data-v="system">Windows</button><button data-v="light">Light</button><button data-v="dark">Dark</button>
+    </div>
+  </div>
+</div>
+
+<div class="group">
+  <h2>How phones reach this computer</h2>
+  <div class="row">
+    <div class="what"><b>Port</b><span>Only change this if something else is using it.</span></div>
+    <input class="num" type="number" id="port" min="1024" max="65535" step="1">
+  </div>
+  <div class="note">
+    <div>Players join at <code id="join">…</code><br>
+      They must be on the same wifi. Nothing goes over the internet.
+      A new port takes effect next time the app starts.</div>
+  </div>
+</div>
+
+<div class="btns">
+  <button class="btn" id="folder">Open the quiz folder</button>
+  <button class="btn" id="reset">Reset all</button>
+  <div class="grow"></div>
+  <span class="saved" id="saved">Saved</span>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SWITCHES = ['music', 'boardOnSecondScreen', 'boardFullScreen'];
+const SLIDERS = ['defaultTime', 'defaultPoints'];
+let current = {};
+
+const flash = () => { $('saved').classList.add('on'); setTimeout(() => $('saved').classList.remove('on'), 900); };
+
+function paint(values) {
+  current = values;
+  for (const k of SWITCHES) $(k).checked = !!values[k];
+  for (const k of SLIDERS) {
+    $(k).value = values[k];
+    $(k + '-v').textContent = k === 'defaultTime' ? values[k] + 's' : values[k];
+  }
+  $('port').value = values.port;
+  for (const b of $('theme').children) b.classList.toggle('on', b.dataset.v === values.theme);
+}
+
+async function change(patch) {
+  paint(await window.Quoldek.settings.write(patch));
+  flash();
+}
+
+for (const k of SWITCHES) $(k).addEventListener('change', () => change({ [k]: $(k).checked }));
+for (const k of SLIDERS) {
+  // the number keeps up with the thumb, but only the settled value is saved
+  $(k).addEventListener('input', () => {
+    $(k + '-v').textContent = k === 'defaultTime' ? $(k).value + 's' : $(k).value;
+  });
+  $(k).addEventListener('change', () => change({ [k]: Number($(k).value) }));
+}
+$('theme').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) change({ theme: b.dataset.v });
+});
+$('port').addEventListener('change', () => change({ port: Number($('port').value) }));
+$('folder').addEventListener('click', () => window.Quoldek.openQuizFolder());
+$('reset').addEventListener('click', async () => { paint(await window.Quoldek.settings.reset()); flash(); });
+
+(async () => {
+  paint(await window.Quoldek.settings.read());
+  const info = await window.Quoldek.joinInfo();
+  $('join').textContent = info.url;
+})();
+</script>
+</body>
+</html>

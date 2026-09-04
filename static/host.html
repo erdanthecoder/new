@@ -361,8 +361,12 @@ let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 
 /* Where students join. Kept as two small functions because the GitHub Pages build
  * rewrites them to folder-relative addresses — everything else stays identical. */
-const joinUrl = () => location.origin + '/play?pin=' + pin;
-const joinLabel = () => location.host + '/play';
+/* Where players join. Whatever is running this — the deployed site, the desktop
+ * app, or a plain Flask copy on a laptop — sets QUOLDEK_JOIN to the address a
+ * phone should be sent to, with the PIN going on the end. */
+const joinUrl = () => (window.QUOLDEK_JOIN ? window.QUOLDEK_JOIN + pin
+                                           : location.origin + '/play?pin=' + pin);
+const joinLabel = () => joinUrl().replace(/^https?:\/\//, '').replace(/\/?\?pin=.*$/, '');
 
 const mark = document.getElementById('brand-mark');
 if (mark) mark.innerHTML = Sprite.logo(42);

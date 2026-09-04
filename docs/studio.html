@@ -264,13 +264,16 @@ tr:hover td{background:var(--paper)}
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=3032c005"></script>
-<script src="live.js?v=cf48f488"></script>
+<script src="rules.js?v=28018583"></script>
+<script src="live.js?v=5c9e1752"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
-window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
+  : 'https://playquoldek.web.app/?pin=';
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
 
@@ -809,7 +812,9 @@ $('#present').onclick = () => {
 /* Where a class actually types the address in. The deployed board sends them to
  * the short site; a board being run from a laptop keeps its own address, so a
  * game still works with no internet at all. */
-const joinAddress = () => (window.QUOLDEK_PLAY || (location.host + '/play'));
+const joinAddress = () => (window.QUOLDEK_JOIN
+  ? window.QUOLDEK_JOIN.replace(/^https?:\/\//, '').replace(/\/?\?pin=.*$/, '')
+  : location.host + '/play');
 
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>

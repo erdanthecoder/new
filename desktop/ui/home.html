@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Quoldek</title>
+<style>
+:root{
+  --paper:#0E0A1E; --paper-2:#160F2C; --card:#1E1439; --line:#070411;
+  --text:#F6F2FF; --muted:#C4B9E8; --faint:#8A7DB6;
+  --brand:#7C4DFF; --brand-2:#2BA8FF; --sun:#FFC53D; --mint:#12BE8E; --rose:#FF5D73;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font:15px/1.5 -apple-system,'Segoe UI',system-ui,sans-serif;color:var(--text);
+  background:var(--paper);overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none;
+  display:grid;grid-template-columns:266px 1fr}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(46% 52% at 8% 4%,rgba(124,77,255,.34),transparent 68%),
+             radial-gradient(40% 46% at 96% 12%,rgba(43,168,255,.22),transparent 66%),
+             radial-gradient(44% 50% at 60% 100%,rgba(255,93,115,.16),transparent 70%)}
+
+/* ── the rail: where you go, always in the same place ── */
+.rail{position:relative;z-index:1;background:rgba(8,5,18,.55);backdrop-filter:blur(20px);
+  border-right:1px solid rgba(255,255,255,.07);padding:20px 16px;display:flex;flex-direction:column;gap:6px;
+  -webkit-app-region:drag}
+.brand{display:flex;align-items:center;gap:11px;padding:2px 6px 20px;-webkit-app-region:no-drag}
+.brand svg{width:42px;height:42px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.4))}
+.brand b{font-size:1.22rem;font-weight:800;letter-spacing:-.03em;display:block;line-height:1.1}
+.brand span{font-size:.6rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
+
+.nav{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;cursor:pointer;
+  font-weight:650;color:var(--muted);border:1px solid transparent;-webkit-app-region:no-drag;
+  transition:background .14s,color .14s,border-color .14s;text-align:left;font-family:inherit;
+  font-size:.95rem;background:none;width:100%}
+.nav:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.nav.on{background:rgba(124,77,255,.2);border-color:rgba(124,77,255,.5);color:#fff}
+.nav .ic{width:20px;height:20px;flex:none;opacity:.9}
+.rail .spacer{flex:1}
+
+/* the address, pinned where a teacher can always point at it */
+.join{-webkit-app-region:no-drag;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;padding:12px 13px}
+.join .cap{font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.join code{display:block;margin:6px 0 8px;font-family:ui-monospace,Consolas,monospace;font-size:.78rem;
+  font-weight:700;color:var(--sun);user-select:all;overflow-wrap:anywhere;line-height:1.35;
+  letter-spacing:-.01em}
+.join button{font:inherit;font-size:.78rem;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:inherit}
+.join .why{font-size:.68rem;color:var(--faint);margin-top:7px;line-height:1.35}
+
+/* ── the main panel ─────────────────────────────────── */
+.main{position:relative;z-index:1;overflow:auto;padding:26px 30px 34px}
+.head{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;-webkit-app-region:drag;padding-top:2px}
+.head h1{font-size:1.75rem;font-weight:800;letter-spacing:-.03em}
+.head p{color:var(--faint);font-size:.86rem;margin-top:2px}
+.head .grow{flex:1}
+.head .acts{display:flex;gap:9px;-webkit-app-region:no-drag}
+
+.btn{font:inherit;font-weight:700;font-size:.88rem;padding:9px 16px;border-radius:12px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;
+  display:inline-flex;align-items:center;gap:8px;transition:transform .12s,background .14s}
+.btn:hover{background:rgba(255,255,255,.12)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:linear-gradient(120deg,var(--brand),var(--brand-2));border-color:transparent;
+  box-shadow:0 6px 18px -8px rgba(124,77,255,.9)}
+.btn.sun{background:linear-gradient(120deg,#FFC53D,#FF9A3D);border-color:transparent;color:#241800}
+
+/* big first moves, before any quiz exists */
+.starts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:26px}
+.start{position:relative;overflow:hidden;text-align:left;padding:18px;border-radius:18px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.1);background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  font-family:inherit;color:inherit;transition:transform .14s,border-color .14s}
+.start:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.26)}
+.start .mark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;margin-bottom:11px}
+.start b{display:block;font-size:1.02rem;font-weight:750}
+.start span{display:block;color:var(--faint);font-size:.8rem;margin-top:2px;line-height:1.4}
+
+/* the quizzes */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:14px}
+.q{position:relative;border-radius:18px;padding:16px;background:var(--card);
+  border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:9px;min-height:154px;
+  transition:transform .14s,border-color .14s}
+.q:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.24)}
+.q h3{font-size:1.02rem;font-weight:750;line-height:1.3}
+.q .sub{color:var(--faint);font-size:.8rem;line-height:1.4;flex:1}
+.q .chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.08);
+  color:var(--muted)}
+.q .acts{display:flex;gap:7px;border-top:1px solid rgba(255,255,255,.09);padding-top:11px}
+.q .acts .btn{padding:7px 11px;font-size:.8rem;border-radius:10px}
+.q .acts .grow{flex:1}
+.q .more{position:relative}
+.menu{position:absolute;right:0;bottom:calc(100% + 6px);z-index:5;min-width:168px;padding:6px;
+  border-radius:13px;background:#241844;border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 18px 40px -16px #000;display:none}
+.menu.on{display:block}
+.menu button{display:block;width:100%;text-align:left;font:inherit;font-size:.85rem;font-weight:650;
+  padding:8px 11px;border-radius:9px;border:none;background:none;color:var(--muted);cursor:pointer}
+.menu button:hover{background:rgba(255,255,255,.09);color:#fff}
+.menu button.danger:hover{background:rgba(255,93,115,.22);color:#fff}
+
+.empty{padding:44px 20px;text-align:center;color:var(--faint);border:1px dashed rgba(255,255,255,.16);
+  border-radius:18px}
+.sec{font-size:.66rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  margin:4px 0 12px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:40;
+  padding:11px 18px;border-radius:99px;background:#241844;border:1px solid rgba(255,255,255,.18);
+  font-weight:700;font-size:.86rem;opacity:0;transition:.22s;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.good{border-color:rgba(18,190,142,.6)} .toast.bad{border-color:rgba(255,93,115,.6)}
+</style>
+</head>
+<body>
+
+<nav class="rail">
+  <div class="brand"><span id="logo"></span><div><b>Quoldek</b><span>on this computer</span></div></div>
+  <button class="nav on" data-go="quizzes"><span class="ic" data-icon="inbox"></span>My quizzes</button>
+  <button class="nav" data-go="new"><span class="ic" data-icon="spark"></span>New quiz</button>
+  <button class="nav" data-go="paste"><span class="ic" data-icon="send"></span>Paste questions</button>
+  <button class="nav" data-go="folder"><span class="ic" data-icon="save"></span>Quiz folder</button>
+  <div class="spacer"></div>
+  <button class="nav" data-go="settings"><span class="ic" data-icon="key"></span>Settings</button>
+  <div class="join">
+    <div class="cap">Everyone joins at</div>
+    <code id="join">…</code>
+    <button id="copy">Copy the address</button>
+    <div class="why">They just need to be on the same wifi. Nothing goes over the internet.</div>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="head">
+    <div><h1 id="title">My quizzes</h1><p id="sub">Everything here is a file on this computer.</p></div>
+    <div class="grow"></div>
+    <div class="acts">
+      <button class="btn" id="open-file">Open a file</button>
+      <button class="btn primary" id="new-quiz">New quiz</button>
+    </div>
+  </div>
+
+  <div class="starts" id="starts"></div>
+  <div class="sec" id="sec" hidden>Your quizzes</div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="/sprites.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (p, opts) => {
+  const info = await window.Quoldek.joinInfo();
+  const r = await fetch(`http://127.0.0.1:${info.port}/api${p}`, Object.assign(
+    { headers: { 'Content-Type': 'application/json' } }, opts || {}));
+  return r.json();
+};
+let base = '';
+
+function toast(text, kind) {
+  const t = $('#toast');
+  t.textContent = text;
+  t.className = 'toast on ' + (kind || '');
+  setTimeout(() => { t.className = 'toast ' + (kind || ''); }, 2200);
+}
+
+const ago = (ms) => {
+  const s = Math.max(1, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+};
+
+/* The first moves, shown large while there is nothing else to look at and kept
+   small once there is. */
+const STARTS = [
+  { key: 'new', icon: 'spark', tint: 'linear-gradient(120deg,#7C4DFF,#2BA8FF)',
+    title: 'Write a quiz', sub: 'Start from nothing and add questions.' },
+  { key: 'paste', icon: 'send', tint: 'linear-gradient(120deg,#12BE8E,#7BC62D)',
+    title: 'Paste questions in', sub: 'From Gemini, ChatGPT or anywhere else.' },
+  { key: 'file', icon: 'save', tint: 'linear-gradient(120deg,#FFC53D,#FF9A3D)',
+    title: 'Open a quiz file', sub: 'One you saved, or somebody sent you.' }
+];
+
+function paintStarts() {
+  const box = $('#starts');
+  box.innerHTML = '';
+  for (const s of STARTS) {
+    const b = document.createElement('button');
+    b.className = 'start';
+    b.innerHTML = `<span class="mark" style="background:${s.tint}">${Sprite.icon(s.icon, 20, '#fff')}</span>`
+      + `<b>${s.title}</b><span>${s.sub}</span>`;
+    b.onclick = () => go(s.key);
+    box.append(b);
+  }
+}
+
+async function paintQuizzes() {
+  const { quizzes } = await api('/quizzes');
+  const grid = $('#grid');
+  grid.innerHTML = '';
+  $('#sec').hidden = !quizzes.length;
+  if (!quizzes.length) {
+    grid.innerHTML = '<div class="empty">No quizzes yet — start with one of the three above.</div>';
+    return;
+  }
+  for (const q of quizzes) {
+    const card = document.createElement('div');
+    card.className = 'q';
+    card.innerHTML =
+      `<h3></h3><div class="sub"></div>
+       <div class="chips"><span class="chip">${q.questions} question${q.questions === 1 ? '' : 's'}</span>
+         <span class="chip">${ago(q.updatedAt)}</span></div>
+       <div class="acts">
+         <button class="btn primary" data-act="host">Play live</button>
+         <button class="btn" data-act="edit">Edit</button>
+         <span class="grow"></span>
+         <span class="more"><button class="btn" data-act="more">···</button>
+           <div class="menu">
+             <button data-act="save">Save as a file…</button>
+             <button data-act="delete" class="danger">Delete</button>
+           </div></span>
+       </div>`;
+    card.querySelector('h3').textContent = q.title || 'Untitled quiz';
+    card.querySelector('.sub').textContent = q.description || 'No description yet.';
+    card.onclick = async (e) => {
+      const act = e.target.closest('[data-act]');
+      const menu = card.querySelector('.menu');
+      if (!act) return;
+      if (act.dataset.act === 'more') { menu.classList.toggle('on'); return; }
+      menu.classList.remove('on');
+      if (act.dataset.act === 'edit') location.href = `${base}/studio?id=${q.id}`;
+      if (act.dataset.act === 'host') location.href = `${base}/studio?id=${q.id}#present`;
+      if (act.dataset.act === 'save') {
+        const { saved } = await window.Quoldek.exportQuiz(q.id);
+        if (saved) toast('Saved', 'good');
+      }
+      if (act.dataset.act === 'delete') {
+        await api('/quizzes/' + q.id, { method: 'DELETE' });
+        toast('Deleted');
+        paintQuizzes();
+      }
+    };
+    grid.append(card);
+  }
+}
+
+async function go(where) {
+  if (where === 'quizzes') { paintQuizzes(); return; }
+  if (where === 'new') {
+    const quiz = await api('/quizzes', { method: 'POST', body: JSON.stringify({ title: 'Untitled quiz' }) });
+    location.href = `${base}/studio?id=${quiz.id}`;
+    return;
+  }
+  if (where === 'paste') { location.href = `${base}/quiz#paste`; return; }
+  if (where === 'file' || where === 'folder') {
+    if (where === 'folder') return window.Quoldek.openQuizFolder();
+    const { imported } = await window.Quoldek.importQuizFile();
+    toast(imported ? `Imported ${imported}` : 'Nothing imported', imported ? 'good' : 'bad');
+    paintQuizzes();
+    return;
+  }
+  if (where === 'settings') return window.Quoldek.openSettings ? window.Quoldek.openSettings() : null;
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.more')) {
+    for (const m of document.querySelectorAll('.menu.on')) m.classList.remove('on');
+  }
+  const nav = e.target.closest('.nav');
+  if (!nav) return;
+  if (nav.dataset.go === 'quizzes') {
+    for (const n of document.querySelectorAll('.nav')) n.classList.toggle('on', n === nav);
+  }
+  go(nav.dataset.go);
+});
+$('#new-quiz').onclick = () => go('new');
+$('#open-file').onclick = () => go('file');
+
+(async () => {
+  $('#logo').innerHTML = Sprite.logo(42);
+  for (const el of document.querySelectorAll('[data-icon]')) {
+    el.innerHTML = Sprite.icon(el.dataset.icon, 18, 'currentColor');
+  }
+  paintStarts();
+  const info = await window.Quoldek.joinInfo();
+  base = `http://127.0.0.1:${info.port}`;
+  $('#join').textContent = info.url;
+  $('#copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(info.url); toast('Copied', 'good'); } catch { /* no clipboard */ }
+  };
+  paintQuizzes();
+})();
+</script>
+</body>
+</html>

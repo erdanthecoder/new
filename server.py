@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KidWorld + Quoldek server
+Quoldek server
 Run: python server.py   →   http://localhost:5000
 """
 from flask import Flask, send_from_directory, redirect
@@ -17,7 +17,7 @@ STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 @app.route("/")
 def index():
-    return send_from_directory(STATIC, "index.html")
+    return send_from_directory(STATIC, "quiznova.html")
 
 
 # Friendly URLs for Quoldek — the ones teachers paste into Google Classroom.
@@ -66,7 +66,7 @@ def no_cache(resp):
 if __name__ == "__main__":
     print()
     print("  ╔══════════════════════════════════════════════╗")
-    print("  ║        🌍 KidWorld  ·  ⚡ Quoldek           ║")
+    print("  ║                   Quoldek                    ║")
     print("  ╠══════════════════════════════════════════════╣")
     print(f"  ║  http://localhost:{PORT}".ljust(48) + "║")
     print("  ║                                              ║")
@@ -74,7 +74,6 @@ if __name__ == "__main__":
     print("  ║  Builder      /studio                        ║")
     print("  ║  Live host    /host                          ║")
     print("  ║  Play / join  /play                          ║")
-    print("  ║  KidWorld     /student.html  /teacher.html   ║")
     print("  ║                                              ║")
     print("  ║  Set ANTHROPIC_API_KEY for the live AI       ║")
     print("  ║  Press CTRL+C to stop                        ║")

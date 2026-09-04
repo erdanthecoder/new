@@ -1,0 +1,55 @@
+# Builds the Windows app on a real Windows machine.
+#
+# The zip can be made anywhere, but the installer cannot: putting it together
+# runs the installer once to produce its own uninstaller, which needs Windows.
+# So the whole thing is built here, on a runner GitHub gives us for nothing, and
+# both files are attached to the run for downloading.
+name: Windows app
+
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', 'static/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        working-directory: desktop
+        run: npm ci || npm install
+
+      - name: Check the app's own pieces still work
+        working-directory: desktop
+        run: node -e "require('./server.js');require('./games.js');require('./store.js');require('./ops.js');require('./settings.js');console.log('all load')"
+
+      - name: Build the installer and the portable zip
+        working-directory: desktop
+        run: npx electron-builder --win --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quoldek-windows
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      # a tagged release gets the files attached to it, so there is a link to send people
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            desktop/dist/*.exe
+            desktop/dist/*.zip

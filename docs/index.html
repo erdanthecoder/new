@@ -100,7 +100,6 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
     <div class="grow"></div>
     <span id="store-pill" class="chip hide-sm">checking</span>
     <span id="ai-pill" class="chip hide-sm">checking</span>
-    <a class="btn ghost sm hide-sm" href="index.html">KidWorld</a>
     <a class="btn primary sm" href="#new" id="top-new">＋ New quiz</a>
   </div>
 </header>
@@ -174,13 +173,16 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=3032c005"></script>
-<script src="live.js?v=cf48f488"></script>
+<script src="rules.js?v=28018583"></script>
+<script src="live.js?v=5c9e1752"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
-window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
+  : 'https://playquoldek.web.app/?pin=';
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, toast, modal, ago, classroomUrl, copy } = Nova;
 
@@ -231,7 +233,9 @@ function render() {
   }
 
   list.forEach((q, i) => {
-    const card = el('div', { class: 'quiz-card fade-up', style: `animation-delay:${i * 40}ms` });
+    // the id is on the card so the desktop app can offer to save this one as a file
+    const card = el('div', { class: 'quiz-card fade-up', 'data-id': q.id,
+                             style: `animation-delay:${i * 40}ms` });
     card.append(
       el('h3', {}, q.title || 'Untitled quiz'),
       el('p', { class: 'tiny muted' }, q.description || 'No description yet.'),
@@ -379,8 +383,13 @@ api('/status').then(s => {
                  database: ['live', 'Saved to your database',
                    'Quizzes live in Postgres. They survive the site sleeping or being redeployed.'],
                  server: ['warn', 'Saved on this server',
-                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps. Connect a database to keep them.'] };
-  const [cls, label, why] = look[s.storage === 'browser' ? 'browser' : s.durable ? 'database' : 'server'];
+                   'Quizzes are in a file on the server. On a free host that file is wiped when the site sleeps. Connect a database to keep them.'],
+                 files: ['live', 'Saved on this computer',
+                   'Every quiz is a file in a folder you can open, copy or back up.'] };
+  const kind = s.storage === 'files' ? 'files'
+             : s.storage === 'browser' ? 'browser'
+             : s.durable ? 'database' : 'server';
+  const [cls, label, why] = look[kind];
   pill.className = 'chip hide-sm ' + cls;
   pill.textContent = label;
   pill.title = why;

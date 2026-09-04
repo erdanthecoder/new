@@ -242,12 +242,15 @@
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=3032c005"></script>
-<script src="live.js?v=cf48f488"></script>
+<script src="rules.js?v=28018583"></script>
+<script src="live.js?v=5c9e1752"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script>
 window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
-window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
+  : 'https://playquoldek.web.app/?pin=';
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, modal } = Nova;
 

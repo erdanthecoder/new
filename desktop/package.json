@@ -2,7 +2,7 @@
   "name": "quoldek",
   "productName": "Quoldek",
   "version": "1.0.0",
-  "description": "Quizzes everyone begs to play — hosts the game on your own computer, so it works with no internet.",
+  "description": "Quizzes everyone begs to play \u2014 hosts the game on your own computer, so it works with no internet.",
   "main": "main.js",
   "author": "Quoldek",
   "license": "MIT",
@@ -15,5 +15,60 @@
   "devDependencies": {
     "electron": "32.2.7",
     "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "app.quoldek.desktop",
+    "productName": "Quoldek",
+    "copyright": "Quoldek",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "games.js",
+      "store.js",
+      "ops.js",
+      "settings.js",
+      "ui/**/*",
+      "build/icon.png",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "../static",
+        "to": "app/static"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Quoldek-${version}-windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Quoldek",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
   }
 }

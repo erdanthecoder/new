@@ -799,7 +799,9 @@ $('#present').onclick = () => {
 /* Where a class actually types the address in. The deployed board sends them to
  * the short site; a board being run from a laptop keeps its own address, so a
  * game still works with no internet at all. */
-const joinAddress = () => (window.QUOLDEK_PLAY || (location.host + '/play'));
+const joinAddress = () => (window.QUOLDEK_JOIN
+  ? window.QUOLDEK_JOIN.replace(/^https?:\/\//, '').replace(/\/?\?pin=.*$/, '')
+  : location.host + '/play');
 
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>

@@ -19,7 +19,7 @@ OUT = os.path.join(ROOT, "docs")
 PLAY_OUT = os.path.join(ROOT, "docs-play")
 PLAY_HOST = "playquoldek.web.app"
 PLAY_ASSETS = ["nova.css", "logo.svg", "sprites.js", "nova.js", "quizbank.js", "realtime.js",
-               "arena.js", "paste.js", "live.js", "nova-local.js", "account.js"]
+               "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 # And the board gets its own address, so the screen at the front of the room is a
 # site of its own rather than a page inside the studio.
@@ -28,7 +28,7 @@ LIVE_HOST = "livequoldek.web.app"
 LIVE_ASSETS = PLAY_ASSETS + ["qr.js", "music.js"]
 
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
-ASSETS = ["nova.css", "logo.svg", "sprites.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "live.js", "nova-local.js", "account.js"]
+ASSETS = ["nova.css", "logo.svg", "sprites.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 
 def build():
@@ -61,6 +61,7 @@ def build():
                             '<script src="realtime.js"></script>\n'
                             '<script src="arena.js"></script>\n'
                             '<script src="paste.js"></script>\n'
+                            '<script src="rules.js"></script>\n'
                             '<script src="live.js"></script>\n'
                             '<script src="nova-local.js"></script>\n'
                             '<script src="account.js"></script>')
@@ -84,20 +85,9 @@ def build():
         html = html.replace("location.href = '/play'", "location.href = 'play.html'")
         html = html.replace("history.replaceState(null, '', '/play?pin=' + pin)",
                             "history.replaceState(null, '', 'play.html?pin=' + pin)")
-        if page == "host.html":
-            # The board sends the class to the short address when this build is
-            # the one that has it, and otherwise to the play page beside it.
-            html = html.replace("const joinUrl = () => location.origin + '/play?pin=' + pin;",
-                                "const joinUrl = () => (window.QUOLDEK_PLAY\n"
-                                "  ? 'https://' + window.QUOLDEK_PLAY + '/?pin=' + pin\n"
-                                "  : location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin);")
-            html = html.replace("const joinLabel = () => location.host + '/play';",
-                                "const joinLabel = () => (window.QUOLDEK_PLAY\n"
-                                "  || joinUrl().replace(/^https?:\\/\\//, '').replace(/\\?.*$/, ''));")
-        else:
-            # the other pages only mention the address in prose
-            html = html.replace("${esc(location.host)}/play",
-                                "${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html")
+        # the other pages only mention the address in prose
+        html = html.replace("${esc(location.host)}/play",
+                            "${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html")
         html = html.replace("'/studio?id=' + quizId", "'studio.html?id=' + quizId")
 
         # share links carry the quiz inside the URL — there is no server to ask
@@ -115,7 +105,9 @@ def build():
         # still works with no internet at all.
         html = html.replace("<script>", "<script>\n"
             "window.QUOLDEK_LOCAL = /^(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1)/.test(location.hostname);\n"
-            "window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : '" + PLAY_HOST + "';\n"
+            "window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL\n"
+            "  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='\n"
+            "  : 'https://" + PLAY_HOST + "/?pin=';\n"
             "window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : '" + LIVE_HOST + "';", 1)
 
         for asset, stamped in stamps.items():

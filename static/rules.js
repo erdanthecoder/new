@@ -1,0 +1,251 @@
+/* The rules of the live games, kept in one place.
+ *
+ * These are the rules themselves and nothing else: no database, no network, no
+ * page. Three things run them — the site's in-browser engine, the desktop app's
+ * own server, and (mirrored, in Python) the Flask edition — so they live here
+ * rather than being copied into each. quizapi.py is the one copy that cannot
+ * share this file, and a check in the test suite compares the two.
+ */
+(function (global) {
+  'use strict';
+
+  const now = () => Date.now();
+
+  const MODES = {
+    normal:   { label: 'Normal',       icon: 'target', blurb: 'Fastest right answer scores the most' },
+    laser:    { label: 'Laser Tag',    icon: 'laser', blurb: 'One arena. Move, shoot, and answer when your energy runs out' },
+    kart:     { label: 'Kart Race',    icon: 'kart', blurb: 'Every right answer drives your kart further' },
+    tower:    { label: 'Tower Build',  icon: 'bricks', blurb: 'Stack a block for each right answer' },
+    treasure: { label: 'Treasure Run', icon: 'gem', blurb: 'Collect coins and open lucky chests' },
+    boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' },
+    snow:     { label: 'Snowball Fight', icon: 'snow', blurb: 'Two teams. Every right answer knocks a block off their fort' },
+    balloon:  { label: 'Balloon Drop', icon: 'balloon', blurb: 'Three balloons each. Get one wrong and one pops' }
+  };
+  /* Each game is played on a map the teacher picks. A map is scenery and a palette:
+   * it changes what the board looks like, not how the scoring works. */
+  const MAPS = {
+    normal:   [['hall', 'School Hall'], ['space', 'Space Station'], ['jungle', 'Jungle Clearing']],
+    laser:    [['arena', 'Neon Arena'], ['bunker', 'Bunker'], ['moon', 'Moon Base']],
+    kart:     [['city', 'City Circuit'], ['desert', 'Desert Dash'], ['ice', 'Ice Track']],
+    tower:    [['site', 'Building Site'], ['candy', 'Candy Land'], ['castle', 'Castle Walls']],
+    treasure: [['cave', 'Cave of Coins'], ['beach', 'Pirate Beach'], ['vault', 'The Vault']],
+    boss:     [['lair', 'Dragon Lair'], ['volcano', 'Volcano'], ['ruins', 'Old Ruins']],
+    snow:     [['playground', 'Playground'], ['forest', 'Winter Forest'], ['peak', 'Mountain Peak']],
+    balloon:  [['fair', 'Summer Fair'], ['clouds', 'Above the Clouds'], ['night', 'Night Sky']]
+  };
+  /* How a game finishes. Playing every question is the default, but a class with
+   * ten minutes left before lunch wants the clock to decide, and a race to a
+   * score plays quite differently — it is over the moment somebody gets there,
+   * whether that is question four or question forty. */
+  const GOALS = {
+    questions: { label: 'All the questions', values: [] },
+    points:    { label: 'First to a score', values: [250, 500, 1000, 2000] },
+    time:      { label: 'A time limit', values: [3, 5, 10, 15, 20] }   // minutes
+  };
+  function readGoal(goal) {
+    const kind = goal && GOALS[goal.kind] ? goal.kind : 'questions';
+    if (kind === 'questions') return { kind, value: 0 };
+    const allowed = GOALS[kind].values;
+    const value = allowed.includes(Number(goal.value)) ? Number(goal.value) : allowed[1];
+    return { kind, value };
+  }
+
+  /** Has the game reached whatever the teacher said would end it? */
+  function goalReached(game) {
+    const goal = game.goal || { kind: 'questions' };
+    if (goal.kind === 'points') {
+      return Object.values(game.players).some(p => (p.score || 0) >= goal.value);
+    }
+    if (goal.kind === 'time') {
+      return !!game.startedAt && now() >= game.startedAt + goal.value * 60000;
+    }
+    return false;
+  }
+
+  const mapsFor = (mode) => (MAPS[mode] || MAPS.normal).map(([id, label]) => ({ id, label }));
+  const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
+
+  const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
+  const FORT_BLOCKS = 12;          // how tall each team's fort starts
+  const BALLOONS = 3;              // how many wrong answers a child can afford
+  const MAX_PLAYER_HIT = 40;
+
+  /* ── marking, shared with the rest of the app ─────────── */
+  const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  function grade(question, given) {
+    const right = (question.choices || []).filter(c => c.correct).map(c => c.id);
+    if (question.type === 'mc' || question.type === 'tf') return !!given && right.includes(given);
+    if (question.type === 'multi') {
+      if (!Array.isArray(given) || !right.length) return false;
+      return given.length === right.length && right.every(id => given.includes(id));
+    }
+    if (question.type === 'short') {
+      const accepted = String(question.answer || '').split(/\s*[|,]\s*/).map(norm).filter(Boolean);
+      return accepted.length ? accepted.includes(norm(given)) : false;
+    }
+    return false;
+  }
+
+  /* ── the modes, same rules as the server edition ─── */
+  const SCORERS = {
+    normal(game, p, q, ok, speed) {
+      if (!ok) { p.lastGain = 0; return; }
+      const base = q.points || 100;
+      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (1 + Math.min(p.streak, 5) * 0.1));
+      p.score += gain; p.lastGain = gain;
+    },
+    laser(game, p, q, ok, speed) {
+      const foe = p.team === 'red' ? 'blue' : 'red';
+      const mates = Object.values(game.players);
+      if (ok && !p.down) {
+        let damage = Math.round(45 + 55 * speed);
+        if (p.streak >= 3) damage = Math.round(damage * 1.8);
+        const targets = mates.filter(x => x.team === foe && !x.down);
+        let hitName = game.teams[foe].name;
+        if (targets.length) {
+          // whoever they lined up during the countdown, if that player is still standing
+          const chosen = targets.find(x => x.id === p.target);
+          const target = chosen || targets.reduce((a, b) => (a.hp >= b.hp ? a : b));
+          target.hp = Math.max(0, target.hp - Math.min(damage, MAX_PLAYER_HIT));
+          target.lastDamage = Math.min(damage, MAX_PLAYER_HIT);
+          hitName = target.name;
+          if (target.hp === 0) { target.down = true; game.lastEvents.push(`${p.name} knocked out ${target.name}`); }
+        }
+        game.teams[foe].hp = Math.max(0, game.teams[foe].hp - damage);
+        game.teams[p.team].score += damage;
+        p.score += damage;
+        game.lastEvents.push(`${p.name} hit ${hitName} for ${damage}` + (p.streak >= 3 ? ' (overcharged)' : ''));
+      } else if (ok && p.down) {
+        const hurt = mates.filter(x => x.team === p.team && x.hp < 100);
+        if (hurt.length) {
+          const mate = hurt.reduce((a, b) => (a.hp <= b.hp ? a : b));
+          mate.hp = Math.min(100, mate.hp + 25);
+          if (mate.down && mate.hp > 0) mate.down = false;
+          game.lastEvents.push(`${p.name} revived ${mate.name}, +25 HP`);
+        }
+        p.score += 25;
+      } else {
+        p.hp = Math.max(0, p.hp - 10);
+        if (p.hp === 0) p.down = true;
+        game.lastEvents.push(`${p.name} missed and lost shield`);
+      }
+    },
+    kart(game, p, q, ok, speed) {
+      if (!ok) { game.lastEvents.push(`${p.name} span out`); return; }
+      let metres = Math.round(45 + 55 * speed);
+      const boost = p.streak >= 3;
+      if (boost) metres = Math.round(metres * 1.6);
+      p.distance += metres; p.score = p.distance; p.lastGain = metres;
+      game.lastEvents.push(`${p.name} drove ${metres}m` + (boost ? ' with a boost' : ''));
+    },
+    tower(game, p, q, ok, speed) {
+      if (ok) {
+        const gain = speed > 0.55 ? 2 : 1;
+        p.blocks += gain; p.lastGain = gain;
+        game.lastEvents.push(`${p.name} stacked ${gain} block${gain > 1 ? 's' : ''}`);
+      } else {
+        if (p.blocks > 0) game.lastEvents.push(`${p.name}'s tower wobbled and a block fell`);
+        p.blocks = Math.max(0, p.blocks - 1); p.lastGain = -1;
+      }
+      p.score = p.blocks;
+    },
+    treasure(game, p, q, ok, speed) {
+      if (!ok) { p.chest = ''; game.lastEvents.push(`${p.name} found an empty chest`); return; }
+      let coins = Math.round(60 + 60 * speed);
+      const roll = Math.random();
+      let chest = '';
+      if (roll < 0.12) { coins *= 3; chest = 'Jackpot, three times'; }
+      else if (roll < 0.32) { coins *= 2; chest = 'Double chest'; }
+      else if (roll < 0.42) {
+        const others = Object.values(game.players).filter(x => x.id !== p.id && x.coins > 0);
+        if (others.length) {
+          const leader = others.reduce((a, b) => (a.coins >= b.coins ? a : b));
+          const stolen = Math.floor(leader.coins * 0.2);
+          leader.coins -= stolen; leader.score = leader.coins;
+          coins += stolen; chest = `Raided ${leader.name} for ${stolen}`;
+        }
+      }
+      p.coins += coins; p.score = p.coins; p.chest = chest; p.lastGain = coins;
+      game.lastEvents.push(`${p.name} collected ${coins}` + (chest ? ` — ${chest}` : ''));
+    },
+    /* Snowball Fight: red against blue, and what the class watches is the other
+     * side's fort coming down block by block. A team wins by knocking the last
+     * block off, not by holding the highest number — which means a class that
+     * fell behind early is still in it while a block remains. */
+    snow(game, p, q, ok, speed) {
+      const foe = p.team === 'red' ? 'blue' : 'red';
+      const fort = game.teams[foe];
+      if (!ok) {
+        p.lastGain = 0;
+        game.lastEvents.push(`${p.name} missed`);
+        return;
+      }
+      // a fast answer throws harder, and a run of them throws harder still
+      const power = 1 + Math.min(p.streak, 4) * 0.25;
+      const hit = Math.min(fort.blocks, Math.max(1, Math.round((0.6 + speed) * power)));
+      fort.blocks -= hit;
+      const gain = Math.round((q.points || 100) * (0.5 + 0.5 * speed));
+      p.score += gain; p.lastGain = gain; p.hits += hit;
+      game.teams[p.team].score += gain;
+      game.lastEvents.push(`${p.name} knocked ${hit} block${hit > 1 ? 's' : ''} off the ${fort.name} fort`
+                           + (fort.blocks ? '' : ' — it is down!'));
+    },
+
+    /* Balloon Drop: three balloons each, and a wrong answer pops one. Being out
+     * has to still be worth watching, so a child with no balloons left keeps
+     * answering for points — they simply cannot win it any more. */
+    balloon(game, p, q, ok, speed) {
+      const out = p.balloons <= 0;
+      if (!ok) {
+        p.lastGain = 0;
+        if (out) { game.lastEvents.push(`${p.name} got it wrong`); return; }
+        p.balloons -= 1;
+        game.lastEvents.push(p.balloons
+          ? `${p.name} lost a balloon — ${p.balloons} left`
+          : `${p.name} is out of balloons`);
+        return;
+      }
+      const base = q.points || 100;
+      // still floating is worth more than playing on for pride
+      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (out ? 0.4 : 1));
+      p.score += gain; p.lastGain = gain;
+    },
+
+    boss(game, p, q, ok, speed) {
+      const boss = game.boss;
+      if (ok) {
+        let damage = Math.round(20 + 25 * speed);
+        if (p.streak >= 3) damage = Math.round(damage * 1.5);
+        boss.hp = Math.max(0, boss.hp - damage);
+        p.score += damage; p.lastGain = damage;
+        game.lastEvents.push(`${p.name} hit ${boss.name} for ${damage}`);
+        if (boss.hp === 0) game.lastEvents.push(`${boss.name} is defeated`);
+      } else {
+        boss.classHp = Math.max(0, boss.classHp - 4);
+        p.lastGain = 0;
+        game.lastEvents.push(`${boss.name} struck back at the class`);
+      }
+    }
+  };
+
+  const BOSS_NAMES = ['Professor Puzzle', 'The Grumbling Grammarian', 'Baron Blunder',
+                      'Countess Confusion', 'The Number Nibbler', 'Sir Slipsalot'];
+  /* A fresh player, with every game's own state on them from the start, so no
+   * mode has to remember to add its fields. */
+  const blankPlayer = (row) => ({
+    id: row.id, name: row.name, avatar: Number(row.avatar) || 0, team: row.team || 'red',
+    score: 0, hp: 100, streak: 0, best: 0, answered: false, correct: null, down: false,
+    lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0, target: '',
+    balloons: BALLOONS, hits: 0
+  });
+
+  const pickBossName = () => BOSS_NAMES[Math.floor(Math.random() * BOSS_NAMES.length)];
+
+  global.NovaRules = {
+    MODES, MAPS, GOALS, SCORERS, BOSS_NAMES,
+    mapsFor, defaultMap, readGoal, goalReached, grade, blankPlayer, pickBossName,
+    TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS, MAX_PLAYER_HIT
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+if (typeof module !== 'undefined') module.exports = globalThis.NovaRules;
