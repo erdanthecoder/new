@@ -37,6 +37,41 @@
 .opt-btn .lbl{line-height:1.2}
 .opts.one{grid-template-columns:1fr}
 
+/* the shooting range: an arena to swing a crosshair across, and the controls */
+.range{position:relative;flex:1;min-height:230px;border-radius:20px;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 0%,#2C2752,#100C22);
+  border:2px solid rgba(255,255,255,.10);cursor:crosshair}
+.range::after{content:'';position:absolute;inset:0;opacity:.35;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  background-size:100% 14%,14% 100%}
+.foe{position:absolute;transform:translate(-50%,50%);display:flex;flex-direction:column;align-items:center;
+  gap:3px;animation:drift 3.4s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate(-50%,50%) translateX(18px)}}
+.foe .hp{display:block;width:46px;height:5px;border-radius:99px;background:rgba(0,0,0,.5);overflow:hidden}
+.foe .hp i{display:block;height:100%;background:var(--mint)}
+.foe .nm{font-size:.7rem;font-weight:800;opacity:.85}
+.foe.struck{animation:struck .4s}
+@keyframes struck{0%,100%{filter:none}30%{filter:brightness(2.4) saturate(2)}60%{transform:translate(-50%,50%) scale(.92)}}
+.cross{position:absolute;width:46px;height:46px;margin:0 0 -23px -23px;pointer-events:none;
+  border-radius:50%;border:2px solid rgba(255,197,61,.9);box-shadow:0 0 14px rgba(255,197,61,.5)}
+.cross::before,.cross::after{content:'';position:absolute;background:rgba(255,197,61,.9)}
+.cross::before{left:50%;top:-8px;bottom:-8px;width:2px;margin-left:-1px}
+.cross::after{top:50%;left:-8px;right:-8px;height:2px;margin-top:-1px}
+.cross.bang{animation:bang .28s var(--ease)}
+@keyframes bang{0%{transform:scale(.7);box-shadow:0 0 0 12px rgba(255,197,61,.35)}100%{transform:none}}
+.gamepad{flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px}
+.gamepad .stick{width:112px;height:112px;border-radius:50%;position:relative;touch-action:none;flex:none;
+  background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.13),rgba(255,255,255,.04));
+  border:2px solid rgba(255,255,255,.16)}
+.gamepad .knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;
+  background:linear-gradient(180deg,#8E7BFF,#5B3FE8);box-shadow:0 6px 0 -1px rgba(0,0,0,.4);transition:transform .08s}
+.gamepad .fire{flex:1;height:112px;border:none;border-radius:24px;cursor:pointer;font:inherit;font-weight:900;
+  font-size:1.5rem;letter-spacing:.06em;color:#fff;background:linear-gradient(180deg,#FF6B5A,#E01F35);
+  box-shadow:0 8px 0 -2px rgba(0,0,0,.45)}
+.gamepad .fire:active{transform:translateY(4px);box-shadow:0 4px 0 -2px rgba(0,0,0,.45)}
+.chip.warn{border-color:var(--amber);color:var(--amber)}
+
 /* the result takes over the screen, the way it does on a games console */
 .big{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   border-radius:26px;padding:30px 20px;text-align:center;animation:swell .34s var(--ease) both}
@@ -86,8 +121,8 @@
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=928cf3f6"></script>
-<script src="nova-local.js?v=f4a230f0"></script>
+<script src="live.js?v=4d1b15b6"></script>
+<script src="nova-local.js?v=878ba367"></script>
 <script>
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES } = Nova;
 
@@ -118,9 +153,19 @@ function askPin() {
              style="font-size:2rem;text-align:center;letter-spacing:.36em;font-weight:800;padding:16px">
       <button class="btn primary lg block" style="margin-top:16px" id="go">Enter</button>
     </div>`;
-  const go = () => {
+  const go = async () => {
     const v = $('#pin').value.replace(/\D/g, '');
     if (v.length !== 6) return toast('A PIN is 6 digits', 'bad');
+    const btn = $('#go');
+    btn.disabled = true; btn.textContent = 'Checking';
+    try {
+      // check the code is a real game before asking a child to type their name
+      await api('/games/' + v);
+    } catch {
+      btn.disabled = false; btn.textContent = 'Enter';
+      $('#pin').value = ''; $('#pin').focus();
+      return toast('No game with that PIN. Check the board.', 'bad');
+    }
     pin = v; history.replaceState(null, '', 'play.html?pin=' + pin);
     me = store.get('player:' + pin) || null;
     start();
@@ -227,6 +272,7 @@ function render(fresh) {
   app.append(hud());
 
   if (game.state === 'lobby') return app.append(lobbyCard());
+  if (game.state === 'aim') { app.append(aimCard()); return runAimClock(); }
   if (game.state === 'over') return app.append(overCard());
   if (game.state === 'reveal') return app.append(revealCard());
   app.append(questionCard(fresh));
@@ -259,6 +305,155 @@ function lobbyCard() {
     card.append(el('p', { class: 'label', style: 'margin-top:14px;flex:none' }, 'Pick your team'), pick);
   }
   return card;
+}
+
+/* Laser Tag: twenty seconds of shooting, then the question.
+ *
+ * The arena is drawn on the phone. A thumb on the joystick swings the crosshair
+ * across it and the fire button shoots whoever is under it, so the phone is a
+ * controller rather than a list of names to tap. A mouse works the same way:
+ * move the pointer, click to fire. */
+function aimCard() {
+  const card = el('div', { class: 'play' });
+  const foes = game.players.filter(p => p.team !== me.team && !p.down);
+  card.append(el('div', { class: 'qhead' },
+    el('span', { class: 'chip' }, 'Round ' + (game.index + 1)),
+    el('span', { class: 'chip', id: 'aim-clock' }, ''),
+    el('span', { class: 'chip', id: 'shot-count' }, '0 hits')));
+
+  if (me.down || !foes.length) {
+    card.append(el('div', { class: 'big wait' },
+      el('div', { class: 'mark', html: Sprite.icon(me.down ? 'flame' : 'laser', 74) }),
+      el('h2', {}, me.down ? 'You are down' : 'Nobody left to hit'),
+      el('p', { class: 'sub' }, me.down ? 'A right answer heals a teammate'
+                                        : 'Answer well to help your team')));
+    return card;
+  }
+
+  const range = el('div', { class: 'range', id: 'range' });
+  foes.forEach((f, i) => {
+    const across = foes.length === 1 ? 50 : 12 + i * (76 / (foes.length - 1));
+    const up = 18 + (i % 3) * 22;
+    const mark = el('div', { class: 'foe', 'data-id': f.id,
+      style: `left:${across}%;bottom:${up}%;animation-delay:${i * 320}ms` });
+    mark.innerHTML = Sprite.face(f.avatar, 62) +
+      `<span class="hp"><i style="width:${f.hp}%"></i></span><span class="nm">${esc(f.name)}</span>`;
+    range.append(mark);
+  });
+  range.append(el('div', { class: 'cross', id: 'cross' }));
+  card.append(range);
+
+  const pad = el('div', { class: 'gamepad' });
+  pad.innerHTML = `<div class="stick" id="stick"><span class="knob" id="knob"></span></div>
+    <button class="fire" id="fire">FIRE</button>`;
+  card.append(pad);
+  setTimeout(wireControls, 0);
+  return card;
+}
+
+/* One crosshair, driven by a thumb on the stick or by the pointer. */
+function wireControls() {
+  const range = document.getElementById('range');
+  const cross = document.getElementById('cross');
+  const stick = document.getElementById('stick');
+  const knob = document.getElementById('knob');
+  const fire = document.getElementById('fire');
+  if (!range || !cross) return;
+
+  let x = 50, y = 45, vx = 0, vy = 0, hits = 0;
+  const place = () => { cross.style.left = x + '%'; cross.style.bottom = y + '%'; };
+  place();
+
+  const glide = () => {
+    if (!document.body.contains(cross)) return;
+    if (vx || vy) {
+      x = Math.max(4, Math.min(96, x + vx * 1.6));
+      y = Math.max(6, Math.min(92, y + vy * 1.6));
+      place();
+    }
+    requestAnimationFrame(glide);
+  };
+  requestAnimationFrame(glide);
+
+  // the stick: how far the thumb is from the middle is how fast the aim travels
+  const grip = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    const box = stick.getBoundingClientRect();
+    const dx = (t.clientX - (box.left + box.width / 2)) / (box.width / 2);
+    const dy = (t.clientY - (box.top + box.height / 2)) / (box.height / 2);
+    const len = Math.min(1, Math.hypot(dx, dy));
+    const ang = Math.atan2(dy, dx);
+    vx = Math.cos(ang) * len; vy = -Math.sin(ang) * len;
+    knob.style.transform = `translate(${Math.cos(ang) * len * 26}px,${Math.sin(ang) * len * 26}px)`;
+    e.preventDefault();
+  };
+  const release = () => { vx = vy = 0; knob.style.transform = 'none'; };
+  ['touchstart', 'touchmove'].forEach(ev => stick.addEventListener(ev, grip, { passive: false }));
+  ['touchend', 'touchcancel'].forEach(ev => stick.addEventListener(ev, release));
+  stick.addEventListener('mousedown', (e) => {
+    grip(e);
+    const move = (m) => grip(m);
+    const up = () => { release(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  });
+
+  // a mouse can also just point at the arena
+  range.addEventListener('mousemove', (e) => {
+    const box = range.getBoundingClientRect();
+    x = ((e.clientX - box.left) / box.width) * 100;
+    y = ((box.bottom - e.clientY) / box.height) * 100;
+    place();
+  });
+
+  const shoot = async () => {
+    const cb = cross.getBoundingClientRect();
+    const cx = cb.left + cb.width / 2, cy = cb.top + cb.height / 2;
+    let hit = null;
+    range.querySelectorAll('.foe').forEach(node => {
+      const b = node.getBoundingClientRect();
+      if (cx >= b.left - 6 && cx <= b.right + 6 && cy >= b.top - 6 && cy <= b.bottom + 6) hit = node;
+    });
+    cross.classList.remove('bang'); void cross.offsetWidth; cross.classList.add('bang');
+    if (!hit) { toast('Missed', 'bad'); return; }
+    hit.classList.remove('struck'); void hit.offsetWidth; hit.classList.add('struck');
+    if (navigator.vibrate) navigator.vibrate(24);
+    hits += 1;
+    const chip = document.getElementById('shot-count');
+    if (chip) chip.textContent = hits + (hits === 1 ? ' hit' : ' hits');
+    try {
+      // the last player hit is the one this round's answer fires at
+      await api(`/games/${pin}/target`, { method: 'POST', body: { playerId: me.id, targetId: hit.dataset.id } });
+      me.target = hit.dataset.id;
+    } catch { /* the round may have just closed */ }
+  };
+  fire.addEventListener('click', shoot);
+  range.addEventListener('click', shoot);
+  // tapping someone is the quickest shot of all, and is what a thumb reaches for
+  range.querySelectorAll('.foe').forEach(node => node.addEventListener('click', (e) => {
+    const b = node.getBoundingClientRect(), rb = range.getBoundingClientRect();
+    x = ((b.left + b.width / 2 - rb.left) / rb.width) * 100;
+    y = ((rb.bottom - (b.top + b.height / 2)) / rb.height) * 100;
+    place();
+    e.stopPropagation();
+    shoot();
+  }));
+  document.addEventListener('keydown', function once(e) {
+    if (e.code === 'Space') { e.preventDefault(); shoot(); }
+  });
+}
+
+function runAimClock() {
+  clearInterval(ticker);
+  const chip = document.getElementById('aim-clock');
+  if (!chip || !game.endsAt) return;
+  const paint = () => {
+    const left = Math.max(0, game.endsAt - (Date.now() + drift));
+    chip.textContent = Math.ceil(left / 1000) + 's';
+    chip.classList.toggle('warn', left < 5200);
+    if (left <= 0) clearInterval(ticker);
+  };
+  paint();
+  ticker = setInterval(paint, 200);
 }
 
 function questionCard(fresh) {

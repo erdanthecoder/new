@@ -378,7 +378,7 @@ def status():
 @api.get("/modes")
 def list_modes():
     """The live game modes, so the pickers stay in step with the server."""
-    return jsonify({"modes": [dict(id=key, **value) for key, value in MODES.items()]})
+    return jsonify({"modes": [dict(id=key, maps=maps_for(key), **value) for key, value in MODES.items()]})
 
 
 @api.get("/quizzes")
@@ -881,6 +881,23 @@ MODES = {
                  "blurb": "The whole class fights one boss together"},
 }
 
+# Each game is played on a map the teacher picks. A map is scenery and a palette:
+# it changes what the board looks like, not how the scoring works.
+MAPS = {
+    "normal":   [("hall", "School Hall"), ("space", "Space Station"), ("jungle", "Jungle Clearing")],
+    "laser":    [("arena", "Neon Arena"), ("bunker", "Bunker"), ("moon", "Moon Base")],
+    "kart":     [("city", "City Circuit"), ("desert", "Desert Dash"), ("ice", "Ice Track")],
+    "tower":    [("site", "Building Site"), ("candy", "Candy Land"), ("castle", "Castle Walls")],
+    "treasure": [("cave", "Cave of Coins"), ("beach", "Pirate Beach"), ("vault", "The Vault")],
+    "boss":     [("lair", "Dragon Lair"), ("volcano", "Volcano"), ("ruins", "Old Ruins")],
+}
+
+
+def maps_for(mode):
+    return [{"id": i, "label": label} for i, label in MAPS.get(mode, MAPS["normal"])]
+
+
+AIM_SECONDS = 20           # a round of free shooting before a Laser Tag question
 TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
 
@@ -928,6 +945,8 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
     return {
         "pin": game["pin"],
         "mode": game["mode"],
+        "map": game.get("map") or maps_for(game["mode"])[0]["id"],
+        "aimSeconds": AIM_SECONDS,
         "state": game["state"],
         "index": idx,
         "total": len(questions),
@@ -990,6 +1009,8 @@ def create_game():
             "lastEvents": [],
             "createdAt": now_ms(),
         }
+        allowed = [m["id"] for m in maps_for(game["mode"])]
+        game["map"] = body.get("map") if body.get("map") in allowed else allowed[0]
         _games[game["pin"]] = game
     return jsonify({"pin": game["pin"], "hostToken": game["hostToken"], "mode": game["mode"],
                     "quizTitle": quiz["title"], "total": len(questions)}), 201
@@ -1051,6 +1072,27 @@ def join_game(pin):
     return jsonify({"player": player, "game": public_game(game)}), 201
 
 
+@api.post("/games/<pin>/target")
+def choose_target(pin):
+    """Laser Tag: during the countdown, pick who this shot is aimed at."""
+    body = request.get_json(silent=True) or {}
+    with _lock:
+        game, err = game_or_404(pin)
+        if err:
+            return err
+        player = game["players"].get(body.get("playerId"))
+        if not player:
+            return jsonify({"error": "Unknown player"}), 404
+        if game["state"] != "aim":
+            return jsonify({"error": "The shooting round is over."}), 400
+        target = game["players"].get(body.get("targetId"))
+        if not target or target["team"] == player["team"]:
+            return jsonify({"error": "Pick someone on the other team."}), 400
+        player["target"] = target["id"]
+        broadcast_game(game)
+        return jsonify({"target": player["target"]})
+
+
 @api.post("/games/<pin>/team")
 def switch_team(pin):
     body = request.get_json(silent=True) or {}
@@ -1072,7 +1114,20 @@ def host_check(game, body):
     return body.get("hostToken") == game["hostToken"]
 
 
+def begin_question(game: dict) -> None:
+    """Open the question itself and start its clock."""
+    question = game["questions"][game["index"]]
+    game["state"] = "question"
+    game["endsAt"] = now_ms() + int(question.get("time", 20)) * 1000 + 700
+
+
 def open_question(game: dict) -> None:
+    """Start the next round.
+
+    Laser Tag runs on a two-beat round, the way a shooting game does: a short
+    countdown where everyone lines up a shot, then one question that decides
+    whether the shot lands. Every other game goes straight to the question.
+    """
     game["index"] += 1
     game["counts"] = {}
     game["lastEvents"] = []
@@ -1080,15 +1135,19 @@ def open_question(game: dict) -> None:
         game["state"] = "over"
         game["endsAt"] = None
         return
-    question = game["questions"][game["index"]]
     for player in game["players"].values():
         player["answered"] = False
         player["correct"] = None
         player["lastDamage"] = 0
         player["lastGain"] = 0
         player["chest"] = ""
-    game["state"] = "question"
-    game["endsAt"] = now_ms() + int(question.get("time", 20)) * 1000 + 700
+        if game["mode"] == "laser":
+            player["target"] = ""
+    if game["mode"] == "laser":
+        game["state"] = "aim"
+        game["endsAt"] = now_ms() + AIM_SECONDS * 1000
+        return
+    begin_question(game)
 
 
 @api.post("/games/<pin>/start")
@@ -1354,7 +1413,9 @@ def tick_game(pin):
             return err
         if not host_check(game, body):
             return jsonify({"error": "forbidden"}), 403
-        if game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
+        if game["state"] == "aim" and game.get("endsAt") and now_ms() >= game["endsAt"]:
+            begin_question(game)
+        elif game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
             game["state"] = "reveal"
             game["endsAt"] = None
             for player in game["players"].values():

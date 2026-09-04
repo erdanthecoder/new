@@ -777,33 +777,63 @@ $('#share').onclick = () => {
 $('#present').onclick = () => {
   if (!quiz.questions.length) return toast('Add a question first', 'bad');
   modal(`
-    <h2 style="margin-bottom:6px">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px">Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
+    <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>
+    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
     <div class="modegrid" id="mode-list">
-      <p class="tiny faint">Loading…</p>
+      <p class="tiny faint">Loading</p>
     </div>`, {
     wide: true,
     async onMount(box, close) {
       const list = box.querySelector('#mode-list');
       let modes = [];
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
-      if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal', blurb: 'Speed points and a live leaderboard' }];
-      list.innerHTML = '';
-      modes.forEach(m => {
-        const btn = el('button', { class: 'modecard', 'data-mode': m.id });
-        btn.append(el('span', { class: 'art', html: Sprite.scene(m.id, 320) }),
-                   el('span', { class: 'body' },
-                      el('strong', {}, m.label),
-                      el('span', { class: 'sub' }, m.blurb)));
-        list.append(btn);
-      });
-      box.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = async () => {
+      if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal',
+                                    blurb: 'Fastest right answer scores the most', maps: [] }];
+      showModes(modes);
+
+      function showModes(all) {
+        list.innerHTML = '';
+        all.forEach(m => {
+          const btn = el('button', { class: 'modecard', onclick: () => showMaps(m) });
+          btn.append(el('span', { class: 'art', html: Sprite.scene(m.id, 320) }),
+                     el('span', { class: 'body' },
+                        el('strong', {}, m.label),
+                        el('span', { class: 'sub' }, m.blurb)));
+          btn.dataset.mode = m.id;
+          list.append(btn);
+        });
+      }
+
+      /* Second step: the map. It is the teacher's choice, so it gets its own
+         screen rather than being buried as a dropdown on the mode card. */
+      function showMaps(mode) {
+        const maps = mode.maps && mode.maps.length ? mode.maps : [{ id: '', label: 'Default' }];
+        box.querySelector('#pick-title').textContent = 'Pick the map';
+        box.querySelector('#pick-sub').innerHTML = `${esc(mode.label)} · choose where the class plays`;
+        list.innerHTML = '';
+        maps.forEach(mp => {
+          const btn = el('button', { class: 'modecard', 'data-map': mp.id,
+            onclick: () => launch(mode.id, mp.id) });
+          btn.append(el('span', { class: 'art map-' + mp.id, html: Sprite.scene(mode.id, 320) }),
+                     el('span', { class: 'body' }, el('strong', {}, mp.label)));
+          list.append(btn);
+        });
+        list.append(el('button', { class: 'btn ghost', style: 'grid-column:1/-1;margin-top:4px',
+          onclick: () => {
+            box.querySelector('#pick-title').textContent = 'Pick how the class plays';
+            box.querySelector('#pick-sub').innerHTML =
+              `Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.`;
+            showModes(modes);
+          } }, 'Back to the games'));
+      }
+
+      async function launch(mode, map) {
         try {
-          const game = await api('/games', { method: 'POST', body: { quizId, mode: btn.dataset.mode } });
+          const game = await api('/games', { method: 'POST', body: { quizId, mode, map } });
           store.set('host:' + game.pin, game.hostToken);
           location.href = '/host?pin=' + game.pin;
         } catch (err) { toast(err.message, 'bad'); close(); }
-      });
+      }
     }
   });
 };

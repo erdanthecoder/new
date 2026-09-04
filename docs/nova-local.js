@@ -452,7 +452,10 @@ Rules:
       }
       const result = await window.NovaLive.handle(clean, method, body);
       if (result === null) fail('Unknown request: ' + path, 404);
-      if (result && result.state) liveGamePace = result.state === 'question' ? 'question' : 'idle';
+      // the shooting round is as live as the question, so poll it at the same rate
+      if (result && result.state) {
+        liveGamePace = (result.state === 'question' || result.state === 'aim') ? 'question' : 'idle';
+      }
       // anything this device just did (answered, started, advanced) should show up now
       // …just after the caller has handled the reply, so the two cannot race
       if (method === 'POST' && clean !== '/games') setTimeout(() => gameKicks.forEach(kick => kick()), 30);

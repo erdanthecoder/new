@@ -168,8 +168,8 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=928cf3f6"></script>
-<script src="nova-local.js?v=f4a230f0"></script>
+<script src="live.js?v=4d1b15b6"></script>
+<script src="nova-local.js?v=878ba367"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
 const { $, api, el, esc, toast, modal, ago, classroomUrl, copy } = Nova;
@@ -323,12 +323,25 @@ function share(q) {
   });
 }
 
-async function removeQuiz(q) {
-  if (!confirm(`Delete “${q.title}” and all its responses? This cannot be undone.`)) return;
-  await api('/quizzes/' + q.id, { method: 'DELETE' });
-  quizzes = quizzes.filter(x => x.id !== q.id);
-  render();
-  toast('Quiz deleted');
+function removeQuiz(q) {
+  const close = modal(`
+    <h2 style="margin-bottom:6px">Delete “${esc(q.title)}”?</h2>
+    <p class="muted" style="margin-bottom:20px">The quiz and everything students sent back go with it. This cannot be undone.</p>
+    <div class="row" style="justify-content:flex-end;gap:10px">
+      <button class="btn" id="no">No, keep it</button>
+      <button class="btn danger" id="yes">Yes, delete</button>
+    </div>`, {
+    onMount(box) {
+      box.querySelector('#no').onclick = () => close();
+      box.querySelector('#yes').onclick = async () => {
+        close();
+        await api('/quizzes/' + q.id, { method: 'DELETE' });
+        quizzes = quizzes.filter(x => x.id !== q.id);
+        render();
+        toast('Quiz deleted');
+      };
+    }
+  });
 }
 
 $('#search').oninput = render;

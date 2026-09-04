@@ -1,0 +1,40 @@
+# Publishes the same docs/ folder to Firebase Hosting, so the site also lives at
+# a quiznova.web.app address. Schools that block github.io can still reach it.
+#
+# This runs only once the FIREBASE_SERVICE_ACCOUNT secret exists, so it stays
+# quiet until Firebase is connected rather than failing on every push.
+name: Publish to quiznova.web.app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is Firebase connected?
+        id: check
+        run: |
+          if [ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "No FIREBASE_SERVICE_ACCOUNT secret yet — skipping." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Build the site
+        if: steps.check.outputs.ready == 'true'
+        run: python3 build_pages.py
+
+      - name: Publish
+        if: steps.check.outputs.ready == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'quiznova' }}

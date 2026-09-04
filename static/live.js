@@ -52,7 +52,21 @@
     treasure: { label: 'Treasure Run', icon: 'gem', blurb: 'Collect coins and open lucky chests' },
     boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' }
   };
+  /* Each game is played on a map the teacher picks. A map is scenery and a palette:
+   * it changes what the board looks like, not how the scoring works. */
+  const MAPS = {
+    normal:   [['hall', 'School Hall'], ['space', 'Space Station'], ['jungle', 'Jungle Clearing']],
+    laser:    [['arena', 'Neon Arena'], ['bunker', 'Bunker'], ['moon', 'Moon Base']],
+    kart:     [['city', 'City Circuit'], ['desert', 'Desert Dash'], ['ice', 'Ice Track']],
+    tower:    [['site', 'Building Site'], ['candy', 'Candy Land'], ['castle', 'Castle Walls']],
+    treasure: [['cave', 'Cave of Coins'], ['beach', 'Pirate Beach'], ['vault', 'The Vault']],
+    boss:     [['lair', 'Dragon Lair'], ['volcano', 'Volcano'], ['ruins', 'Old Ruins']]
+  };
+  const mapsFor = (mode) => (MAPS[mode] || MAPS.normal).map(([id, label]) => ({ id, label }));
+  const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
+
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
+  const AIM_SECONDS = 20;   // a round of free shooting before the question
   const TEAM_HP_FLOOR = 400, TEAM_HP_PER_PLAYER = 250, MAX_PLAYER_HIT = 40;
 
   /* ── marking, shared with the rest of the app ─────────── */
@@ -88,7 +102,9 @@
         const targets = mates.filter(x => x.team === foe && !x.down);
         let hitName = game.teams[foe].name;
         if (targets.length) {
-          const target = targets.reduce((a, b) => (a.hp >= b.hp ? a : b));
+          // whoever they lined up during the countdown, if that player is still standing
+          const chosen = targets.find(x => x.id === p.target);
+          const target = chosen || targets.reduce((a, b) => (a.hp >= b.hp ? a : b));
           target.hp = Math.max(0, target.hp - Math.min(damage, MAX_PLAYER_HIT));
           target.lastDamage = Math.min(damage, MAX_PLAYER_HIT);
           hitName = target.name;
@@ -175,7 +191,7 @@
   const blankPlayer = (row) => ({
     id: row.id, name: row.name, avatar: Number(row.avatar) || 0, team: row.team || 'red',
     score: 0, hp: 100, streak: 0, best: 0, answered: false, correct: null, down: false,
-    lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0
+    lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0, target: ''
   });
 
   async function readGame(pin) {
@@ -206,23 +222,46 @@
     }
     const players = Object.values(game.players || {}).sort((a, b) => b.score - a.score);
     return {
-      pin: game.pin, mode: game.mode, state: game.state, index: idx, total: questions.length,
+      pin: game.pin, mode: game.mode, map: game.map || defaultMap(game.mode),
+      state: game.state, index: idx, total: questions.length,
       quizTitle: game.quizTitle, quizId: game.quizId, question, endsAt: game.endsAt, serverNow: now(),
       players, teams: game.teams, counts: game.counts || {}, lastEvents: game.lastEvents || [],
+      aimSeconds: AIM_SECONDS,
       boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal
     };
   }
 
+  /** Open the question itself and start its clock. */
+  function beginQuestion(game) {
+    game.state = 'question';
+    game.endsAt = now() + (game.questions[game.index].time || 20) * 1000 + 700;
+  }
+
+  /* Laser Tag runs on a two-beat round, the way a shooting game does: a short
+   * countdown where everyone lines up a shot, then one question that decides
+   * whether the shot lands. Every other game goes straight to the question. */
   function openQuestion(game) {
     game.index += 1;
     game.counts = {}; game.lastEvents = [];
     if (game.index >= game.questions.length) { game.state = 'over'; game.endsAt = null; return; }
     Object.values(game.players).forEach(p => {
       p.answered = false; p.correct = null; p.lastDamage = 0; p.lastGain = 0; p.chest = '';
+      if (game.mode === 'laser') p.target = '';
     });
-    game.state = 'question';
-    game.endsAt = now() + (game.questions[game.index].time || 20) * 1000 + 700;
+    if (game.mode === 'laser') {
+      game.state = 'aim';
+      game.endsAt = now() + AIM_SECONDS * 1000;
+      return;
+    }
+    beginQuestion(game);
   }
+
+  /* Targets are a column on the players table, so they outlive the round that set
+   * them. Without this the next countdown would open with everyone already aimed
+   * and skip itself. */
+  const clearTargets = (pin) =>
+    rest('PATCH', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}`,
+         { target: '' }, { prefer: 'return=minimal' });
 
   const readPlayers = (pin) =>
     rest('GET', `/quiznova_live_players?pin=eq.${encodeURIComponent(pin)}&select=*`);
@@ -243,6 +282,16 @@
       else if (game.players[row.id].team !== (row.team || 'red') && game.state === 'lobby') {
         game.players[row.id].team = row.team || 'red'; changed = true;
       }
+    }
+
+    if (game.state === 'aim') {
+      for (const row of playerRows || []) {
+        const player = game.players[row.id];
+        if (player && (row.target || '') !== (player.target || '')) {
+          player.target = row.target || ''; changed = true;
+        }
+      }
+      if (game.endsAt && now() >= game.endsAt) { beginQuestion(game); changed = true; }
     }
 
     if (game.state === 'question') {
@@ -292,7 +341,9 @@
   const openIndex = Object.create(null);
 
   async function handle(path, method, body) {
-    if (path === '/modes') return { modes: Object.entries(MODES).map(([id, m]) => Object.assign({ id }, m)) };
+    if (path === '/modes') {
+      return { modes: Object.entries(MODES).map(([id, m]) => Object.assign({ id, maps: mapsFor(id) }, m)) };
+    }
 
     const m = path.match(/^\/games(?:\/([^/]+))?(\/.*)?$/);
     if (!m) return null;
@@ -309,10 +360,13 @@
       const game = {
         pin: newPin, hostToken: rid(16), quizId: quiz.id, quizTitle: quiz.title,
         mode: MODES[body.mode] ? body.mode : 'normal',
+        map: '',
         state: 'lobby', index: -1, questions, players: {},
         teams: { red: { hp: 0, score: 0, name: 'Crimson' }, blue: { hp: 0, score: 0, name: 'Cobalt' } },
         counts: {}, lastEvents: [], createdAt: now()
       };
+      const maps = mapsFor(game.mode).map(m => m.id);
+      game.map = maps.includes(body.map) ? body.map : defaultMap(game.mode);
       await rest('POST', '/quiznova_live_games', { pin: newPin, data: game }, { prefer: 'return=minimal' });
       return { pin: newPin, hostToken: game.hostToken, mode: game.mode, quizTitle: quiz.title, total: questions.length };
     }
@@ -351,6 +405,13 @@
       };
       await rest('POST', '/quiznova_live_players', row, { prefer: 'return=minimal' });
       return { player: blankPlayer(row), game: publicView(game) };
+    }
+
+    if (tail === '/target' && method === 'POST') {
+      if (game.state !== 'aim') throw new Error('The shooting round is over.');
+      await rest('PATCH', `/quiznova_live_players?id=eq.${encodeURIComponent(body.playerId)}`,
+                 { target: String(body.targetId || '') }, { prefer: 'return=minimal' });
+      return { target: body.targetId || '' };
     }
 
     if (tail === '/team' && method === 'POST') {
@@ -394,12 +455,17 @@
                       classHp: 100, classMax: 100 };
       }
       openQuestion(game);
+      if (game.state === 'aim') await clearTargets(pin);
       await writeGame(pin, game);
       return publicView(game);
     }
     if (tail === '/next') {
-      if (game.state === 'question') { game.state = 'reveal'; game.endsAt = null; }
-      else openQuestion(game);
+      if (game.state === 'aim') beginQuestion(game);              // stop waiting, ask the question
+      else if (game.state === 'question') { game.state = 'reveal'; game.endsAt = null; }
+      else {
+        openQuestion(game);
+        if (game.state === 'aim') await clearTargets(pin);
+      }
       await writeGame(pin, game);
       return publicView(game);
     }

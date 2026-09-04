@@ -60,10 +60,10 @@
 <script src="nova.js?v=67dabb23"></script>
 <script src="quizbank.js?v=9c4f8a9a"></script>
 <script src="realtime.js?v=860b888e"></script>
-<script src="live.js?v=928cf3f6"></script>
-<script src="nova-local.js?v=f4a230f0"></script>
+<script src="live.js?v=4d1b15b6"></script>
+<script src="nova-local.js?v=878ba367"></script>
 <script>
-const { $, api, el, esc, qs, toast, confetti } = Nova;
+const { $, api, el, esc, qs, toast, confetti, modal } = Nova;
 
 /* Interface icons are drawn, not typed: emoji change shape on every device. */
 function paintIcons(root = document) {
@@ -200,11 +200,28 @@ function next() {
   step++; render();
 }
 
-async function submit() {
+/* A child who has left answers blank should be told inside the quiz, not by a
+ * browser dialog they will click through without reading. */
+function askAboutBlanks(count) {
+  const close = modal(`
+    <h2 style="margin-bottom:6px">${count} question${count === 1 ? '' : 's'} not answered</h2>
+    <p class="muted" style="margin-bottom:20px">You can go back and finish, or send it as it is.</p>
+    <div class="row" style="justify-content:flex-end;gap:10px">
+      <button class="btn" id="back">Go back</button>
+      <button class="btn primary" id="send">Send it anyway</button>
+    </div>`, {
+    onMount(box) {
+      box.querySelector('#back').onclick = () => close();
+      box.querySelector('#send').onclick = () => { close(); submit(true); };
+    }
+  });
+}
+
+async function submit(force) {
   if (submitting) return;
   const missing = quiz.questions.filter(q => answers[q.id] === undefined || answers[q.id] === '' ||
                                             (Array.isArray(answers[q.id]) && !answers[q.id].length));
-  if (missing.length && !confirm(`${missing.length} question(s) are unanswered. Submit anyway?`)) return;
+  if (missing.length && !force) return askAboutBlanks(missing.length);
   submitting = true;
   clearTimeout(advanceTimer);
   $('#app').innerHTML = '<div class="card pad center" style="min-height:40vh"><div class="thinking">Marking…</div></div>';
