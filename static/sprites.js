@@ -173,7 +173,35 @@
       '<path d="M74 50 q10 8 20 0" stroke="#3F1FA6" stroke-width="4" fill="none" stroke-linecap="round"/>' +
       '<circle cx="26" cy="78" r="10" fill="#12BE8E"/><circle cx="50" cy="83" r="8" fill="#FFC53D"/>' +
       '<circle cx="124" cy="80" r="9" fill="#F4364C"/><circle cx="144" cy="85" r="7" fill="#2BA8FF"/>' +
-      '<rect y="91" width="160" height="9" fill="#DED2FF"/>'
+      '<rect y="91" width="160" height="9" fill="#DED2FF"/>',
+    snow:
+      '<rect width="160" height="100" fill="#E9F4FF"/>' +
+      '<g fill="#fff"><circle cx="24" cy="18" r="4"/><circle cx="70" cy="12" r="3"/><circle cx="112" cy="22" r="3.5"/>' +
+      '<circle cx="140" cy="10" r="2.6"/><circle cx="48" cy="30" r="2.4"/></g>' +
+      // two forts facing each other, one already losing its top row
+      '<g fill="#F4364C"><rect x="10" y="60" width="15" height="11" rx="2"/><rect x="27" y="60" width="15" height="11" rx="2"/>' +
+      '<rect x="10" y="73" width="15" height="11" rx="2"/><rect x="27" y="73" width="15" height="11" rx="2"/>' +
+      '<rect x="18" y="47" width="15" height="11" rx="2"/></g>' +
+      '<g fill="#4F6BFF"><rect x="118" y="60" width="15" height="11" rx="2"/><rect x="135" y="60" width="15" height="11" rx="2"/>' +
+      '<rect x="118" y="73" width="15" height="11" rx="2"/><rect x="135" y="73" width="15" height="11" rx="2"/></g>' +
+      // a snowball mid-flight, with the arc it came in on
+      '<path d="M46 56 Q66 26 96 40" stroke="#C3DCF3" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="5 6"/>' +
+      '<circle cx="96" cy="40" r="8.5" fill="#fff" stroke="#7FA8CE" stroke-width="2.5"/>' +
+      '<circle cx="93" cy="37" r="2.6" fill="#EAF4FF"/>' +
+      '<circle cx="60" cy="30" r="4" fill="#fff" stroke="#7FA8CE" stroke-width="1.8"/>' +
+      '<rect y="88" width="160" height="12" fill="#fff"/>',
+    balloon:
+      '<rect width="160" height="100" fill="#FFF6E8"/>' +
+      '<g stroke="#C9B79B" stroke-width="1.4" fill="none">' +
+      '<path d="M34 44c0 12-4 10-4 20M76 34c0 14-5 12-5 24M118 48c0 10-4 9-4 18"/></g>' +
+      '<path d="M34 16a13 13 0 0 1 13 13c0 9-9 15-13 15s-13-6-13-15a13 13 0 0 1 13-13z" fill="#F4364C"/>' +
+      '<path d="M76 6a14 14 0 0 1 14 14c0 10-9 16-14 16s-14-6-14-16a14 14 0 0 1 14-14z" fill="#FFC53D"/>' +
+      '<path d="M118 20a12 12 0 0 1 12 12c0 8-8 14-12 14s-12-6-12-14a12 12 0 0 1 12-12z" fill="#2BA8FF"/>' +
+      // one that has just burst
+      '<g fill="#E8467C"><path d="M140 58l4-7 1 6 6-2-4 6 6 3-7 1 2 6-6-4-3 6-1-7-6 2 4-5-6-3z"/></g>' +
+      '<circle cx="30" cy="76" r="7.5" fill="#7C4DFF"/><circle cx="72" cy="78" r="7.5" fill="#12BE8E"/>' +
+      '<circle cx="114" cy="77" r="7.5" fill="#FF7A45"/>' +
+      '<rect y="88" width="160" height="12" fill="#F0E2CB"/>'
   };
 
   function scene(name, width = 160) {
@@ -186,6 +214,12 @@
    * One flat style: 24x24, filled, no strokes to go thin when scaled down. */
   const ICON = {
     play:     '<path d="M8 5.5v13l11-6.5z"/>',
+    snow:     '<circle cx="12" cy="12" r="5.5"/>' +
+              '<g stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+              '<path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2.2 2.2M16.8 16.8L19 19M19 5l-2.2 2.2M7.2 16.8L5 19"/></g>',
+    balloon:  '<path d="M12 2a6 6 0 0 1 6 6c0 4-4 7-6 7s-6-3-6-7a6 6 0 0 1 6-6z"/>' +
+              '<path d="M12 15l-1.4 2h2.8z"/>' +
+              '<path d="M12 17c0 3-3 2.5-3 5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
     copy:     '<rect x="8" y="2.5" width="12" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="3.5" y="6.5" width="12" height="15" rx="2.5"/>',
     trophy:   '<path d="M7 3h10v5a5 5 0 0 1-10 0z"/><path d="M4 4h3v3a3 3 0 0 1-3-3zM17 4h3a3 3 0 0 1-3 3z"/><rect x="10.5" y="13" width="3" height="4"/><rect x="7" y="17" width="10" height="3" rx="1.2"/>',
     flame:    '<path d="M13.6 1.4c.6 3.4-1.9 4.6-1.9 6.9 0 1 .6 1.7 1.4 1.7 1.1 0 1.6-.9 1.7-2.1 1.9 1.7 3.2 3.9 3.2 6.2a6.2 6.2 0 0 1-12.4 0c0-3.1 1.8-5 3.4-6.6 1.9-1.9 3.9-3.4 4.6-6.1z"/><path d="M12 13c1.6 1 2.4 2.2 2.4 3.5a2.4 2.4 0 0 1-4.8 0c0-1.2.9-2.4 2.4-3.5z" fill="rgba(0,0,0,.25)"/>',

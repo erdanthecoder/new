@@ -118,6 +118,19 @@
 .hpwrap .bar i{display:block;height:100%;transition:width .6s var(--ease)}
 .charge{height:7px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:8px}
 .charge i{display:block;height:100%;background:linear-gradient(90deg,#ffc857,#ff5d8f);transition:width .5s}
+.balloons{display:flex;gap:8px;justify-content:center;margin:16px 0 6px}
+.balloons i{width:30px;height:38px;border-radius:50% 50% 46% 46%;background:var(--c,#F4364C);
+  position:relative;animation:sway 2.6s ease-in-out infinite;transform-origin:bottom center;
+  box-shadow:inset -4px -4px 0 rgba(0,0,0,.14)}
+.balloons i::after{content:'';position:absolute;left:50%;top:100%;width:2px;height:12px;
+  margin-left:-1px;background:rgba(255,255,255,.3)}
+.balloons i.popped::after{display:none}
+.balloons i:nth-child(2){animation-delay:-.9s}
+.balloons i:nth-child(3){animation-delay:-1.8s}
+.balloons i.popped{background:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.22);animation:none;opacity:.55}
+.balloons.hud-strip{margin:0;gap:5px}
+.balloons.hud-strip i{width:15px;height:19px}
+@keyframes sway{50%{transform:rotate(9deg)}}
 .team-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
 .team-btn{padding:18px;border-radius:var(--r-lg);border:2px solid var(--line);cursor:pointer;text-align:center;font-weight:800;transition:.2s}
 .team-btn.red.on{border-color:#ff4d5e;background:rgba(255,77,94,.18)}
@@ -151,14 +164,14 @@
 <body class="dark">
 <main class="shell" id="app"></main>
 
-<script src="sprites.js?v=805daf5d"></script>
+<script src="sprites.js?v=5e58539d"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=6c51135e"></script>
-<script src="live.js?v=b0a4e485"></script>
+<script src="live.js?v=6a031fa0"></script>
 <script src="nova-local.js?v=888cb730"></script>
 <script>
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, modal } = Nova;
@@ -344,10 +357,25 @@ function hud() {
       me.team === 'red' ? 'Crimson' : 'Cobalt'));
     node.append(el('div', { class: 'stat' }, el('b', {}, me.down ? 'DOWN' : me.hp + ' HP'), el('span', {}, 'shield')));
   } else {
+    if (game.mode === 'snow') {
+      node.append(el('span', { class: 'chip ' + (me.team === 'red' ? '' : 'live'),
+        style: `border-color:${me.team === 'red' ? 'rgba(255,77,94,.5)' : 'rgba(79,107,255,.5)'}` },
+        me.team === 'red' ? 'Crimson' : 'Cobalt'));
+    }
     const unit = { kart: ['distance', (me.distance || 0) + 'm'], tower: ['blocks', String(me.blocks || 0)],
-                   treasure: ['coins', String(me.coins || 0)], boss: ['damage', String(me.score)] }[game.mode]
+                   treasure: ['coins', String(me.coins || 0)], boss: ['damage', String(me.score)],
+                   snow: ['blocks off', String(me.hits || 0)] }[game.mode]
                  || ['points', String(me.score)];
     node.append(el('div', { class: 'stat' }, el('b', {}, unit[1]), el('span', {}, unit[0])));
+    // in Balloon Drop what is left is more urgent than the score
+    if (game.mode === 'balloon') {
+      const strip = el('div', { class: 'balloons hud-strip' });
+      for (let b = 0; b < 3; b++) {
+        strip.append(el('i', { class: b < (me.balloons || 0) ? '' : 'popped',
+                               style: `--c:${['#F4364C', '#FFC53D', '#2BA8FF'][b]}` }));
+      }
+      node.append(strip);
+    }
   }
   if (me.streak >= 2) node.append(el('span', { class: 'chip warn' },
     el('span', { class: 'mini-face', html: Sprite.icon('flame', 14) }), String(me.streak)));
@@ -381,7 +409,8 @@ function lobbyCard() {
     <p class="sub dim" id="lobby-count">${game.players.length} player${game.players.length === 1 ? '' : 's'} waiting</p>`;
   card.append(panel);
 
-  if (game.mode === 'laser') {
+  // both team games let a child choose a side before the whistle
+  if (game.mode === 'laser' || game.mode === 'snow') {
     const pick = el('div', { class: 'team-pick', style: 'flex:none' });
     ['red', 'blue'].forEach(side => {
       const count = game.players.filter(p => p.team === side).length;
@@ -393,6 +422,11 @@ function lobbyCard() {
          el('div', { class: 'tiny faint', 'data-team-count': side }, count + ' players')));
     });
     card.append(el('p', { class: 'label', style: 'margin-top:14px;flex:none' }, 'Pick your team'), pick);
+  }
+  if (game.mode === 'balloon') {
+    const strip = el('div', { class: 'balloons lobby', style: 'flex:none' });
+    for (let b = 0; b < 3; b++) strip.append(el('i', { style: `--c:${['#F4364C', '#FFC53D', '#2BA8FF'][b]}` }));
+    card.append(strip);   // the mode's own blurb above already explains them
   }
   return card;
 }
@@ -608,6 +642,10 @@ function revealCard() {
       : game.mode === 'tower'    ? (ok ? `+${g} block${g > 1 ? 's' : ''}` : 'A block fell')
       : game.mode === 'treasure' ? (ok ? `+${g} coins` : 'Empty chest')
       : game.mode === 'boss'     ? (ok ? `${g} damage` : 'The boss hit back')
+      : game.mode === 'snow'     ? (ok ? `Direct hit · +${g}` : 'Wide of the fort')
+      : game.mode === 'balloon'  ? (ok ? `+${g || 0}`
+                                       : (me.balloons > 0 ? `A balloon popped · ${me.balloons} left`
+                                                          : 'Your last balloon popped'))
       :                            (ok ? `+${g || 0}` : 'No points');
     card.append(el('div', { class: 'big ' + (ok ? 'good' : 'bad') },
       el('div', { class: 'mark', html: Sprite.icon(ok ? (me.streak >= 3 ? 'flame' : 'tick') : 'cross', 86) }),
@@ -688,6 +726,8 @@ function overCard() {
       el('p', { class: 'muted' }, game.mode === 'kart' ? `${me.distance || 0}m driven`
         : game.mode === 'tower' ? `${me.blocks || 0} blocks high`
         : game.mode === 'treasure' ? `${me.coins || 0} coins`
+        : game.mode === 'snow' ? `${me.hits || 0} blocks knocked off`
+        : game.mode === 'balloon' ? `${me.score} points · ${me.balloons || 0} balloon${me.balloons === 1 ? '' : 's'} left`
         : me.score + ' points'));
     if (rank <= 3) confetti(120);
   }
@@ -699,7 +739,9 @@ function overCard() {
        `#${i + 1} ${p.name}${p.id === me.id ? ' (you)' : ''}`),
     el('strong', {}, game.mode === 'kart' ? `${p.distance || 0}m`
       : game.mode === 'tower' ? `${p.blocks || 0} blocks`
-      : game.mode === 'treasure' ? `${p.coins || 0} coins` : String(p.score)))));
+      : game.mode === 'treasure' ? `${p.coins || 0} coins`
+      : game.mode === 'snow' ? `${p.hits || 0} blocks`
+      : String(p.score)))));
   card.append(lb);
   card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: 'play.html' }, 'Play another game'));
   return card;

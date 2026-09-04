@@ -62,11 +62,13 @@
 
   const MODES = {
     normal:   { label: 'Normal',       icon: 'target', blurb: 'Fastest right answer scores the most' },
-    laser:    { label: 'Laser Tag',    icon: 'laser', blurb: 'Two teams. Right answers fire, wrong ones cost shield' },
+    laser:    { label: 'Laser Tag',    icon: 'laser', blurb: 'One arena. Move, shoot, and answer when your energy runs out' },
     kart:     { label: 'Kart Race',    icon: 'kart', blurb: 'Every right answer drives your kart further' },
     tower:    { label: 'Tower Build',  icon: 'bricks', blurb: 'Stack a block for each right answer' },
     treasure: { label: 'Treasure Run', icon: 'gem', blurb: 'Collect coins and open lucky chests' },
-    boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' }
+    boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' },
+    snow:     { label: 'Snowball Fight', icon: 'snow', blurb: 'Two teams. Every right answer knocks a block off their fort' },
+    balloon:  { label: 'Balloon Drop', icon: 'balloon', blurb: 'Three balloons each. Get one wrong and one pops' }
   };
   /* Each game is played on a map the teacher picks. A map is scenery and a palette:
    * it changes what the board looks like, not how the scoring works. */
@@ -76,13 +78,17 @@
     kart:     [['city', 'City Circuit'], ['desert', 'Desert Dash'], ['ice', 'Ice Track']],
     tower:    [['site', 'Building Site'], ['candy', 'Candy Land'], ['castle', 'Castle Walls']],
     treasure: [['cave', 'Cave of Coins'], ['beach', 'Pirate Beach'], ['vault', 'The Vault']],
-    boss:     [['lair', 'Dragon Lair'], ['volcano', 'Volcano'], ['ruins', 'Old Ruins']]
+    boss:     [['lair', 'Dragon Lair'], ['volcano', 'Volcano'], ['ruins', 'Old Ruins']],
+    snow:     [['playground', 'Playground'], ['forest', 'Winter Forest'], ['peak', 'Mountain Peak']],
+    balloon:  [['fair', 'Summer Fair'], ['clouds', 'Above the Clouds'], ['night', 'Night Sky']]
   };
   const mapsFor = (mode) => (MAPS[mode] || MAPS.normal).map(([id, label]) => ({ id, label }));
   const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
 
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
-  const TEAM_HP_FLOOR = 400, TEAM_HP_PER_PLAYER = 250, MAX_PLAYER_HIT = 40;
+  const FORT_BLOCKS = 12;          // how tall each team's fort starts
+  const BALLOONS = 3;              // how many wrong answers a child can afford
+  const MAX_PLAYER_HIT = 40;
 
   /* ── marking, shared with the rest of the app ─────────── */
   const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -100,7 +106,7 @@
     return false;
   }
 
-  /* ── the six modes, same rules as the server edition ─── */
+  /* ── the modes, same rules as the server edition ─── */
   const SCORERS = {
     normal(game, p, q, ok, speed) {
       if (!ok) { p.lastGain = 0; return; }
@@ -182,6 +188,49 @@
       p.coins += coins; p.score = p.coins; p.chest = chest; p.lastGain = coins;
       game.lastEvents.push(`${p.name} collected ${coins}` + (chest ? ` — ${chest}` : ''));
     },
+    /* Snowball Fight: red against blue, and what the class watches is the other
+     * side's fort coming down block by block. A team wins by knocking the last
+     * block off, not by holding the highest number — which means a class that
+     * fell behind early is still in it while a block remains. */
+    snow(game, p, q, ok, speed) {
+      const foe = p.team === 'red' ? 'blue' : 'red';
+      const fort = game.teams[foe];
+      if (!ok) {
+        p.lastGain = 0;
+        game.lastEvents.push(`${p.name} missed`);
+        return;
+      }
+      // a fast answer throws harder, and a run of them throws harder still
+      const power = 1 + Math.min(p.streak, 4) * 0.25;
+      const hit = Math.min(fort.blocks, Math.max(1, Math.round((0.6 + speed) * power)));
+      fort.blocks -= hit;
+      const gain = Math.round((q.points || 100) * (0.5 + 0.5 * speed));
+      p.score += gain; p.lastGain = gain; p.hits += hit;
+      game.teams[p.team].score += gain;
+      game.lastEvents.push(`${p.name} knocked ${hit} block${hit > 1 ? 's' : ''} off the ${fort.name} fort`
+                           + (fort.blocks ? '' : ' — it is down!'));
+    },
+
+    /* Balloon Drop: three balloons each, and a wrong answer pops one. Being out
+     * has to still be worth watching, so a child with no balloons left keeps
+     * answering for points — they simply cannot win it any more. */
+    balloon(game, p, q, ok, speed) {
+      const out = p.balloons <= 0;
+      if (!ok) {
+        p.lastGain = 0;
+        if (out) { game.lastEvents.push(`${p.name} got it wrong`); return; }
+        p.balloons -= 1;
+        game.lastEvents.push(p.balloons
+          ? `${p.name} lost a balloon — ${p.balloons} left`
+          : `${p.name} is out of balloons`);
+        return;
+      }
+      const base = q.points || 100;
+      // still floating is worth more than playing on for pride
+      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (out ? 0.4 : 1));
+      p.score += gain; p.lastGain = gain;
+    },
+
     boss(game, p, q, ok, speed) {
       const boss = game.boss;
       if (ok) {
@@ -206,7 +255,8 @@
   const blankPlayer = (row) => ({
     id: row.id, name: row.name, avatar: Number(row.avatar) || 0, team: row.team || 'red',
     score: 0, hp: 100, streak: 0, best: 0, answered: false, correct: null, down: false,
-    lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0, target: ''
+    lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0, target: '',
+    balloons: BALLOONS, hits: 0
   });
 
   async function readGame(pin) {
@@ -317,13 +367,26 @@
       game.lastEvents = game.lastEvents.slice(-6);
 
       const everyone = Object.values(game.players);
+      const fortDown = game.mode === 'snow' &&
+        ['red', 'blue'].some(side => game.teams[side].max && game.teams[side].blocks <= 0);
       if (game.mode === 'boss' && game.boss && (game.boss.hp === 0 || game.boss.classHp === 0)) {
+        game.state = 'over'; game.endsAt = null; changed = true;
+      } else if (fortDown) {
         game.state = 'over'; game.endsAt = null; changed = true;
       } else if (everyone.length && everyone.every(p => p.answered)) {
         game.state = 'reveal'; game.endsAt = null; changed = true;
       } else if (game.endsAt && now() >= game.endsAt) {
         game.state = 'reveal'; game.endsAt = null;
-        everyone.forEach(p => { if (!p.answered) p.streak = 0; });
+        everyone.forEach(p => {
+          if (p.answered) return;
+          p.streak = 0;
+          // letting the clock run out cannot be the safe move: in Balloon Drop it
+          // costs a balloon, the same as answering wrongly
+          if (game.mode === 'balloon' && p.balloons > 0) {
+            p.balloons -= 1;
+            game.lastEvents.push(`${p.name} ran out of time — ${p.balloons} balloon${p.balloons === 1 ? '' : 's'} left`);
+          }
+        });
         changed = true;
       }
     }
@@ -367,7 +430,8 @@
         mode: MODES[body.mode] ? body.mode : 'normal',
         map: '',
         state: 'lobby', index: -1, questions, players: {},
-        teams: { red: { hp: 0, score: 0, name: 'Crimson' }, blue: { hp: 0, score: 0, name: 'Cobalt' } },
+        teams: { red: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Crimson' },
+                 blue: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Cobalt' } },
         counts: {}, lastEvents: [], createdAt: now()
       };
       const maps = mapsFor(game.mode).map(m => m.id);
@@ -456,11 +520,16 @@
         await writeGame(pin, game);
         return publicView(game);
       }
-      if (game.mode === 'laser') {
+      if (game.mode === 'snow') {
+        // a fort per team, sized so a small class still gets to knock one down
         for (const side of ['red', 'blue']) {
           const n = Object.values(game.players).filter(p => p.team === side).length;
-          game.teams[side].hp = Math.max(TEAM_HP_FLOOR, TEAM_HP_PER_PLAYER * n);
+          game.teams[side].blocks = Math.max(6, Math.min(FORT_BLOCKS, 3 + n * 2));
+          game.teams[side].max = game.teams[side].blocks;
         }
+      }
+      if (game.mode === 'balloon') {
+        for (const p of Object.values(game.players)) p.balloons = BALLOONS;
       }
       if (game.mode === 'boss') {
         const hp = BOSS_HP_PER_QUESTION * Math.max(1, game.questions.length);

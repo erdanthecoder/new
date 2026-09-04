@@ -870,7 +870,7 @@ MODES = {
     "normal":   {"label": "Normal",      "icon": "target", "teams": False,
                  "blurb": "Fastest right answer scores the most"},
     "laser":    {"label": "Laser Tag",   "icon": "laser", "teams": True,
-                 "blurb": "Two teams. Right answers fire, wrong ones cost shield"},
+                 "blurb": "One arena. Move, shoot, and answer when your energy runs out"},
     "kart":     {"label": "Kart Race",   "icon": "kart", "teams": False,
                  "blurb": "Every right answer drives your kart further"},
     "tower":    {"label": "Tower Build", "icon": "bricks", "teams": False,
@@ -879,6 +879,10 @@ MODES = {
                  "blurb": "Collect coins and open lucky chests"},
     "boss":     {"label": "Boss Battle", "icon": "dragon", "teams": False,
                  "blurb": "The whole class fights one boss together"},
+    "snow":     {"label": "Snowball Fight", "icon": "snow", "teams": True,
+                 "blurb": "Two teams. Every right answer knocks a block off their fort"},
+    "balloon":  {"label": "Balloon Drop", "icon": "balloon", "teams": False,
+                 "blurb": "Three balloons each. Get one wrong and one pops"},
 }
 
 # Each game is played on a map the teacher picks. A map is scenery and a palette:
@@ -890,6 +894,8 @@ MAPS = {
     "tower":    [("site", "Building Site"), ("candy", "Candy Land"), ("castle", "Castle Walls")],
     "treasure": [("cave", "Cave of Coins"), ("beach", "Pirate Beach"), ("vault", "The Vault")],
     "boss":     [("lair", "Dragon Lair"), ("volcano", "Volcano"), ("ruins", "Old Ruins")],
+    "snow":     [("playground", "Playground"), ("forest", "Winter Forest"), ("peak", "Mountain Peak")],
+    "balloon":  [("fair", "Summer Fair"), ("clouds", "Above the Clouds"), ("night", "Night Sky")],
 }
 
 
@@ -900,6 +906,8 @@ def maps_for(mode):
 ARENA_SECONDS = 20         # a full energy bar, in the Laser Tag arena
 TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
+FORT_BLOCKS = 12             # tallest a snowball fort can start
+BALLOONS = 3                 # how many wrong answers a child can afford
 
 # Characters are numbers drawn by sprites.js in the browser: 12 colours x 12
 # silhouettes. One is handed out per game so no two children in the same room
@@ -986,7 +994,8 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "serverNow": now_ms(),
         "players": [{k: p.get(k) for k in ("id", "name", "avatar", "team", "score", "hp", "streak",
                                            "answered", "correct", "down", "lastDamage",
-                                           "distance", "blocks", "coins", "chest", "lastGain")}
+                                           "distance", "blocks", "coins", "chest", "lastGain",
+                                           "balloons", "hits")}
                     for p in players],
         "teams": game["teams"],
         "boss": game.get("boss"),
@@ -1032,8 +1041,8 @@ def create_game():
             "index": -1,
             "questions": questions,
             "players": {},
-            "teams": {"red": {"hp": 0, "score": 0, "name": "Crimson"},
-                      "blue": {"hp": 0, "score": 0, "name": "Cobalt"}},
+            "teams": {"red": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Crimson"},
+                      "blue": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Cobalt"}},
             "counts": {},
             "lastEvents": [],
             "createdAt": now_ms(),
@@ -1094,6 +1103,8 @@ def join_game(pin):
             "blocks": 0,        # tower build
             "coins": 0,         # treasure run
             "chest": "",
+            "balloons": BALLOONS,   # balloon drop
+            "hits": 0,              # snowball fight: blocks knocked off
             "lastGain": 0,
             "answers": {},
         }
@@ -1199,6 +1210,16 @@ def start_game(pin):
                 members = [p for p in game["players"].values() if p["team"] == team]
                 # Enough HP that a match lasts several questions even with a small class.
                 game["teams"][team]["hp"] = max(TEAM_HP_FLOOR, TEAM_HP_PER_PLAYER * len(members))
+        if game["mode"] == "snow":
+            # a fort per team, sized so a small class still gets to knock one down
+            for team in ("red", "blue"):
+                members = [p for p in game["players"].values() if p["team"] == team]
+                blocks = max(6, min(FORT_BLOCKS, 3 + len(members) * 2))
+                game["teams"][team]["blocks"] = blocks
+                game["teams"][team]["max"] = blocks
+        if game["mode"] == "balloon":
+            for p in game["players"].values():
+                p["balloons"] = BALLOONS
         if game["mode"] == "boss":
             total = max(1, len(game["questions"]))
             game["boss"] = {"hp": BOSS_HP_PER_QUESTION * total, "max": BOSS_HP_PER_QUESTION * total,
@@ -1351,6 +1372,57 @@ def score_treasure(game, player, question, ok, speed):
     game["lastEvents"].append(f"{player['name']} collected {coins}" + (f" — {chest}" if chest else ""))
 
 
+def score_snow(game, player, question, ok, speed):
+    """Red against blue, and what the class watches is the other side's fort coming down.
+
+    A team wins by knocking the last block off, not by holding the highest number,
+    so a class that fell behind early is still in it while a block remains.
+    """
+    foe = "blue" if player["team"] == "red" else "red"
+    fort = game["teams"][foe]
+    if not ok:
+        player["lastGain"] = 0
+        game["lastEvents"].append(f"{player['name']} missed")
+        return
+    # a fast answer throws harder, and a run of them throws harder still
+    power = 1 + min(player["streak"], 4) * 0.25
+    hit = min(fort["blocks"], max(1, int(round((0.6 + speed) * power))))
+    fort["blocks"] -= hit
+    gain = int(round((question.get("points") or 100) * (0.5 + 0.5 * speed)))
+    player["score"] += gain
+    player["lastGain"] = gain
+    player["hits"] = player.get("hits", 0) + hit
+    game["teams"][player["team"]]["score"] += gain
+    game["lastEvents"].append(
+        f"{player['name']} knocked {hit} block{'s' if hit > 1 else ''} off the {fort['name']} fort"
+        + ("" if fort["blocks"] else " — it is down!"))
+
+
+def score_balloon(game, player, question, ok, speed):
+    """Three balloons each, and a wrong answer pops one.
+
+    Being out has to still be worth watching, so a child with no balloons left
+    keeps answering for points — they simply cannot win it any more.
+    """
+    out = player.get("balloons", 0) <= 0
+    if not ok:
+        player["lastGain"] = 0
+        if out:
+            game["lastEvents"].append(f"{player['name']} got it wrong")
+            return
+        player["balloons"] -= 1
+        left = player["balloons"]
+        game["lastEvents"].append(
+            f"{player['name']} lost a balloon — {left} left" if left
+            else f"{player['name']} is out of balloons")
+        return
+    base = question.get("points") or 100
+    # still floating is worth more than playing on for pride
+    gain = int(round((base * 0.5 + base * 0.5 * speed) * (0.4 if out else 1)))
+    player["score"] += gain
+    player["lastGain"] = gain
+
+
 def score_boss(game, player, question, ok, speed):
     """Everyone against one boss: right answers wound it, wrong answers let it hit back."""
     boss = game.setdefault("boss", {"hp": 500, "max": 500, "name": "The Boss", "classHp": 100, "classMax": 100})
@@ -1373,6 +1445,7 @@ def score_boss(game, player, question, ok, speed):
 SCORERS = {
     "normal": score_normal, "laser": score_laser, "kart": score_kart,
     "tower": score_tower, "treasure": score_treasure, "boss": score_boss,
+    "snow": score_snow, "balloon": score_balloon,
 }
 
 
@@ -1415,8 +1488,14 @@ def answer_question(pin):
         game["lastEvents"] = game["lastEvents"][-6:]
         everyone_in = all(p["answered"] for p in game["players"].values()) and game["players"]
         boss = game.get("boss")
+        fort_down = game["mode"] == "snow" and any(
+            game["teams"][side].get("max") and game["teams"][side]["blocks"] <= 0
+            for side in ("red", "blue"))
         if game["mode"] == "boss" and boss and (boss["hp"] == 0 or boss["classHp"] == 0):
             game["state"] = "over"                      # the fight is decided either way
+            game["endsAt"] = None
+        elif fort_down:
+            game["state"] = "over"                      # the last block is the whistle
             game["endsAt"] = None
         elif everyone_in:
             game["state"] = "reveal"
@@ -1427,6 +1506,7 @@ def answer_question(pin):
                     "streak": player["streak"], "state": game["state"],
                     "distance": player.get("distance", 0), "blocks": player.get("blocks", 0),
                     "coins": player.get("coins", 0), "chest": player.get("chest", ""),
+                    "balloons": player.get("balloons", 0), "hits": player.get("hits", 0),
                     "gain": player.get("lastGain", 0)})
 
 
@@ -1459,7 +1539,15 @@ def tick_game(pin):
             game["state"] = "reveal"
             game["endsAt"] = None
             for player in game["players"].values():
-                if not player["answered"]:
-                    player["streak"] = 0
+                if player["answered"]:
+                    continue
+                player["streak"] = 0
+                # letting the clock run out cannot be the safe move: in Balloon
+                # Drop it costs a balloon, the same as answering wrongly
+                if game["mode"] == "balloon" and player.get("balloons", 0) > 0:
+                    player["balloons"] -= 1
+                    left = player["balloons"]
+                    game["lastEvents"].append(
+                        f"{player['name']} ran out of time — {left} balloon{'' if left == 1 else 's'} left")
     broadcast_game(game)
     return jsonify(public_game(game))

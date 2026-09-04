@@ -778,7 +778,7 @@ $('#present').onclick = () => {
   if (!quiz.questions.length) return toast('Add a question first', 'bad');
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eight games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.</p>
     <div class="modegrid" id="mode-list">
       <p class="tiny faint">Loading</p>
     </div>`, {
@@ -822,7 +822,7 @@ $('#present').onclick = () => {
           onclick: () => {
             box.querySelector('#pick-title').textContent = 'Pick how the class plays';
             box.querySelector('#pick-sub').innerHTML =
-              `Same quiz, six games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.`;
+              `Same quiz, eight games. Students join at <strong>${esc(location.host)}/play</strong> with the PIN.`;
             showModes(modes);
           } }, 'Back to the games'));
       }
