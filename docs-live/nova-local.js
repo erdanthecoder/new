@@ -575,31 +575,32 @@ Rules:
    * tools already produce when left alone, so it works even when the teacher
    * forgets to send it and just says "write me ten questions about the Romans".
    */
+  /* Chatbots are careless about layout and careful about a format they are shown.
+   * This asks for one line per question with the answer starred, which has
+   * nothing in it to misread — so a paste made this way always works. */
   const GEMINI_PROMPT =
-    'Write TOPIC questions for a school class aged AGE.\n\n' +
-    'Use exactly this layout, and nothing else:\n\n' +
-    '1. The question goes here?\n' +
-    'A) First option\n' +
-    'B) Second option\n' +
-    'C) Third option\n' +
-    'D) Fourth option\n' +
-    'Answer: B\n' +
-    'Explanation: one short sentence saying why.\n\n' +
-    'Then a blank line, then question 2, and so on. Four options each. ' +
-    'No introduction and no closing remarks.';
+    'Write 10 quiz questions about TOPIC, for players aged AGE.\n\n' +
+    'Give me one question per line, in exactly this format and nothing else:\n\n' +
+    'Question text? | option | *correct option | option | option\n\n' +
+    'Put a star in front of the correct option. Four options each.\n' +
+    'No numbering, no headings, no introduction, no closing remarks.\n\n' +
+    'For example:\n' +
+    'What is 2 + 2? | 3 | *4 | 5 | 6\n' +
+    'Which planet is closest to the Sun? | Venus | *Mercury | Mars | Earth';
 
   function openImportDialog() {
       Nova.modal(`
         <h2 style="margin-bottom:6px">Add questions</h2>
         <p class="muted tiny" style="margin-bottom:16px">
           Paste anything: a Quoldek share link, or the questions themselves as any chatbot wrote
-          them — Gemini, ChatGPT, Claude. The layout does not have to be tidy.
+          them — Gemini, ChatGPT, Claude. If a paste ever comes out wrong, use the prompt button
+          below: it asks for one line per question with the answer starred, which cannot be misread.
         </p>
         <div class="field">
           <textarea class="textarea" id="code" style="min-height:150px;font-size:.86rem"
                     placeholder="1. What is 7 x 8?&#10;A) 54&#10;B) 56&#10;C) 48&#10;D) 64&#10;Answer: B"></textarea>
         </div>
-        <div id="read-out" class="tiny" style="min-height:20px;margin-top:8px;color:var(--muted)"></div>
+        <div id="read-out" class="tiny readout"></div>
         <div class="row" style="margin-top:18px;gap:10px;align-items:center">
           <button class="btn ghost sm" id="copy-prompt" type="button">Copy a prompt for Gemini</button>
           <div class="grow"></div>
@@ -621,20 +622,43 @@ Rules:
 
           /* Say what was understood before anything is added, so a paste that came
            * out wrong is caught here rather than in front of a class. */
+          /* Show the questions themselves, not a count. "Read 4 questions" is no
+             comfort when one of them came out wrong, and no help at all when
+             none did: seeing what it made of the paste is what tells a teacher
+             whether to press the button. */
           const preview = () => {
             const text = area.value.trim();
-            if (!text) { readOut.textContent = ''; return; }
+            readOut.innerHTML = '';
+            if (!text) return;
             if (looksLikeCode(text)) { readOut.textContent = 'A Quoldek quiz link.'; return; }
             const read = window.NovaPaste && NovaPaste.parse(text);
             if (!read) {
-              readOut.textContent = text.split(/\n/).filter(Boolean).length > 2
-                ? 'No question with its answers in that yet — each question needs its options under it, and the answer named.'
+              const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+              readOut.innerHTML = lines.length > 2
+                ? 'I cannot find a question with its answers in that. This is the first line I looked at:'
+                  + `<div class="sawline">${Nova.esc(lines[0].slice(0, 90))}</div>`
+                  + 'Each question needs its options and the answer marked — the prompt button below asks for that.'
                 : 'Nothing readable yet — keep pasting.';
               return;
             }
             const n = read.questions.length;
-            readOut.textContent = `Read ${n} question${n === 1 ? '' : 's'}` +
-              (read.unsure ? ` — ${read.unsure} without an answer marked, so the first option is used. Check those.` : '.');
+            const head = document.createElement('div');
+            head.innerHTML = `<strong>${n} question${n === 1 ? '' : 's'}</strong>`
+              + (read.unsure ? ` — ${read.unsure} with no answer marked, so the first option is used`
+                             : ', all with an answer');
+            readOut.append(head);
+            const list = document.createElement('ol');
+            list.className = 'sawlist';
+            read.questions.slice(0, 8).forEach(q => {
+              const li = document.createElement('li');
+              if (!q.sure) li.className = 'unsure';
+              const answer = q.options.length ? q.options[q.correct] : (q.written || '');
+              li.innerHTML = `${Nova.esc(q.text.slice(0, 70))} <b>${Nova.esc(answer.slice(0, 30))}</b>`;
+              list.append(li);
+            });
+            if (n > 8) list.append(Object.assign(document.createElement('li'),
+                                                 { textContent: `and ${n - 8} more` }));
+            readOut.append(list);
           };
           area.addEventListener('input', preview);
 

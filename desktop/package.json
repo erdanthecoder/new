@@ -1,0 +1,19 @@
+{
+  "name": "quoldek",
+  "productName": "Quoldek",
+  "version": "1.0.0",
+  "description": "Quizzes everyone begs to play — hosts the game on your own computer, so it works with no internet.",
+  "main": "main.js",
+  "author": "Quoldek",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --win --x64 --dir",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "32.2.7",
+    "electron-builder": "24.13.3"
+  }
+}

@@ -301,3 +301,12 @@ body.dark .toast{color:var(--text)}
   .hide-sm{display:none !important}
   :root{--line-w:2px}
 }
+
+/* what the paste reader made of what you pasted, so a bad paste is caught here */
+.readout{min-height:20px;margin-top:10px;color:var(--muted);max-height:190px;overflow:auto}
+.readout .sawline{margin:6px 0;padding:7px 10px;border-radius:9px;background:rgba(127,127,127,.14);
+  font-family:'SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;font-size:.76rem;overflow-wrap:anywhere}
+.sawlist{margin:8px 0 0 18px;display:flex;flex-direction:column;gap:4px}
+.sawlist li{line-height:1.35}
+.sawlist li b{color:var(--mint,#12BE8E)}
+.sawlist li.unsure b{color:var(--amber,#E8A400)}

@@ -134,6 +134,57 @@
     return out.length ? { title, questions: out } : null;
   }
 
+  /* ── the strict format ───────────────────────────────
+   *
+   * One question per line, parts separated by a pipe, the right answer marked
+   * with a star. There is nothing to interpret, so it cannot be misread — which
+   * is the point: whatever a chatbot does with layout, asking it for this gives
+   * a paste that always works.
+   *
+   *   What is 2 + 2? | 3 | *4 | 5 | 6
+   *   The Earth is flat. | True | *False
+   *   Name the largest ocean. | *The Pacific
+   *
+   * A line may end with a second pipe and an explanation.
+   */
+  function fromPipes(text) {
+    const lines = String(text).split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l && l.includes('|') && !/^\|?\s*:?-{2,}/.test(l));
+    if (!lines.length) return null;
+
+    const out = [];
+    for (const line of lines) {
+      // a markdown table row arrives wrapped in pipes; the table reader has
+      // already had its turn, so strip them and carry on
+      // the star has to be read off the raw cell: tidying the text away would
+      // take the star with it, since a star is also how markdown writes italics
+      const raw = line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+      if (raw.length < 2) continue;
+      const text = plain(raw[0]);
+      if (!text) continue;
+
+      let rest = raw.slice(1);
+      let why = '';
+      // a trailing cell that is plainly a sentence about the answer, not an option
+      if (rest.length > 2 && /^(because|it |the |so )/i.test(rest[rest.length - 1])) why = plain(rest.pop());
+
+      const marked = rest.map(o => /^\*/.test(o));
+      const options = rest.map(o => plain(o.replace(/^\*+\s*/, ''))).filter(Boolean);
+      if (!options.length) continue;
+      const at = marked.indexOf(true);
+
+      if (options.length === 1) {
+        out.push({ text, options: [], written: options[0], why, sure: true });
+      } else {
+        out.push({ text, options, correct: at < 0 ? 0 : at, why, sure: at >= 0 });
+      }
+    }
+    // one line with a pipe in it is more likely to be prose than a quiz
+    return out.length && (out.length > 1 || out[0].options.length > 1)
+      ? { title: '', questions: out } : null;
+  }
+
   /* ── ordinary written-out questions ──────────────────
    *
    * There is no one layout. What every tool does have in common is a question,
@@ -405,6 +456,7 @@
     const found = (fenced && fromJson(fenced[1].trim()))
                || fromJson(raw)
                || fromTable(raw)
+               || fromPipes(fenced ? fenced[1] : raw)
                || fromProse(fenced ? fenced[1] : raw);
     if (!found) return null;
     found.unsure = found.questions.filter(q => !q.sure).length;

@@ -8,3 +8,8 @@ data/
 *service-account*.json
 serviceAccountKey.json
 .firebase/
+
+# the desktop app's own dependencies and builds
+desktop/node_modules/
+desktop/dist/
+desktop/out/
