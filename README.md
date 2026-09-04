@@ -1,6 +1,6 @@
 # Quoldek
 
-Your quiz site: **https://quoldek.web.app** (also at https://erdanthecoder.github.io/new/)
+Your quiz site: **https://quoldek.web.app** (also at https://erdanthecoder.github.io/quiznova/)
 
 Make a quiz, let the co-pilot write the questions, send the link to Google
 Classroom, or run it live on the projector while the class plays on their phones.
