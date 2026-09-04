@@ -42,7 +42,15 @@
   });
 
   const allQuizzes = () => read(KEY, {});
-  const saveQuizzes = (all) => write(KEY, all);
+  const saveQuizzes = (all) => {
+    write(KEY, all);
+    // a signed-in teacher gets a copy kept for them; see account.js
+    if (window.NovaAccount) window.NovaAccount.pushSoon();
+  };
+
+  /* account.js needs to read and replace the whole set to merge the two copies. */
+  Nova.allQuizzes = () => allQuizzes();
+  Nova.replaceQuizzes = (all) => write(KEY, all);
   const allResponses = () => read(RESP, {});
 
   /* ── marking ───────────────────────────────────────── */
@@ -127,7 +135,9 @@
   Nova.importPasted = (text) => {
     const read = window.NovaPaste && NovaPaste.parse(text);
     if (!read || !read.questions.length) {
-      throw new Error('I could not find any questions in that. Paste the questions themselves, or a Quoldek link.');
+      // say what was expected, because "it did not work" is no help at all
+      throw new Error('I could not find a question with its answers in that. Each question needs '
+        + 'its options under it and the answer named — try the "Copy a prompt for Gemini" button.');
     }
     const quiz = newQuiz(read.title || 'Pasted quiz');
     quiz.questions = read.questions.map(q => {
@@ -616,7 +626,12 @@ Rules:
             if (!text) { readOut.textContent = ''; return; }
             if (looksLikeCode(text)) { readOut.textContent = 'A Quoldek quiz link.'; return; }
             const read = window.NovaPaste && NovaPaste.parse(text);
-            if (!read) { readOut.textContent = 'Nothing readable yet — keep pasting.'; return; }
+            if (!read) {
+              readOut.textContent = text.split(/\n/).filter(Boolean).length > 2
+                ? 'No question with its answers in that yet — each question needs its options under it, and the answer named.'
+                : 'Nothing readable yet — keep pasting.';
+              return;
+            }
             const n = read.questions.length;
             readOut.textContent = `Read ${n} question${n === 1 ? '' : 's'}` +
               (read.unsure ? ` — ${read.unsure} without an answer marked, so the first option is used. Check those.` : '.');
@@ -683,7 +698,64 @@ Rules:
     new MutationObserver(addCard).observe(grid, { childList: true });
   }
 
-  function mountAll() { mountKeyButton(); mountImportButton(); }
+  /* Signing in is offered, never demanded: the button says what it is for, and
+   * everything on the page works exactly the same without it. */
+  function mountAccountButton() {
+    const top = document.querySelector('.topbar-inner');
+    if (!top || !window.NovaAccount || document.getElementById('acct')) return;
+    const newBtn = document.getElementById('top-new');
+
+    const button = document.createElement('button');
+    button.id = 'acct';
+    button.className = 'btn sm';
+    top.insertBefore(button, newBtn || null);
+
+    const paint = (user) => {
+      if (user) {
+        button.innerHTML = (user.photo
+            ? `<img src="${user.photo.replace(/"/g, '')}" alt="" width="20" height="20" style="border-radius:50%">`
+            : Sprite.icon('spark', 16)) +
+          ` <span class="hide-sm">${Nova.esc(user.name.split(' ')[0])}</span>`;
+        button.title = `Signed in as ${user.email}. Your quizzes are saved to this account.`;
+      } else {
+        button.innerHTML = Sprite.icon('key', 16) + ' Sign in';
+        button.title = 'Sign in with Google so your quizzes follow you to another computer';
+      }
+    };
+    NovaAccount.onChange(paint);
+
+    button.onclick = () => {
+      const user = NovaAccount.user;
+      if (!user) {
+        button.disabled = true;
+        NovaAccount.signIn()
+          .then(() => Nova.toast('Signed in. Your quizzes are saved to this account.', 'good'))
+          .catch(err => Nova.toast(err.message || 'Could not sign in.', 'bad'))
+          .finally(() => { button.disabled = false; });
+        return;
+      }
+      Nova.modal(`
+        <h2 style="margin-bottom:6px">Signed in</h2>
+        <p class="muted tiny" style="margin-bottom:18px">
+          ${Nova.esc(user.email)}<br><br>
+          Your quizzes are kept for this account, so they are here on any computer you sign in on.
+          They stay in this browser too, so nothing is lost if you sign out.
+        </p>
+        <div class="row" style="justify-content:flex-end;gap:10px">
+          <button class="btn ghost" id="acct-close">Close</button>
+          <button class="btn danger" id="acct-out">Sign out</button>
+        </div>`, {
+        onMount(box, close) {
+          box.querySelector('#acct-close').onclick = close;
+          box.querySelector('#acct-out').onclick = () => {
+            NovaAccount.signOut().then(() => { close(); Nova.toast('Signed out. Your quizzes are still in this browser.'); });
+          };
+        }
+      });
+    };
+  }
+
+  function mountAll() { mountKeyButton(); mountImportButton(); mountAccountButton(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountAll);
   else mountAll();
 

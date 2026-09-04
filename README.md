@@ -1,22 +1,28 @@
 # Quoldek
 
-Your quiz site: **https://quoldek.web.app** (also at https://erdanthecoder.github.io/quiznova/)
+Your quiz site: **https://quoldek.web.app** — everyone joins at **https://playquoldek.web.app**
+(also at https://erdanthecoder.github.io/quiznova/)
 
-Make a quiz, let the co-pilot write the questions, send the link to Google
-Classroom, or run it live on the projector while the class plays on their phones.
+Make a quiz, or paste in questions any chatbot wrote for you. Play it on the big
+screen while everyone else answers on their own phone — a class, or the family
+round the table. Or send the link to Google Classroom and let it mark itself.
 
-## Live game modes
+## Live games
 
-| Mode | What happens |
+| Game | What happens |
 |---|---|
-| 🏆 Classic | Fastest correct answer scores the most points |
-| 🔫 Laser Tag | Two teams, right answers fire, wrong answers cost shield |
-| 🏎️ Kart Race | Every correct answer drives your kart down the track |
-| 🏗️ Tower Build | Stack a block per correct answer, wrong answers topple one |
-| 💎 Treasure Run | Answer to open chests and collect gems |
-| 🐉 Boss Battle | The whole class attacks one boss together |
+| Classic | The fastest right answer scores the most |
+| Laser Tag | One arena. Move, shoot, and answer when your energy runs out |
+| Kart Race | Every right answer drives your kart further |
+| Tower Build | Stack a block for each right answer |
+| Treasure Run | Collect coins and open lucky chests |
+| Boss Battle | Everyone fights one boss together |
+| Snowball Fight | Two teams. Every right answer knocks a block off their fort |
+| Balloon Drop | Three balloons each. Get one wrong and one pops |
 
-Hit **Host live**, put the PIN on the board, and students join at the same site.
+Each game has three maps to pick from, and everyone chooses their own character.
+
+Hit **Host live**, put the PIN on the big screen, and everyone joins at **playquoldek.web.app**.
 The game runs through your Supabase project, so phones stay in sync with no server
 to keep awake.
 

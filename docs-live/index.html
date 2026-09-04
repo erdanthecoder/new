@@ -6,10 +6,10 @@
 <title>Quoldek live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="icon" type="image/svg+xml" href="/logo.svg">
-<link rel="apple-touch-icon" href="/logo.svg">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
 <meta name="theme-color" content="#7C4DFF">
-<link rel="stylesheet" href="/nova.css">
+<link rel="stylesheet" href="nova.css?v=cf06e135">
 <style>
 .stage{max-width:1300px;margin:0 auto;padding:24px 22px 60px}
 
@@ -335,7 +335,7 @@
 
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="/quiz"><div class="brand-mark" id="brand-mark"></div><div>Quoldek<small id="qt">live game</small></div></a>
+    <a class="brand" href="https://quoldek.web.app/"><div class="brand-mark" id="brand-mark"></div><div>Quoldek<small id="qt">live game</small></div></a>
     <div class="grow"></div>
     <span class="chip" id="conn"><span class="dot"></span> live</span>
     <span class="chip" id="count">0 players</span>
@@ -348,12 +348,22 @@
 
 <main class="stage" id="stage"></main>
 
-<script src="/sprites.js"></script>
-<script src="/music.js"></script>
-<script src="/arena.js"></script>
-<script src="/nova.js"></script>
-<script src="/qr.js"></script>
+<script src="sprites.js?v=fb42e39c"></script>
+<script src="music.js?v=a2d2d080"></script>
+
+<script src="nova.js?v=30a2cc36"></script>
+<script src="quizbank.js?v=f18e8cbc"></script>
+<script src="realtime.js?v=75e1623c"></script>
+<script src="arena.js?v=134a5fcf"></script>
+<script src="paste.js?v=f6488874"></script>
+<script src="live.js?v=cf48f488"></script>
+<script src="nova-local.js?v=2776bed5"></script>
+<script src="account.js?v=ff127e8f"></script>
+<script src="qr.js?v=b8307384"></script>
 <script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, copy, modal } = Nova;
 const pin = qs('pin');
 const hostToken = store.get('host:' + pin);
@@ -361,12 +371,15 @@ let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 
 /* Where students join. Kept as two small functions because the GitHub Pages build
  * rewrites them to folder-relative addresses — everything else stays identical. */
-const joinUrl = () => location.origin + '/play?pin=' + pin;
-const joinLabel = () => location.host + '/play';
+const joinUrl = () => (window.QUOLDEK_PLAY
+  ? 'https://' + window.QUOLDEK_PLAY + '/?pin=' + pin
+  : location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin);
+const joinLabel = () => (window.QUOLDEK_PLAY
+  || joinUrl().replace(/^https?:\/\//, '').replace(/\?.*$/, ''));
 
 const mark = document.getElementById('brand-mark');
 if (mark) mark.innerHTML = Sprite.logo(42);
-if (!pin) location.href = '/quiz';
+if (!pin) location.href = 'https://quoldek.web.app/';
 if (!hostToken) toast('You are watching this game. Only the teacher device can control it.', 'bad');
 
 /* ── the music ─────────────────────────────────────
@@ -419,7 +432,7 @@ function connect() {
 
 function fail() {
   $('#stage').innerHTML = `<div class="card pad empty"><span class="em">${Sprite.icon('ghost', 48)}</span>
-    That game is no longer running.<br><a class="btn sm" style="margin-top:16px" href="/quiz">Back to quizzes</a></div>`;
+    That game is no longer running.<br><a class="btn sm" style="margin-top:16px" href="https://quoldek.web.app/">Back to quizzes</a></div>`;
 }
 
 function apply(state) {

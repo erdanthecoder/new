@@ -291,7 +291,7 @@ function askPin() {
       $('#pin').value = ''; $('#pin').focus();
       return toast('No game with that PIN. Check the board.', 'bad');
     }
-    pin = v; history.replaceState(null, '', 'play.html?pin=' + pin);
+    pin = v; history.replaceState(null, '', './?pin=' + pin);
     me = store.get('player:' + pin) || null;
     start();
   };
@@ -341,7 +341,7 @@ function askName() {
       </div>
 
       <button class="btn primary lg block" style="margin-top:18px" id="join">Join the game</button>
-      <p class="tiny faint" style="margin-top:10px;text-align:center">Wrong PIN? <a href="play.html" style="text-decoration:underline">Change it</a></p>
+      <p class="tiny faint" style="margin-top:10px;text-align:center">Wrong PIN? <a href="./" style="text-decoration:underline">Change it</a></p>
     </div>`;
 
   const pv = $('#pv'), tabsBox = $('#tabs'), choices = $('#choices');
@@ -403,7 +403,7 @@ function connect() {
   api(`/games/${pin}`).then(apply).catch(() => {
     store.del('player:' + pin);
     $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">${Sprite.icon('ghost', 44)}</span>
-      That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="play.html">Try another PIN</a></div>`;
+      That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="./">Try another PIN</a></div>`;
   });
   stream(`/games/${pin}/events`, (msg) => { if (msg.data && msg.data.pin) apply(msg.data); }, `/games/${pin}`);
 }
@@ -927,7 +927,7 @@ function overCard() {
       : game.mode === 'snow' ? `${p.hits || 0} blocks`
       : String(p.score)))));
   card.append(lb);
-  card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: 'play.html' }, 'Play another game'));
+  card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: './' }, 'Play another game'));
   return card;
 }
 

@@ -47,7 +47,81 @@
     '<circle cx="32" cy="9" r="8"/><circle cx="16" cy="20" r="6.5"/><circle cx="48" cy="20" r="6.5"/>'
   ];
 
-  const COMBINATIONS = SKIN.length * CREST.length;
+  /* Eyes, drawn in the head's own coordinates. Two eyes are the difference
+   * between a shape and a character, so this is the part worth choosing. */
+  const EYES = [
+    // wide open
+    '<ellipse cx="25.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/><ellipse cx="38.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
+    '<circle cx="26.3" cy="25.4" r="2.7" fill="INK"/><circle cx="39.3" cy="25.4" r="2.7" fill="INK"/>' +
+    '<circle cx="27.4" cy="24.2" r="1.05" fill="#fff"/><circle cx="40.4" cy="24.2" r="1.05" fill="#fff"/>',
+    // one big eye
+    '<circle cx="32" cy="24.5" r="7.4" fill="#fff"/><circle cx="32.8" cy="25.4" r="4" fill="INK"/>' +
+    '<circle cx="34.4" cy="23.6" r="1.5" fill="#fff"/>',
+    // sleepy, half closed
+    '<ellipse cx="25.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/><ellipse cx="38.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
+    '<circle cx="26" cy="26" r="2.6" fill="INK"/><circle cx="39" cy="26" r="2.6" fill="INK"/>' +
+    '<path d="M20.5 22.5 q5-3 10 0 M33.5 22.5 q5-3 10 0" stroke="INK" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
+    // happy, closed and curved
+    '<path d="M21 25.5 q4.5-6 9 0 M34 25.5 q4.5-6 9 0" stroke="INK" stroke-width="3" fill="none" stroke-linecap="round"/>',
+    // three eyes
+    '<circle cx="24" cy="26" r="4" fill="#fff"/><circle cx="40" cy="26" r="4" fill="#fff"/><circle cx="32" cy="19.5" r="4.4" fill="#fff"/>' +
+    '<circle cx="24.6" cy="26.6" r="2.2" fill="INK"/><circle cx="40.6" cy="26.6" r="2.2" fill="INK"/><circle cx="32.6" cy="20.2" r="2.4" fill="INK"/>',
+    // wound up
+    '<ellipse cx="25.5" cy="24.5" rx="5" ry="5.6" fill="#fff"/><ellipse cx="38.5" cy="24.5" rx="5" ry="5.6" fill="#fff"/>' +
+    '<circle cx="26.6" cy="25.6" r="2.4" fill="INK"/><circle cx="39.6" cy="25.6" r="2.4" fill="INK"/>' +
+    '<path d="M20 18 l9 3 M44 18 l-9 3" stroke="INK" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+  ];
+
+  /* Mouths. */
+  const MOUTHS = [
+    '<path d="M27 33.5 q5 4.5 10 0" stroke="INK" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
+    '<path d="M26 33 q6 7 12 0 z" fill="INK"/><path d="M28.5 33 h7" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>',
+    '<circle cx="32" cy="34.5" r="3.2" fill="INK"/>',
+    '<path d="M26 34.5 h12" stroke="INK" stroke-width="2.6" stroke-linecap="round"/>',
+    // a grin with a tooth
+    '<path d="M25.5 32.5 q6.5 7.5 13 0 z" fill="INK"/><path d="M30 32.5 h4 v3.2 z" fill="#fff"/>',
+    // a small smile, off to one side
+    '<path d="M28 34 q4.5 3.5 9-1" stroke="INK" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
+  ];
+
+  /* A pattern on the body, drawn over it and clipped to it. */
+  const PATTERNS = [
+    '',
+    // spots
+    '<circle cx="24" cy="44" r="3.2"/><circle cx="40" cy="47" r="2.4"/><circle cx="32" cy="52" r="2.8"/>',
+    // stripes
+    '<rect x="16" y="40" width="32" height="3.4" rx="1.7"/><rect x="16" y="47" width="32" height="3.4" rx="1.7"/>',
+    // a belly patch
+    '<ellipse cx="32" cy="47" rx="9.5" ry="8"/>'
+  ];
+
+  const COLOURS_N = SKIN.length, CRESTS_N = CREST.length,
+        EYES_N = EYES.length, MOUTHS_N = MOUTHS.length, PATTERNS_N = PATTERNS.length;
+
+  /* A character is one number, so it is stored and passed around exactly as it
+   * was before this file learned about eyes. The parts are packed smallest-first,
+   * which means every character made before the extra parts existed still decodes
+   * to what it looked like then. */
+  const COMBINATIONS = COLOURS_N * CRESTS_N;            // colour and shape: what tells two apart
+  const ALL = COMBINATIONS * EYES_N * MOUTHS_N * PATTERNS_N;
+
+  function unpack(index) {
+    let n = Math.abs(Math.round(Number(index) || 0)) % ALL;
+    const colour = n % COLOURS_N; n = Math.floor(n / COLOURS_N);
+    const shape = n % CRESTS_N;   n = Math.floor(n / CRESTS_N);
+    const eyes = n % EYES_N;      n = Math.floor(n / EYES_N);
+    const mouth = n % MOUTHS_N;   n = Math.floor(n / MOUTHS_N);
+    return { colour, shape, eyes, mouth, pattern: n % PATTERNS_N };
+  }
+  const pack = ({ colour = 0, shape = 0, eyes = 0, mouth = 0, pattern = 0 }) => {
+    const w = (v, m) => ((Math.round(v) % m) + m) % m;
+    return w(colour, COLOURS_N)
+      + COLOURS_N * (w(shape, CRESTS_N)
+      + CRESTS_N * (w(eyes, EYES_N)
+      + EYES_N * (w(mouth, MOUTHS_N)
+      + MOUTHS_N * w(pattern, PATTERNS_N))));
+  };
+
   let uid = 0;
 
   /**
@@ -55,23 +129,26 @@
    * `index` is stored with the player, so their character never changes.
    */
   function face(index, size = 48) {
-    const n = Math.abs(Math.round(Number(index) || 0));
-    const base = SKIN[n % SKIN.length];
-    const crest = CREST[Math.floor(n / SKIN.length) % CREST.length];
+    const part = unpack(index);
+    const base = SKIN[part.colour];
+    const crest = CREST[part.shape];
     const deep = shade(base, -0.3);
     const id = 'sp' + (++uid);
+    const ink = (svg) => svg.split('INK').join(INK);
     return '<svg class="face-svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true">' +
       '<defs>' +
         '<linearGradient id="' + id + 'b" x1="0" y1="0" x2="0" y2="1">' +
           '<stop offset="0" stop-color="' + shade(base, 0.26) + '"/><stop offset="1" stop-color="' + base + '"/></linearGradient>' +
         '<linearGradient id="' + id + 'h" x1="0" y1="0" x2="0" y2="1">' +
           '<stop offset="0" stop-color="' + shade(base, 0.44) + '"/><stop offset="1" stop-color="' + base + '"/></linearGradient>' +
+        // the pattern is drawn over the body and cut to its outline
+        '<clipPath id="' + id + 'c"><path d="M32 27 c11 0 16 8 16 16 v3 c0 6-7 9-16 9 s-16-3-16-9 v-3 c0-8 5-16 16-16z"/></clipPath>' +
       '</defs>' +
       // the tallest silhouettes reach past the top of the box, so the whole
       // character is scaled to sit inside it
       '<g transform="translate(32,32) scale(.86) translate(-32,-32)">' +
       '<ellipse cx="32" cy="59.5" rx="17" ry="3.2" fill="rgba(0,0,0,.16)"/>' +
-      // the silhouette is what tells two children apart across a classroom, so it
+      // the silhouette is what tells two characters apart across a room, so it
       // is pushed out past the head rather than tucked behind it
       '<g fill="' + deep + '" color="' + deep + '" transform="translate(32,26) scale(1.26,1.18) translate(-32,-26) translate(0,-5)">' + crest + '</g>' +
       '<path d="M22 52 h7 v6 a3.5 3.5 0 0 1-7 0z" fill="' + deep + '"/>' +
@@ -79,17 +156,15 @@
       '<rect x="9" y="34" width="8" height="19" rx="4" fill="' + deep + '" transform="rotate(-14 13 43)"/>' +
       '<rect x="47" y="34" width="8" height="19" rx="4" fill="' + deep + '" transform="rotate(14 51 43)"/>' +
       '<path d="M32 27 c11 0 16 8 16 16 v3 c0 6-7 9-16 9 s-16-3-16-9 v-3 c0-8 5-16 16-16z" fill="url(#' + id + 'b)"/>' +
-      '<ellipse cx="32" cy="47" rx="9" ry="7" fill="rgba(255,255,255,.34)"/>' +
+      (PATTERNS[part.pattern]
+        ? '<g clip-path="url(#' + id + 'c)" fill="' + shade(base, -0.22) + '">' + PATTERNS[part.pattern] + '</g>'
+        : '') +
+      '<ellipse cx="32" cy="47" rx="9" ry="7" fill="rgba(255,255,255,.28)"/>' +
       '<circle cx="32" cy="26" r="18" fill="url(#' + id + 'h)"/>' +
       '<ellipse cx="20" cy="32" rx="4" ry="2.6" fill="rgba(0,0,0,.09)"/>' +
       '<ellipse cx="44" cy="32" rx="4" ry="2.6" fill="rgba(0,0,0,.09)"/>' +
-      '<ellipse cx="25.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
-      '<ellipse cx="38.5" cy="24.5" rx="4.6" ry="5.2" fill="#fff"/>' +
-      '<circle cx="26.3" cy="25.4" r="2.7" fill="' + INK + '"/>' +
-      '<circle cx="39.3" cy="25.4" r="2.7" fill="' + INK + '"/>' +
-      '<circle cx="27.4" cy="24.2" r="1.05" fill="#fff"/>' +
-      '<circle cx="40.4" cy="24.2" r="1.05" fill="#fff"/>' +
-      '<path d="M27 33.5 q5 4.5 10 0" stroke="' + INK + '" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      ink(EYES[part.eyes]) +
+      ink(MOUTHS[part.mouth]) +
       '</g>' +
     '</svg>';
   }
@@ -101,9 +176,17 @@
   const STRIDE = 13;
   const nth = (k) => (k * STRIDE) % COMBINATIONS;
 
-  /** The first character no one in this game has taken. */
+  /* Two characters are told apart across a room by colour and silhouette, not by
+   * which mouth they have, so that pair is what must be unique — everything else
+   * is a child's own business and may be shared freely. */
+  const looksLike = (index) => {
+    const p = unpack(index);
+    return p.colour + COLOURS_N * p.shape;
+  };
+
+  /** The first character whose colour and shape no one in this game has taken. */
   function freeFace(taken) {
-    const used = new Set((taken || []).map(Number));
+    const used = new Set((taken || []).map(looksLike));
     for (let k = 0; k < COMBINATIONS; k++) if (!used.has(nth(k))) return nth(k);
     return nth(Math.floor(Math.random() * COMBINATIONS));
   }
@@ -214,6 +297,12 @@
    * One flat style: 24x24, filled, no strokes to go thin when scaled down. */
   const ICON = {
     play:     '<path d="M8 5.5v13l11-6.5z"/>',
+    sound:    '<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+              '<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11" stroke="currentColor" ' +
+              'stroke-width="2" fill="none" stroke-linecap="round"/>',
+    quiet:    '<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+              '<path d="M15.5 9.5l5 5M20.5 9.5l-5 5" stroke="currentColor" stroke-width="2" ' +
+              'fill="none" stroke-linecap="round"/>',
     snow:     '<circle cx="12" cy="12" r="5.5"/>' +
               '<g stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
               '<path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2.2 2.2M16.8 16.8L19 19M19 5l-2.2 2.2M7.2 16.8L5 19"/></g>',
@@ -254,6 +343,45 @@
            `${colour ? ` style="color:${colour}"` : ''} fill="currentColor">${body}</svg>`;
   }
 
+  /* ── the logo ─────────────────────────────────────────
+   *
+   * A Q whose counter is a play button: the letter says which site this is, the
+   * triangle says what you do here, and they are the same shape rather than two
+   * things stuck together. It is drawn, not typed, so it is the same on every
+   * device, and it survives being shrunk to a browser tab — which is where a
+   * mark actually has to work.
+   *
+   *   Sprite.logo(size)               the badge, for a tab or an app icon
+   *   Sprite.logo(size, {flat:true})  the mark alone, no badge, for dark bars
+   */
+  function logo(size = 40, opts = {}) {
+    const id = 'lg' + (++uid);
+    const flat = !!opts.flat;
+    const ink = opts.colour || '#fff';
+    const a = opts.from || '#7C4DFF', b = opts.to || '#2BA8FF';
+    // the ring is drawn as one path with an even-odd hole, so it stays a ring at
+    // any size instead of a stroke that thins out when scaled
+    const ring =
+      '<path fill-rule="evenodd" d="M45 9.25a33.75 33.75 0 1 1-.01 0z ' +
+                                   'M45 25.75a17.25 17.25 0 1 0 .01 0z"/>' +
+      '<rect x="55" y="52" width="14" height="30" rx="7" transform="rotate(-42 62 67)"/>' +
+      '<path d="M39 34 l18.7 11 -18.7 11z"/>';
+    const body = flat
+      ? `<g fill="${ink}">${ring}</g>`
+      : `<rect x="3" y="3" width="90" height="90" rx="26" fill="url(#${id}g)" stroke="#0A0616" stroke-width="4"/>` +
+        `<path d="M9 30a20 20 0 0 1 20-20h38a20 20 0 0 1 20 20v2c-20-10-58-10-78 4z" fill="#fff" opacity=".14"/>` +
+        `<g fill="url(#${id}s)">${ring}</g>`;
+    return '<svg class="logo-svg" viewBox="0 0 96 96" width="' + size + '" height="' + size + '" aria-hidden="true">' +
+      (flat ? '' :
+        '<defs>' +
+          `<linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1">` +
+            `<stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>` +
+          `<linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1">` +
+            '<stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#E6E9FF"/></linearGradient>' +
+        '</defs>') +
+      body + '</svg>';
+  }
+
   /**
    * Just the silhouette, on its own and filling the box.
    *
@@ -271,19 +399,15 @@
       '<g fill="' + paint + '" color="' + paint + '">' + body + '</g></svg>';
   }
 
-  /* A character is a colour and a silhouette: index = colour + 12 x shape.
-   * The join screen needs both halves separately so a child can change one
-   * without losing the other. */
-  const COLOURS = SKIN.length, SHAPES = CREST.length;
-  const combine = (colour, shape) =>
-    ((shape % SHAPES) + SHAPES) % SHAPES * COLOURS + ((colour % COLOURS) + COLOURS) % COLOURS;
-  const partsOf = (index) => {
-    const n = Math.abs(Math.round(Number(index) || 0)) % COMBINATIONS;
-    return { colour: n % COLOURS, shape: Math.floor(n / COLOURS) % SHAPES };
-  };
+  /* The join screen changes one part at a time, so it needs them separately. */
+  const COLOURS = COLOURS_N, SHAPES = CRESTS_N;
+  const combine = (colour, shape, rest) => pack(Object.assign({ colour, shape }, rest || {}));
+  const partsOf = unpack;
 
-  global.Sprite = { face, icon, scene, crest, freeFace, COMBINATIONS, COLOURS, SHAPES,
-                    palette: SKIN.slice(), combine, partsOf,
+  global.Sprite = { face, icon, scene, crest, logo, freeFace, looksLike,
+                    COMBINATIONS, ALL, COLOURS, SHAPES,
+                    EYES: EYES_N, MOUTHS: MOUTHS_N, PATTERNS: PATTERNS_N,
+                    palette: SKIN.slice(), combine, partsOf, pack, unpack,
                     names: Object.keys(ICON), scenes: Object.keys(SCENE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 

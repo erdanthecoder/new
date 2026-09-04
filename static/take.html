@@ -6,6 +6,9 @@
 <title>Quoldek quiz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="apple-touch-icon" href="/logo.svg">
+<meta name="theme-color" content="#7C4DFF">
 <link rel="stylesheet" href="/nova.css">
 <style>
 .shell{max-width:740px;margin:0 auto;padding:28px 20px 90px}
@@ -68,7 +71,7 @@ function paintIcons(root = document) {
     node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
   });
   const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
-  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.logo(42);
 }
 document.addEventListener('DOMContentLoaded', () => paintIcons());
 paintIcons();

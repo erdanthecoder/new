@@ -6,6 +6,9 @@
 <title>Quoldek</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="apple-touch-icon" href="/logo.svg">
+<meta name="theme-color" content="#7C4DFF">
 <link rel="stylesheet" href="/nova.css">
 <style>
 .hero{padding:56px 0 40px;position:relative;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:center}
@@ -105,10 +108,11 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <main class="wrap">
   <section class="hero fade-up">
     <div>
-      <span class="eyebrow">Made for primary classrooms</span>
-      <h1>Quizzes your class <span class="pop">begs</span> to play.</h1>
-      <p class="lede">Write a quiz in minutes, let the co-pilot draft the questions, then send it to Google
-        Classroom. The link carries the whole quiz, so students need no account and nothing to install.</p>
+      <span class="eyebrow">For classrooms and kitchen tables</span>
+      <h1>Quizzes everyone <span class="pop">begs</span> to play.</h1>
+      <p class="lede">Write a quiz in minutes, or let the co-pilot draft the questions. Then play it together —
+        a class on their phones, or the whole family round the table. The link carries the whole quiz, so
+        nobody needs an account and there is nothing to install.</p>
       <div class="hero-actions">
         <button class="btn primary lg" id="hero-new">Create a quiz</button>
         <div class="join-box">
@@ -177,7 +181,7 @@ function paintIcons(root = document) {
     node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
   });
   const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
-  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.logo(42);
 }
 document.addEventListener('DOMContentLoaded', () => { paintIcons(); showcase(); });
 
@@ -263,7 +267,7 @@ async function newQuiz() {
 async function hostGame(q) {
   modal(`
     <h2 style="margin-bottom:6px">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px">“${esc(q.title)}” on the board, students on their own devices with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px">“${esc(q.title)}” on the big screen, everyone else on their own device with the PIN.</p>
     <div class="modegrid" id="mode-list">
       <p class="tiny faint">Loading</p>
     </div>
@@ -322,7 +326,7 @@ function share(q) {
 function removeQuiz(q) {
   const close = modal(`
     <h2 style="margin-bottom:6px">Delete “${esc(q.title)}”?</h2>
-    <p class="muted" style="margin-bottom:20px">The quiz and everything students sent back go with it. This cannot be undone.</p>
+    <p class="muted" style="margin-bottom:20px">The quiz and every answer sent back go with it. This cannot be undone.</p>
     <div class="row" style="justify-content:flex-end;gap:10px">
       <button class="btn" id="no">No, keep it</button>
       <button class="btn danger" id="yes">Yes, delete</button>
@@ -359,7 +363,7 @@ api('/ai/status').then(s => {
 api('/status').then(s => {
   const pill = $('#store-pill');
   const look = { browser: ['live', 'Saved in this browser',
-                   'Quizzes are stored on this device. Share links carry the quiz inside the link, so students need nothing.'],
+                   'Quizzes are stored on this device. Share links carry the quiz inside the link, so nobody else needs anything.'],
                  database: ['live', 'Saved to your database',
                    'Quizzes live in Postgres. They survive the site sleeping or being redeployed.'],
                  server: ['warn', 'Saved on this server',

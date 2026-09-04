@@ -135,22 +135,46 @@
   }
 
   /* ── ordinary written-out questions ──────────────────
-   * The layout every chatbot falls back to:
    *
-   *   1. What is the capital of France?
-   *   A) Rome   B) Paris   C) Madrid   D) Berlin
-   *   Answer: B
-   *   Because ...
+   * There is no one layout. What every tool does have in common is a question,
+   * then a short run of options marked in order, then the answer named somehow.
+   * So that is what this looks for, rather than a format.
    */
-  const NUMBERED = /^\s*(?:q(?:uestion)?\s*)?(\d{1,3})\s*[.)\]:-]\s+(.*)$/i;
-  const OPTION = /^\s*\(?([a-j])\)?\s*[.):-]\s+(.*)$/i;
-  const ANSWER = /^\s*(?:\*\*)?(?:correct\s+)?answer\s*(?:key)?\s*(?:\*\*)?\s*[:.\-]\s*(.+)$/i;
-  const WHY = /^\s*(?:\*\*)?(?:explanation|why|because|reason)(?:\*\*)?\s*[:.\-]\s*(.+)$/i;
+  const NUMBERED = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[.)\]:-]\s+(.*)$/i;
+  const HEADING  = /^#{1,6}\s*(?:q(?:uestion)?\s*)?(\d{1,3})?\s*[.):-]?\s*(.*)$/i;
+  const QPREFIX  = /^q(?:uestion)?\s*\d*\s*[:.)-]\s*(.+)$/i;
+  const ANSWER   = /^(?:\*\*)?(?:the\s+)?(?:correct\s+)?(?:answer|ans|solution|key|correct)\b\s*(?:choice|option|is)?\s*(?:\*\*)?\s*[:.\-–]\s*(.+)$/i;
+  const WHY      = /^(?:\*\*)?(?:explanation|why|because|reason|note)(?:\*\*)?\s*[:.\-–]\s*(.+)$/i;
+  const KEYHEAD  = /^(?:\*\*)?answers?(?:\s*key)?(?:\*\*)?\s*:?\s*$/i;
+
+  /* An option marker: a letter or a number followed by a bracket, dot or colon,
+   * or simply a bullet. The marker's position in its run is what matters, not
+   * what the marker says. */
+  const OPTION = /^\(?([a-j]|\d{1,2})\)?\s*[.):\-]\s+(.+)$/i;
+  const BULLET = /^[-*•·]\s+(.+)$/;
+
+  function optionOf(line) {
+    const bullet = line.match(BULLET);
+    if (bullet) {
+      // a bullet may still carry a letter: "- A) Rome"
+      const inner = bullet[1].match(OPTION);
+      return inner ? { mark: inner[1].toLowerCase(), text: inner[2] } : { mark: null, text: bullet[1] };
+    }
+    const m = line.match(OPTION);
+    return m ? { mark: m[1].toLowerCase(), text: m[2] } : null;
+  }
+
+  const markIndex = (mark) => {
+    if (mark === null) return null;
+    const letter = LETTERS.indexOf(mark);
+    if (letter >= 0) return letter;
+    const n = Number(mark);
+    return Number.isFinite(n) ? n - 1 : null;   // numbered options start at 1
+  };
 
   /* Chatbots wrap headings in ** and put bullets in front of options. Strip that
    * before matching, or "**1. Question**" never reads as question one. */
   const undress = (line) => line.trim()
-    .replace(/^[-*•·]\s+/, '')
     .replace(/\*\*/g, '')
     .replace(/^_+|_+$/g, '')
     .trim();
@@ -168,12 +192,59 @@
     return found.length >= 2 ? found : [];
   }
 
+  /* A table of questions, which is what a tool produces when asked for one
+   * "in a table". The header says which column is which. */
+  function fromTable(text) {
+    const rows = String(text).split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.startsWith('|') && l.endsWith('|'))
+      .map(l => l.slice(1, -1).split('|').map(c => plain(c)));
+    if (rows.length < 2) return null;
+    const head = rows[0].map(h => h.toLowerCase());
+    const qAt = head.findIndex(h => /question|prompt/.test(h));
+    const aAt = head.findIndex(h => /^answer|correct/.test(h));
+    if (qAt < 0 || aAt < 0) return null;
+    const whyAt = head.findIndex(h => /explanation|why|reason/.test(h));
+    const optAt = head.map((h, i) => (i !== qAt && i !== aAt && i !== whyAt && h ? i : -1)).filter(i => i >= 0);
+
+    const out = [];
+    for (const row of rows.slice(1)) {
+      if (row.every(c => /^-{2,}$|^:?-+:?$|^$/.test(c))) continue;   // the ---- separator line
+      const text = row[qAt];
+      if (!text) continue;
+      const options = optAt.map(i => row[i]).filter(Boolean);
+      const at = options.length ? resolveAnswer(row[aAt], options) : -1;
+      if (options.length) out.push({ text, options, correct: at < 0 ? 0 : at, why: row[whyAt] || '', sure: at >= 0 });
+      else if (row[aAt]) out.push({ text, options: [], written: row[aAt], why: row[whyAt] || '', sure: true });
+    }
+    return out.length ? { title: '', questions: out } : null;
+  }
+
   function fromProse(text) {
     const lines = String(text).split(/\r?\n/);
     const out = [];
-    let cur = null;
+    let cur = null, blank = true;
+
+    /* Is the line at `i` the start of a run of options rather than a question?
+     * "1. What is 3+4?" followed by "1. six  2. seven" looks identical to the
+     * options until you look at what comes after it: a run of two or more
+     * markers counting up in order is an option list, and one on its own is not.
+     */
+    const dressed = lines.map(undress);
+    const runFrom = (i) => {
+      let n = 0;
+      for (let k = i; k < dressed.length; k++) {
+        const line = dressed[k];
+        if (!line) break;
+        const o = optionOf(line);
+        if (!o || markIndex(o.mark) !== n) break;
+        n++;
+      }
+      return n;
+    };
+
     /* "B) Paris (correct)" and "B) Paris ✓" both name the answer where it stands. */
-    const addOption = (q, body) => {
+    const addOption = (q, mark, body) => {
       let text = plain(body);
       const marked = /\(\s*correct\s*\)\s*$/i.test(text) || /\bcorrect\s*$/i.test(text) || /[✓✔☑]\s*$/.test(text);
       if (marked) {
@@ -181,7 +252,9 @@
                    .replace(/[✓✔☑]\s*$/, '').replace(/[\s—–-]+$/, '').trim();
         q.answerAt = q.options.length;
       }
-      if (text) q.options.push(text); else if (marked) q.answerAt = -1;
+      if (!text) { if (marked) q.answerAt = -1; return; }
+      q.marks.push(markIndex(mark));
+      q.options.push(text);
     };
 
     const finish = () => {
@@ -189,60 +262,133 @@
       const q = cur; cur = null;
       if (!q.text) return;
       if (q.options.length) {
-        const at = q.answerAt >= 0 ? q.answerAt
-                 : (q.answerText ? resolveAnswer(q.answerText, q.options) : -1);
-        out.push({ text: q.text, options: q.options, correct: at < 0 ? 0 : at, why: q.why, sure: at >= 0 });
+        let at = q.answerAt;
+        if (at < 0 && q.answerText) {
+          // The markers the tool actually used come first: "Answer: 2" against
+          // options numbered 1, 2, 3 means the second one, not the third.
+          const bare = plain(q.answerText).replace(/[^a-j0-9]/gi, '').toLowerCase();
+          const want = bare.length <= 2 ? markIndex(bare) : null;
+          if (want !== null) {
+            const found = q.marks.indexOf(want);
+            if (found >= 0) at = found;
+          }
+          if (at < 0) at = resolveAnswer(q.answerText, q.options);
+        }
+        out.push({ text: q.text, options: q.options, correct: at < 0 ? 0 : at,
+                   why: q.why, sure: at >= 0, number: q.number });
       } else if (q.answerText) {
         const t = q.answerText.toLowerCase();
         if (t === 'true' || t === 'false') {
-          out.push({ text: q.text, options: ['True', 'False'], correct: t === 'true' ? 0 : 1, why: q.why, sure: true });
+          out.push({ text: q.text, options: ['True', 'False'], correct: t === 'true' ? 0 : 1,
+                     why: q.why, sure: true, number: q.number });
         } else {
-          out.push({ text: q.text, options: [], written: q.answerText, why: q.why, sure: true });
+          out.push({ text: q.text, options: [], written: q.answerText, why: q.why, sure: true, number: q.number });
         }
       }
     };
 
-    /* An option marked in place ("B) 3 (correct)") is remembered by its position.
-     * Remembering its text instead would go wrong the moment the text is a
-     * number, which in a maths quiz it usually is. */
-    const take = (q, body, isMarked) => {
-      if (isMarked) q.answerAt = q.options.length;
-      q.options.push(body);
+    /* A question is sometimes written on one line with its options and its answer
+     * trailing after it, so whatever follows the question mark is pulled out
+     * here rather than left sitting in the question's text. */
+    const open = (text, number) => {
+      finish();
+      cur = { text: plain(text), options: [], marks: [], why: '', answerText: '', answerAt: -1, number };
+      let rest = String(text || '');
+      const trail = rest.match(/^(.*?)\s+(?:answer|ans)\s*[:.\-–]\s*(.+)$/i);
+      if (trail) { rest = trail[1]; cur.answerText = plain(trail[2]); }
+      const inline = inlineOptions(rest);
+      if (inline.length) {
+        const at = rest.search(/\s\(?[a-j]\)?\s*[.):-]\s/i);
+        cur.text = plain(at > 0 ? rest.slice(0, at) : rest);
+        inline.forEach((o, i) => addOption(cur, LETTERS[i], o));
+      } else if (trail) {
+        cur.text = plain(rest);
+      }
     };
 
-    for (const line of lines) {
-      const bare = undress(line);
-      if (!bare) continue;
+    let inKey = false;
+    const key = {};                       // an answer key printed after the questions
 
-      const num = bare.match(NUMBERED);
-      if (num) {
-        finish();
-        cur = { text: plain(num[2]), options: [], why: '', answerText: '', answerAt: -1 };
-        // the options are sometimes on the same line as the question
-        const tail = inlineOptions(num[2]);
-        if (tail.length) {
-          cur.text = plain(num[2].slice(0, num[2].search(/\s\(?[a-j]\)?\s*[.):-]\s/i) + 1));
-          tail.forEach(o => addOption(cur, o));
-        }
+    for (let at = 0; at < lines.length; at++) {
+      const bare = dressed[at];
+      if (!bare) { blank = true; continue; }
+
+      if (KEYHEAD.test(bare)) { finish(); inKey = true; blank = false; continue; }
+      if (inKey) {
+        const k = bare.match(/^\(?(\d{1,3})\)?\s*[.):\-]?\s*(.+)$/);
+        if (k) { key[Number(k[1])] = plain(k[2]); continue; }
+        inKey = false;
+      }
+
+      // ── a new question, however it is announced
+      const heading = bare.startsWith('#') ? bare.match(HEADING) : null;
+      if (heading) {
+        // "### Question 1" with the question on the next line, or "### 1. Text"
+        if (heading[2]) open(heading[2], Number(heading[1]) || undefined);
+        else if (heading[1]) open('', Number(heading[1]));
+        blank = false;
         continue;
       }
-      if (!cur) continue;
+      const num = bare.match(NUMBERED);
+      const opt = optionOf(bare);
+      // A numbered line is a question unless it is plainly the next option in a
+      // run — which is how "1. six  2. seven  3. eight" under a question reads.
+      const numberedOption = num && cur && cur.text && !cur.answerText &&
+        opt && markIndex(opt.mark) === cur.options.length &&
+        (cur.options.length > 0 || runFrom(at) >= 2);
+      if (num && !numberedOption) { open(num[2], Number(num[1])); blank = false; continue; }
+
+      const qp = bare.match(QPREFIX);
+      if (qp && !cur) { open(qp[1]); blank = false; continue; }
+      if (qp && cur && cur.options.length) { open(qp[1]); blank = false; continue; }
+
+      if (!cur) {
+        // no marker at all: a paragraph on its own starts a question
+        if (!opt) { open(bare); blank = false; continue; }
+        continue;
+      }
 
       const ans = bare.match(ANSWER);
-      if (ans) { cur.answerText = plain(ans[1]); continue; }
+      if (ans) { cur.answerText = plain(ans[1]); blank = false; continue; }
       const why = bare.match(WHY);
-      if (why) { cur.why = plain(why[1]); continue; }
+      if (why) { cur.why = plain(why[1]); blank = false; continue; }
+      // "A: B" as the answer, which only makes sense once options exist
+      const shortAns = bare.match(/^a\s*[:.)-]\s*(.+)$/i);
+      if (shortAns && cur.options.length) { cur.answerText = plain(shortAns[1]); blank = false; continue; }
 
-      // options may be one per line, or several on one line
-      const several = inlineOptions(bare);
-      if (several.length) { several.forEach(o => addOption(cur, o)); continue; }
-      const opt = bare.match(OPTION);
-      if (opt) { addOption(cur, opt[2]); continue; }
+      // ── options
+      const trailing = bare.match(/^(.*?)\s+(?:answer|ans)\s*[:.\-–]\s*(.+)$/i);
+      const body = trailing ? trailing[1] : bare;
+      if (trailing) cur.answerText = plain(trailing[2]);
 
-      // a wrapped question line
-      if (!cur.options.length && cur.text.length < 240) cur.text = plain(cur.text + ' ' + bare);
+      const several = inlineOptions(body);
+      if (several.length) {
+        several.forEach((o, i) => addOption(cur, LETTERS[i], o));
+        blank = false; continue;
+      }
+      const one = optionOf(body);
+      if (one) { addOption(cur, one.mark, one.text); blank = false; continue; }
+
+      // ── anything else continues the question, or starts the next one
+      if (!cur.options.length && !cur.answerText) {
+        cur.text = plain((cur.text + ' ' + body).trim());
+      } else if (blank) {
+        open(body);
+      }
+      blank = false;
     }
     finish();
+
+    // an answer key printed at the end fills in whatever was left open
+    if (Object.keys(key).length) {
+      out.forEach((q, i) => {
+        const named = key[q.number] !== undefined ? key[q.number] : key[i + 1];
+        if (named === undefined || q.sure) return;
+        const at = resolveAnswer(named, q.options);
+        if (at >= 0) { q.correct = at; q.sure = true; }
+      });
+    }
+    out.forEach(q => { delete q.number; });
     return out.length ? { title: '', questions: out } : null;
   }
 
@@ -258,6 +404,7 @@
     const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     const found = (fenced && fromJson(fenced[1].trim()))
                || fromJson(raw)
+               || fromTable(raw)
                || fromProse(fenced ? fenced[1] : raw);
     if (!found) return null;
     found.unsure = found.questions.filter(q => !q.sure).length;

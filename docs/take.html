@@ -6,7 +6,10 @@
 <title>Quoldek quiz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="nova.css?v=bcdd0d0d">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
+<meta name="theme-color" content="#7C4DFF">
+<link rel="stylesheet" href="nova.css?v=cf06e135">
 <style>
 .shell{max-width:740px;margin:0 auto;padding:28px 20px 90px}
 .progress{position:fixed;top:0;left:0;right:0;height:8px;background:var(--paper);z-index:80;border-bottom:2px solid var(--line)}
@@ -56,15 +59,19 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
-<script src="sprites.js?v=5e58539d"></script>
+<script src="sprites.js?v=fb42e39c"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
-<script src="paste.js?v=6c51135e"></script>
-<script src="live.js?v=6a031fa0"></script>
-<script src="nova-local.js?v=888cb730"></script>
+<script src="paste.js?v=f6488874"></script>
+<script src="live.js?v=cf48f488"></script>
+<script src="nova-local.js?v=2776bed5"></script>
+<script src="account.js?v=ff127e8f"></script>
 <script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, qs, toast, confetti, modal } = Nova;
 
 /* Interface icons are drawn, not typed: emoji change shape on every device. */
@@ -74,7 +81,7 @@ function paintIcons(root = document) {
     node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
   });
   const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
-  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.logo(42);
 }
 document.addEventListener('DOMContentLoaded', () => paintIcons());
 paintIcons();

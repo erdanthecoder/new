@@ -51,11 +51,13 @@
     const S = global.Sprite;
     const n = Number(wanted);
     if (!S || !Number.isFinite(n) || n < 0) return freeFace(taken);
-    const used = new Set((taken || []).map(String));
-    const { colour, shape } = S.partsOf(n);
+    // only the colour and the shape have to differ; the eyes, mouth and markings
+    // are the player's own and may be shared with anyone
+    const used = new Set((taken || []).map(S.looksLike));
+    const part = S.partsOf(n);
     for (let step = 0; step < S.SHAPES; step++) {
-      const candidate = String(S.combine(colour, shape + step));
-      if (!used.has(candidate)) return candidate;
+      const tryThis = S.pack(Object.assign({}, part, { shape: part.shape + step }));
+      if (!used.has(S.looksLike(tryThis))) return String(tryThis);
     }
     return freeFace(taken);
   }
@@ -82,6 +84,35 @@
     snow:     [['playground', 'Playground'], ['forest', 'Winter Forest'], ['peak', 'Mountain Peak']],
     balloon:  [['fair', 'Summer Fair'], ['clouds', 'Above the Clouds'], ['night', 'Night Sky']]
   };
+  /* How a game finishes. Playing every question is the default, but a class with
+   * ten minutes left before lunch wants the clock to decide, and a race to a
+   * score plays quite differently — it is over the moment somebody gets there,
+   * whether that is question four or question forty. */
+  const GOALS = {
+    questions: { label: 'All the questions', values: [] },
+    points:    { label: 'First to a score', values: [250, 500, 1000, 2000] },
+    time:      { label: 'A time limit', values: [3, 5, 10, 15, 20] }   // minutes
+  };
+  function readGoal(goal) {
+    const kind = goal && GOALS[goal.kind] ? goal.kind : 'questions';
+    if (kind === 'questions') return { kind, value: 0 };
+    const allowed = GOALS[kind].values;
+    const value = allowed.includes(Number(goal.value)) ? Number(goal.value) : allowed[1];
+    return { kind, value };
+  }
+
+  /** Has the game reached whatever the teacher said would end it? */
+  function goalReached(game) {
+    const goal = game.goal || { kind: 'questions' };
+    if (goal.kind === 'points') {
+      return Object.values(game.players).some(p => (p.score || 0) >= goal.value);
+    }
+    if (goal.kind === 'time') {
+      return !!game.startedAt && now() >= game.startedAt + goal.value * 60000;
+    }
+    return false;
+  }
+
   const mapsFor = (mode) => (MAPS[mode] || MAPS.normal).map(([id, label]) => ({ id, label }));
   const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
 
@@ -295,7 +326,9 @@
       // their phone needs the set. A child who digs into the page can read the
       // answers; the same is true of every game of this shape.
       quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
-      boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal
+      boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal,
+      goal: game.goal || { kind: 'questions', value: 0 },
+      startedAt: game.startedAt || 0, music: game.music !== false
     };
   }
 
@@ -391,6 +424,13 @@
       }
     }
 
+    /* The teacher's own ending — a score to reach or a clock — applies whatever
+     * the game is doing, including the Laser Tag arena, which never has a
+     * question open for the checks above to run inside. */
+    if (game.state !== 'lobby' && game.state !== 'over' && goalReached(game)) {
+      game.state = 'over'; game.endsAt = null; changed = true;
+    }
+
     if (changed) await writeGame(pin, game);
     return game;
   }
@@ -429,6 +469,8 @@
         pin: newPin, hostToken: rid(16), quizId: quiz.id, quizTitle: quiz.title,
         mode: MODES[body.mode] ? body.mode : 'normal',
         map: '',
+        goal: readGoal(body.goal),
+        music: body.music !== false,
         state: 'lobby', index: -1, questions, players: {},
         teams: { red: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Crimson' },
                  blue: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Cobalt' } },
@@ -511,6 +553,7 @@
 
     if (tail === '/start') {
       await reconcile(pin, game);
+      game.startedAt = now();
       if (game.mode === 'laser') {
         // one long round: the arena runs until the teacher stops it, and each
         // child's own energy bar decides when they break off to answer
@@ -552,7 +595,7 @@
     return null;
   }
 
-  global.NovaLive = { handle, MODES, configured: Boolean(URL_BASE && PUBLISHABLE) };
+  global.NovaLive = { handle, MODES, GOALS, configured: Boolean(URL_BASE && PUBLISHABLE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NovaLive;

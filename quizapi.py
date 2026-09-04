@@ -899,6 +899,41 @@ MAPS = {
 }
 
 
+# How a game finishes. Playing every question is the default, but a class with
+# ten minutes left before lunch wants the clock to decide, and a race to a score
+# plays quite differently — it is over the moment somebody gets there, whether
+# that is question four or question forty.
+GOALS = {
+    "questions": {"label": "All the questions", "values": []},
+    "points": {"label": "First to a score", "values": [250, 500, 1000, 2000]},
+    "time": {"label": "A time limit", "values": [3, 5, 10, 15, 20]},   # minutes
+}
+
+
+def read_goal(goal):
+    goal = goal if isinstance(goal, dict) else {}
+    kind = goal.get("kind") if goal.get("kind") in GOALS else "questions"
+    if kind == "questions":
+        return {"kind": kind, "value": 0}
+    allowed = GOALS[kind]["values"]
+    try:
+        value = int(goal.get("value"))
+    except (TypeError, ValueError):
+        value = None
+    return {"kind": kind, "value": value if value in allowed else allowed[1]}
+
+
+def goal_reached(game):
+    """Has the game reached whatever the teacher said would end it?"""
+    goal = game.get("goal") or {"kind": "questions"}
+    if goal["kind"] == "points":
+        return any(p.get("score", 0) >= goal["value"] for p in game["players"].values())
+    if goal["kind"] == "time":
+        started = game.get("startedAt")
+        return bool(started) and now_ms() >= started + goal["value"] * 60_000
+    return False
+
+
 def maps_for(mode):
     return [{"id": i, "label": label} for i, label in MAPS.get(mode, MAPS["normal"])]
 
@@ -915,6 +950,19 @@ BALLOONS = 3                 # how many wrong answers a child can afford
 FACE_COLOURS = 12          # must match the palette in static/sprites.js
 FACE_SHAPES = 12
 FACE_COMBINATIONS = FACE_COLOURS * FACE_SHAPES
+# A character also carries eyes, a mouth and markings, packed into the same
+# number above the colour and shape. Those are nobody else's business, so only
+# the colour and the shape have to be unique — they are what tells two players
+# apart across a room. Taking the number modulo the pair drops the rest.
+FACE_ALL = FACE_COMBINATIONS * 6 * 6 * 4
+
+
+def looks_like(index):
+    """The colour-and-shape half of a character, which is the half that must differ."""
+    try:
+        return int(index) % FACE_COMBINATIONS
+    except (TypeError, ValueError):
+        return -1
 
 
 def free_face(taken):
@@ -923,11 +971,11 @@ def free_face(taken):
     Stepping by 13 through 144 visits every colour/shape pair once, so the first
     children to join differ in both rather than sharing one silhouette.
     """
-    used = {str(t) for t in taken}
+    used = {looks_like(t) for t in taken}
     for k in range(FACE_COMBINATIONS):
-        candidate = str(k * 13 % FACE_COMBINATIONS)
+        candidate = k * 13 % FACE_COMBINATIONS
         if candidate not in used:
-            return candidate
+            return str(candidate)
     return str(random.randrange(FACE_COMBINATIONS))
 
 
@@ -945,13 +993,14 @@ def wanted_face(wanted, taken):
         return free_face(taken)
     if n < 0:
         return free_face(taken)
-    n %= FACE_COMBINATIONS
-    used = {str(t) for t in taken}
-    colour, shape = n % FACE_COLOURS, n // FACE_COLOURS
+    n %= FACE_ALL
+    used = {looks_like(t) for t in taken}
+    colour, shape = n % FACE_COLOURS, n // FACE_COLOURS % FACE_SHAPES
+    rest = n // FACE_COMBINATIONS * FACE_COMBINATIONS      # eyes, mouth and markings, kept as chosen
     for step in range(FACE_SHAPES):
-        candidate = str((shape + step) % FACE_SHAPES * FACE_COLOURS + colour)
-        if candidate not in used:
-            return candidate
+        pair = (shape + step) % FACE_SHAPES * FACE_COLOURS + colour
+        if pair not in used:
+            return str(rest + pair)
     return free_face(taken)
 
 def public_game(game: dict, include_answers: bool = False) -> dict:
@@ -1000,6 +1049,9 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "teams": game["teams"],
         "boss": game.get("boss"),
         "trackLength": TRACK_LENGTH,
+        "goal": game.get("goal") or {"kind": "questions", "value": 0},
+        "startedAt": game.get("startedAt", 0),
+        "music": game.get("music") is not False,
         "modeInfo": MODES.get(game["mode"], MODES["normal"]),
         "counts": game.get("counts", {}),
         "lastEvents": game.get("lastEvents", []),
@@ -1043,6 +1095,9 @@ def create_game():
             "players": {},
             "teams": {"red": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Crimson"},
                       "blue": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Cobalt"}},
+            "goal": read_goal(body.get("goal")),
+            "music": body.get("music") is not False,
+            "startedAt": 0,
             "counts": {},
             "lastEvents": [],
             "createdAt": now_ms(),
@@ -1210,6 +1265,7 @@ def start_game(pin):
                 members = [p for p in game["players"].values() if p["team"] == team]
                 # Enough HP that a match lasts several questions even with a small class.
                 game["teams"][team]["hp"] = max(TEAM_HP_FLOOR, TEAM_HP_PER_PLAYER * len(members))
+        game["startedAt"] = now_ms()
         if game["mode"] == "snow":
             # a fort per team, sized so a small class still gets to knock one down
             for team in ("red", "blue"):
@@ -1491,7 +1547,10 @@ def answer_question(pin):
         fort_down = game["mode"] == "snow" and any(
             game["teams"][side].get("max") and game["teams"][side]["blocks"] <= 0
             for side in ("red", "blue"))
-        if game["mode"] == "boss" and boss and (boss["hp"] == 0 or boss["classHp"] == 0):
+        if goal_reached(game):
+            game["state"] = "over"                      # the teacher's own ending
+            game["endsAt"] = None
+        elif game["mode"] == "boss" and boss and (boss["hp"] == 0 or boss["classHp"] == 0):
             game["state"] = "over"                      # the fight is decided either way
             game["endsAt"] = None
         elif fort_down:
@@ -1535,7 +1594,10 @@ def tick_game(pin):
             return err
         if not host_check(game, body):
             return jsonify({"error": "forbidden"}), 403
-        if game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
+        if game["state"] not in ("lobby", "over") and goal_reached(game):
+            game["state"] = "over"
+            game["endsAt"] = None
+        elif game["state"] == "question" and game.get("endsAt") and now_ms() >= game["endsAt"]:
             game["state"] = "reveal"
             game["endsAt"] = None
             for player in game["players"].values():

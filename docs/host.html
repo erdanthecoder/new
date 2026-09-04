@@ -6,7 +6,10 @@
 <title>Quoldek live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="nova.css?v=bcdd0d0d">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
+<meta name="theme-color" content="#7C4DFF">
+<link rel="stylesheet" href="nova.css?v=cf06e135">
 <style>
 .stage{max-width:1300px;margin:0 auto;padding:24px 22px 60px}
 
@@ -322,6 +325,10 @@
   .arena{grid-template-columns:1fr;gap:10px}
   .vs{height:36px}
 }
+/* .chip sets display, which beats the browser's own rule for [hidden] */
+#goal[hidden]{display:none}
+#music{padding-left:11px;padding-right:11px}
+#music.quiet{opacity:.55}
 </style>
 </head>
 <body class="dark">
@@ -332,24 +339,31 @@
     <div class="grow"></div>
     <span class="chip" id="conn"><span class="dot"></span> live</span>
     <span class="chip" id="count">0 players</span>
+    <span class="chip" id="goal" hidden></span>
     <span class="chip mono" id="pinchip">------</span>
+    <button class="btn sm" id="music" title="Music on the big screen"></button>
     <button class="btn sm danger" id="end">End game</button>
   </div>
 </header>
 
 <main class="stage" id="stage"></main>
 
-<script src="sprites.js?v=5e58539d"></script>
+<script src="sprites.js?v=fb42e39c"></script>
+<script src="music.js?v=a2d2d080"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
-<script src="paste.js?v=6c51135e"></script>
-<script src="live.js?v=6a031fa0"></script>
-<script src="nova-local.js?v=888cb730"></script>
+<script src="paste.js?v=f6488874"></script>
+<script src="live.js?v=cf48f488"></script>
+<script src="nova-local.js?v=2776bed5"></script>
+<script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, copy, modal } = Nova;
 const pin = qs('pin');
 const hostToken = store.get('host:' + pin);
@@ -357,13 +371,57 @@ let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 
 /* Where students join. Kept as two small functions because the GitHub Pages build
  * rewrites them to folder-relative addresses — everything else stays identical. */
-const joinUrl = () => location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin;
-const joinLabel = () => joinUrl().replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+const joinUrl = () => (window.QUOLDEK_PLAY
+  ? 'https://' + window.QUOLDEK_PLAY + '/?pin=' + pin
+  : location.href.replace(/[^/]*$/, '') + 'play.html?pin=' + pin);
+const joinLabel = () => (window.QUOLDEK_PLAY
+  || joinUrl().replace(/^https?:\/\//, '').replace(/\?.*$/, ''));
 
 const mark = document.getElementById('brand-mark');
-if (mark) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+if (mark) mark.innerHTML = Sprite.logo(42);
 if (!pin) location.href = 'index.html';
 if (!hostToken) toast('You are watching this game. Only the teacher device can control it.', 'bad');
+
+/* ── the music ─────────────────────────────────────
+ *
+ * It plays here and only here: on the screen the room is looking at. A browser
+ * will not make a sound until somebody has clicked, so the first click anywhere
+ * on the board is what actually starts it, and the button says what will happen
+ * rather than pretending it is already playing.
+ */
+let musicWanted = true, musicUnlocked = false;
+const musicBtn = document.getElementById('music');
+
+function paintMusic() {
+  if (!musicBtn) return;
+  const on = musicWanted && musicUnlocked;
+  musicBtn.innerHTML = Sprite.icon(musicWanted ? 'sound' : 'quiet', 16);
+  musicBtn.title = !musicWanted ? 'Music is off — turn it on'
+    : on ? 'Music is playing — turn it off'
+         : 'Music starts as soon as you click the board';
+  musicBtn.classList.toggle('quiet', !musicWanted);
+}
+
+function musicShould(play) {
+  musicWanted = play;
+  if (play && musicUnlocked) NovaMusic.start(); else NovaMusic.stop();
+  try { localStorage.setItem('nova:music', play ? '1' : ''); } catch { /* private mode */ }
+  paintMusic();
+}
+
+if (musicBtn) {
+  try { const saved = localStorage.getItem('nova:music'); if (saved !== null) musicWanted = !!saved; }
+  catch { /* private mode */ }
+  musicBtn.onclick = (e) => { e.stopPropagation(); musicUnlocked = true; musicShould(!musicWanted); };
+  // the first click anywhere is the permission a browser is waiting for
+  document.addEventListener('click', () => {
+    if (musicUnlocked) return;
+    musicUnlocked = true;
+    if (musicWanted) NovaMusic.start();
+    paintMusic();
+  }, { once: true });
+  paintMusic();
+}
 
 function connect() {
   stream(`/games/${pin}/events`, (msg) => {
@@ -378,16 +436,65 @@ function fail() {
 }
 
 function apply(state) {
+  const wasState = game && game.state;
   game = state;
   drift = state.serverNow - Date.now();
   $('#qt').textContent = state.quizTitle;
   $('#pinchip').textContent = state.pin;
   $('#count').textContent = state.players.length + ' player' + (state.players.length === 1 ? '' : 's');
   document.body.classList.toggle('laser', state.mode === 'laser');
+
+  // the teacher's choice when the game was made, honoured once
+  if (musicBtn && !musicSettled && state.music === false) { musicSettled = true; musicShould(false); }
+  else if (musicBtn && !musicSettled) { musicSettled = true; paintMusic(); }
+
+  // a flourish on the two moments the room reacts to anyway
+  if (wasState && wasState !== state.state) {
+    if (state.state === 'question') sting('go');
+    else if (state.state === 'over') { sting('win'); NovaMusic.stop(); }
+  }
+
+  paintGoal();
+
   const key = state.state + ':' + state.index;
   render(key !== lastState);
   lastState = key;
 }
+let musicSettled = false;
+
+/* What the game is being played for, where the room can see it. A time limit
+ * counts itself down; a score shows how close the leader is. */
+let goalTicker = null;
+function paintGoal() {
+  const chip = document.getElementById('goal');
+  if (!chip || !game) return;
+  const goal = game.goal || { kind: 'questions' };
+  clearInterval(goalTicker);
+  if (goal.kind === 'questions' || game.state === 'lobby' || game.state === 'over') {
+    chip.hidden = true;
+    return;
+  }
+  chip.hidden = false;
+  if (goal.kind === 'points') {
+    const best = game.players.length ? Math.max(...game.players.map(p => p.score || 0)) : 0;
+    chip.textContent = `${best} / ${goal.value}`;
+    chip.title = `First to ${goal.value} wins`;
+    chip.classList.toggle('warn', best >= goal.value * 0.8);
+    return;
+  }
+  const endsBy = (game.startedAt || 0) + goal.value * 60000;
+  const paint = () => {
+    const left = Math.max(0, endsBy - (Date.now() + drift));
+    const m = Math.floor(left / 60000), sec = Math.floor(left % 60000 / 1000);
+    chip.textContent = `${m}:${String(sec).padStart(2, '0')} left`;
+    chip.classList.toggle('warn', left < 61000);
+    if (left <= 0) clearInterval(goalTicker);
+  };
+  chip.title = `${goal.value} minutes, then whoever is ahead wins`;
+  paint();
+  goalTicker = setInterval(paint, 500);
+}
+const sting = (kind) => { if (musicUnlocked && musicWanted) NovaMusic.sting(kind); };
 
 /* A poll every second used to throw the whole board away and build a new one.
  * Nothing could animate — a kart was created at its new position rather than

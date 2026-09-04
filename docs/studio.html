@@ -6,7 +6,10 @@
 <title>Quoldek Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
-<link rel="stylesheet" href="nova.css?v=bcdd0d0d">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
+<meta name="theme-color" content="#7C4DFF">
+<link rel="stylesheet" href="nova.css?v=cf06e135">
 <style>
 .studio{display:grid;grid-template-columns:250px minmax(0,1fr) 380px;gap:22px;max-width:1560px;margin:0 auto;padding:22px;align-items:start}
 .col{position:sticky;top:94px;max-height:calc(100vh - 116px);overflow:auto}
@@ -133,6 +136,23 @@ tr:hover td{background:var(--paper)}
 
 /* live game picker */
 .modegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+/* how the game ends: smaller cards than the games, because it is a smaller choice */
+.endgrid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.endcard{display:flex;align-items:center;gap:12px;text-align:left;padding:14px 15px;border-radius:var(--r-lg);
+  border:var(--line-w) solid var(--line);background:var(--card);cursor:pointer;box-shadow:var(--pop-1);
+  transition:transform .14s var(--ease),box-shadow .14s}
+.endcard:hover{transform:translateY(-2px);box-shadow:var(--pop-2)}
+.endcard:active{transform:translateY(1px)}
+.endcard .endmark{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  background:var(--grad-brand);color:#fff;border:var(--line-w) solid var(--line)}
+.endcard .body{display:flex;flex-direction:column;gap:1px;min-width:0}
+.endcard strong{font-size:1rem}
+.endcard .sub{font-size:.76rem;color:var(--faint);font-weight:600}
+.musicrow{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:var(--r-lg);
+  border:var(--line-w) dashed var(--line);cursor:pointer}
+.musicrow input{width:20px;height:20px;flex:none;accent-color:#6C4CF1}
+.musicrow span{display:flex;flex-direction:column}
+.musicrow .sub{font-size:.76rem;color:var(--faint);font-weight:600}
 .modecard{display:flex;flex-direction:column;padding:0;overflow:hidden;cursor:pointer;
   border-radius:20px;border:var(--line-w) solid var(--line);background:var(--card);color:var(--ink);
   text-align:left;font:inherit;box-shadow:var(--pop-1);transition:transform .16s var(--ease),box-shadow .16s}
@@ -181,7 +201,7 @@ tr:hover td{background:var(--paper)}
   <section>
     <div id="pane-build">
       <div class="card pad" style="margin-bottom:18px">
-        <input id="desc" class="line-input" placeholder="Add a description for your students…">
+        <input id="desc" class="line-input" placeholder="Add a description for whoever is playing…">
       </div>
       <div id="questions"></div>
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
@@ -238,16 +258,20 @@ tr:hover td{background:var(--paper)}
   </aside>
 </main>
 
-<script src="sprites.js?v=5e58539d"></script>
+<script src="sprites.js?v=fb42e39c"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
-<script src="paste.js?v=6c51135e"></script>
-<script src="live.js?v=6a031fa0"></script>
-<script src="nova-local.js?v=888cb730"></script>
+<script src="paste.js?v=f6488874"></script>
+<script src="live.js?v=cf48f488"></script>
+<script src="nova-local.js?v=2776bed5"></script>
+<script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
 <script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_PLAY = window.QUOLDEK_LOCAL ? '' : 'playquoldek.web.app';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, $$, api, el, esc, qs, toast, modal, stream, store, copy, classroomUrl, clientId } = Nova;
 
 /* Interface icons are drawn, not typed: emoji change shape on every device. */
@@ -257,7 +281,7 @@ function paintIcons(root = document) {
     node.innerHTML = Sprite.icon(node.dataset.icon, Number(node.dataset.size) || 26);
   });
   const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
-  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.icon('spark', 20, '#fff');
+  if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.logo(42);
 }
 document.addEventListener('DOMContentLoaded', () => paintIcons());
 paintIcons();
@@ -762,7 +786,7 @@ $$('[data-add]').forEach(b => b.onclick = () => addQuestion(b.dataset.add));
 $('#share').onclick = () => {
   const link = Nova.shareLink(quizId);
   modal(`
-    <h2 style="margin-bottom:6px">Share with your class</h2>
+    <h2 style="margin-bottom:6px">Share it</h2>
     <p class="muted tiny" style="margin-bottom:18px">Good for homework. Answers appear in your Responses tab as they come in.</p>
     <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
     <div class="field"><label class="label">Student link</label><input class="input mono" value="${esc(link)}" readonly></div>
@@ -782,9 +806,14 @@ $('#share').onclick = () => {
 
 $('#present').onclick = () => {
   if (!quiz.questions.length) return toast('Add a question first', 'bad');
+/* Where a class actually types the address in. The deployed board sends them to
+ * the short site; a board being run from a laptop keeps its own address, so a
+ * game still works with no internet at all. */
+const joinAddress = () => (window.QUOLDEK_PLAY || (location.host + '/play'));
+
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eight games. Students join at <strong>${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html</strong> with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eight games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.</p>
     <div class="modegrid" id="mode-list">
       <p class="tiny faint">Loading</p>
     </div>`, {
@@ -819,26 +848,67 @@ $('#present').onclick = () => {
         list.innerHTML = '';
         maps.forEach(mp => {
           const btn = el('button', { class: 'modecard', 'data-map': mp.id,
-            onclick: () => launch(mode.id, mp.id) });
+            onclick: () => showSettings(mode, mp.id) });
           btn.append(el('span', { class: 'art map-' + mp.id, html: Sprite.scene(mode.id, 320) }),
                      el('span', { class: 'body' }, el('strong', {}, mp.label)));
           list.append(btn);
         });
         list.append(el('button', { class: 'btn ghost', style: 'grid-column:1/-1;margin-top:4px',
           onclick: () => {
-            box.querySelector('#pick-title').textContent = 'Pick how the class plays';
+            box.querySelector('#pick-title').textContent = 'Pick how everyone plays';
             box.querySelector('#pick-sub').innerHTML =
-              `Same quiz, eight games. Students join at <strong>${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}play.html</strong> with the PIN.`;
+              `Same quiz, eight games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.`;
             showModes(modes);
           } }, 'Back to the games'));
       }
 
-      async function launch(mode, map) {
+      /* Third step: when it ends. Playing every question is what most people
+         want, but a lesson with ten minutes left wants the clock to decide, and
+         a race to a score is a different game entirely. */
+      function showSettings(mode, map) {
+        box.querySelector('#pick-title').textContent = 'How does it end?';
+        box.querySelector('#pick-sub').textContent = `${mode.label} · you can stop it early at any time`;
+        list.innerHTML = '';
+        list.className = 'modegrid endgrid';
+
+        const options = [
+          { kind: 'questions', value: 0, title: 'All the questions',
+            sub: 'It ends when the quiz runs out' },
+          { kind: 'points', value: 500, title: 'First to 500', sub: 'A short race' },
+          { kind: 'points', value: 1000, title: 'First to 1,000', sub: 'A longer race' },
+          { kind: 'time', value: 5, title: '5 minutes', sub: 'Whoever is ahead wins' },
+          { kind: 'time', value: 10, title: '10 minutes', sub: 'Most of a lesson' },
+          { kind: 'time', value: 15, title: '15 minutes', sub: 'A full session' }
+        ];
+        options.forEach(o => {
+          const btn = el('button', { class: 'endcard', 'data-goal': o.kind + ':' + o.value,
+            onclick: () => launch(mode.id, map, { kind: o.kind, value: o.value }) });
+          btn.append(el('span', { class: 'endmark',
+                                  html: Sprite.icon(o.kind === 'time' ? 'clock' : o.kind === 'points' ? 'medal' : 'flag', 26) }),
+                     el('span', { class: 'body' }, el('strong', {}, o.title), el('span', { class: 'sub' }, o.sub)));
+          list.append(btn);
+        });
+
+        const music = el('label', { class: 'musicrow', style: 'grid-column:1/-1' });
+        const box2 = el('input', { type: 'checkbox', id: 'music-on', checked: true });
+        music.append(box2, el('span', {}, el('strong', {}, 'Music on the big screen'),
+                              el('span', { class: 'sub' }, 'A quiet tune while everyone plays. Nothing on the phones.')));
+        list.append(music);
+
+        list.append(el('button', { class: 'btn ghost', style: 'grid-column:1/-1',
+          onclick: () => { list.className = 'modegrid'; showMaps(mode); } }, 'Back to the maps'));
+      }
+
+      async function launch(mode, map, goal) {
         try {
-          const game = await api('/games', { method: 'POST', body: { quizId, mode, map } });
+          const music = box.querySelector('#music-on');
+          const game = await api('/games', { method: 'POST',
+            body: { quizId, mode, map, goal, music: music ? music.checked : true } });
           store.set('host:' + game.pin, game.hostToken);
-          location.href = 'host.html?pin=' + game.pin;
-        } catch (err) { toast(err.message, 'bad'); close(); }
+          location.href = (window.QUOLDEK_LIVE
+  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin
+  : 'host.html?pin=' + game.pin);
+        } catch (err) { toast(err.message, 'bad'); }
       }
     }
   });

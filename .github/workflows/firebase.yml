@@ -1,5 +1,6 @@
-# Publishes the same docs/ folder to Firebase Hosting, so the site also lives at
-# a quoldek.web.app address. Schools that block github.io can still reach it.
+# Publishes both sites to Firebase Hosting: quoldek.web.app for whoever is
+# running the quiz, and playquoldek.web.app for everyone joining it. Schools that
+# block github.io can still reach both.
 #
 # This runs only once the FIREBASE_SERVICE_ACCOUNT secret exists, so it stays
 # quiet until Firebase is connected rather than failing on every push.
@@ -30,11 +31,16 @@ jobs:
         if: steps.check.outputs.ready == 'true'
         run: python3 build_pages.py
 
+      # both hosting targets, in one go
       - name: Publish
         if: steps.check.outputs.ready == 'true'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: quiznova-88751
+        env:
+          # written from the environment rather than a heredoc, so the JSON is
+          # never reshaped by the indentation of this file
+          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_KEY" > "$RUNNER_TEMP/firebase-key.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-key.json"
+          npx --yes firebase-tools@latest deploy --only hosting \
+            --project quiznova-88751 --non-interactive
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
