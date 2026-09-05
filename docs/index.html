@@ -32,6 +32,7 @@
 .fc-badge{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.72rem;font-weight:900;color:#fff}
 .fc-score{top:0;right:0;z-index:3;background:var(--sun);transform:rotate(5deg);font-weight:900;padding:12px 16px;text-align:center}
 .fc-players{bottom:0;left:0;z-index:3;transform:rotate(-4deg);display:flex;gap:6px;align-items:center;font-weight:800;font-size:.86rem;background:var(--mint);color:#04241b}
+#fc-players[hidden]{display:none}
 .fc-players .av{display:inline-flex;line-height:0;vertical-align:middle;margin-right:-6px}
 
 .pillars-wrap{margin-top:8px}
@@ -128,7 +129,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
         <div class="fc-opt"><span class="fc-badge" style="background:#FFC53D">C</span> Stegosaurus</div>
       </div>
       <div class="float-card fc-score wobble"><span class="mini-face" data-icon="flame" data-size="15"></span> 3 in a row<div style="font-size:1.5rem">1,240</div></div>
-      <div class="float-card fc-players wobble" id="fc-players"> 24 playing</div>
+      <div class="float-card fc-players wobble" id="fc-players" hidden></div>
     </div>
 
   </section>
@@ -174,6 +175,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
   </section>
 
   <footer>
+    <span id="played" hidden></span>
     Quoldek · works offline-friendly, deploys anywhere Flask runs.
     Set <span class="mono">ANTHROPIC_API_KEY</span> to switch the co-pilot from its built-in question bank to live Claude.
   </footer>
@@ -183,10 +185,10 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
-<script src="arena.js?v=134a5fcf"></script>
+<script src="arena.js?v=fb3b6182"></script>
 <script src="paste.js?v=3032c005"></script>
 <script src="rules.js?v=2b1ca27f"></script>
-<script src="live.js?v=450b9909"></script>
+<script src="live.js?v=f6462cfd"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
@@ -209,12 +211,39 @@ function paintIcons(root = document) {
 }
 document.addEventListener('DOMContentLoaded', () => { paintIcons(); showcase(); });
 
-/* Three of the characters a class would actually see, on the landing page. */
-function showcase() {
+/* What the card on the landing page says.
+ *
+ * It used to say "24 playing" whatever was happening, which was a decoration
+ * pretending to be a fact. It now says only what the database can prove: the
+ * number of games actually hosted and people who actually joined one, counted by
+ * a trigger rather than by any page, plus how many games are live this second.
+ * If there is nothing true to say yet, the card stays away rather than making
+ * something up.
+ */
+async function showcase() {
   const strip = document.getElementById('fc-players');
-  if (!strip || strip.firstElementChild) return;
-  [0, 13, 26].forEach(i => strip.insertAdjacentHTML('afterbegin',
-    `<span class="av">${Sprite.face(i, 26)}</span>`));
+  if (!strip) return;
+  let stats = null;
+  try { stats = window.NovaLive && NovaLive.stats ? await NovaLive.stats() : null; }
+  catch { stats = null; }
+  if (!stats || (!stats.games && !stats.liveNow)) return;     // nothing honest to show yet
+
+  const faces = [0, 13, 26].map(i => `<span class="av">${Sprite.face(i, 26)}</span>`).join('');
+  const say = stats.liveNow
+    ? `${stats.liveNow} game${stats.liveNow === 1 ? '' : 's'} on right now`
+    : `${stats.games.toLocaleString()} games played`;
+  strip.innerHTML = faces + ' ' + say;
+  strip.hidden = false;
+  strip.title = `${stats.games.toLocaleString()} games hosted and `
+              + `${stats.players.toLocaleString()} players since ${stats.since}`;
+
+  const line = document.getElementById('played');
+  if (line) {
+    line.textContent = `${stats.games.toLocaleString()} game`
+      + `${stats.games === 1 ? '' : 's'} played and ${stats.players.toLocaleString()} player`
+      + `${stats.players === 1 ? '' : 's'} since ${stats.since}. `;
+    line.hidden = false;
+  }
 }
 paintIcons();
 let quizzes = [];

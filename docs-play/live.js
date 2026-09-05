@@ -415,7 +415,32 @@
     return null;
   }
 
-  global.NovaLive = { handle, MODES, GOALS, configured: Boolean(URL_BASE && PUBLISHABLE) };
+  /* How much Quoldek is really played.
+   *
+   * The database counts this itself: a trigger bumps a total whenever a game is
+   * actually hosted or somebody actually joins one. Nothing here can invent a
+   * number — the page can only read what playing has already produced. Live
+   * games are counted straight off the table, which is swept of old ones, so
+   * that figure is genuinely "right now".
+   */
+  async function stats() {
+    if (!URL_BASE || !PUBLISHABLE) return null;
+    const [totals, live] = await Promise.all([
+      rest('GET', '/quoldek_totals?id=eq.all&select=games,players,started_on'),
+      rest('GET', '/quiznova_live_games?select=pin', undefined, { prefer: 'count=exact' })
+        .catch(() => [])
+    ]);
+    const row = (totals && totals[0]) || null;
+    if (!row) return null;
+    return {
+      games: Number(row.games) || 0,
+      players: Number(row.players) || 0,
+      since: row.started_on || '',
+      liveNow: Array.isArray(live) ? live.length : 0
+    };
+  }
+
+  global.NovaLive = { handle, stats, MODES, GOALS, configured: Boolean(URL_BASE && PUBLISHABLE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NovaLive;
