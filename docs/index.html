@@ -426,9 +426,7 @@ async function hostGame(q) {
         try {
           const game = await api('/games', { method: 'POST', body: { quizId: q.id, mode: btn.dataset.mode } });
           Nova.store.set('host:' + game.pin, game.hostToken);
-          location.href = (window.QUOLDEK_LIVE
-  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin + '#h=' + game.hostToken
-  : 'host.html?pin=' + game.pin);
+          location.href = 'host.html?pin=' + game.pin;
         } catch (err) { toast(err.message, 'bad'); }
       });
     }

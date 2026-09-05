@@ -89,13 +89,19 @@ def build():
         html = html.replace("location.href = '/quiz'", "location.href = 'index.html'")
         html = html.replace('href="/index.html"', 'href="index.html"')
         html = html.replace('href="/whatsnew"', 'href="whatsnew.html"')
-        # The board may be on its own address, which cannot read the studio's
-        # storage — so the host token rides across in the fragment, which is
-        # never sent to a server. host.html takes it and scrubs it immediately.
+        # The teacher's board opens on the teacher's own site.
+        #
+        # It used to jump to livequoldek.web.app, which is a different address and
+        # so cannot read the token that says "this device is the teacher" — the
+        # board decided it was a spectator and greyed out Start, and there was no
+        # way to run a game at all. Handing the token across in the URL worked in
+        # tests but left a whole class of failure standing for no benefit: the
+        # address a teacher never types is not worth a broken Start button.
+        #
+        # livequoldek.web.app still serves the board for anyone who types it, and
+        # still accepts a token in the fragment if one is ever passed.
         html = html.replace("location.href = '/host?pin=' + game.pin",
-                            "location.href = (window.QUOLDEK_LIVE\n"
-                            "  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin + '#h=' + game.hostToken\n"
-                            "  : 'host.html?pin=' + game.pin)")
+                            "location.href = 'host.html?pin=' + game.pin")
         html = html.replace("location.href = '/play?pin=' + pin", "location.href = 'play.html?pin=' + pin")
         html = html.replace("href: '/play'", "href: 'play.html'")
         html = html.replace('href="/play"', 'href="play.html"')
