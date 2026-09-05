@@ -6,7 +6,7 @@
  * internet, which is the point — school wifi is unreliable and school firewalls
  * block things, and neither can stop a lesson that never leaves the building.
  */
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeTheme, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -25,7 +25,8 @@ const ROOT = CANDIDATES.find(dir => {
   try { return fs.existsSync(path.join(dir, 'play.html')); } catch { return false; }
 }) || CANDIDATES[CANDIDATES.length - 1];
 
-let server = null, settings = null, home = null, board = null, prefs = null;
+let server = null, settings = null, home = null, board = null, prefs = null, joiner = null;
+const players = new Set();          // windows somebody is playing along in
 
 const dataDir = () => app.getPath('userData');
 const quizFolder = () => path.join(dataDir(), 'quizzes');
@@ -85,6 +86,75 @@ function openBoard(pin) {
   board.loadURL(`${base()}/host?pin=${pin}`);
 }
 
+/* Playing along, rather than running the game.
+ *
+ * A PIN on its own does not say where the game is. Three places are possible and
+ * the app tries them in the order that costs least: a game this computer is
+ * hosting, a game on another Quoldek on the same wifi (the teacher reads out the
+ * address), and the website, which is where a game hosted from a browser lives.
+ *
+ * A page that is not ours never gets the bridge. The window it opens is a plain
+ * one with no preload at all, so the website cannot reach the app's settings,
+ * quizzes or windows however it is written.
+ */
+function openPlayer(url, ours) {
+  const opts = { width: 460, height: 900, minWidth: 380, minHeight: 560,
+                 title: 'Quoldek — playing', icon: path.join(__dirname, 'build', 'icon.png'),
+                 autoHideMenuBar: true };
+  const win = new BrowserWindow(ours ? windowOptions(opts)
+    : Object.assign({ backgroundColor: '#120C24' }, opts,
+        { webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } }));
+  win.setMenu(null);
+  players.add(win);
+  win.on('closed', () => players.delete(win));
+  win.loadURL(url);
+  return win;
+}
+
+async function joinGame(pin, where) {
+  pin = String(pin || '').replace(/\D/g, '');
+  if (pin.length !== 6) return { ok: false, reason: 'A PIN is six digits.' };
+
+  // somewhere the teacher read out: another computer running this same app
+  if (where) {
+    const at = String(where).trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!/^[\w.-]+(:\d+)?$/.test(at)) return { ok: false, reason: 'That address does not look right.' };
+    const url = `http://${at}/play?pin=${pin}`;
+    openPlayer(url, false);
+    return { ok: true, at: 'wifi', where: at, url };
+  }
+
+  // a game this computer is running: no network involved at all
+  if (server && server.games && server.games.get(pin)) {
+    const url = `${base()}/play?pin=${pin}`;
+    openPlayer(url, true);
+    return { ok: true, at: 'here', url };
+  }
+
+  // otherwise it belongs to the website, which needs the internet
+  if (!net.isOnline()) {
+    return { ok: false, reason: 'No game with that PIN on this computer, and there is no internet '
+                              + 'to look anywhere else. If the game is on another computer here, '
+                              + 'type the address the teacher read out.' };
+  }
+  const url = `https://playquoldek.web.app/?pin=${pin}`;
+  openPlayer(url, false);
+  return { ok: true, at: 'web', url };
+}
+
+function openJoin() {
+  if (joiner && !joiner.isDestroyed()) { joiner.focus(); return joiner; }
+  joiner = new BrowserWindow(windowOptions({
+    width: 520, height: 640, resizable: false, maximizable: false,
+    title: 'Join a game', autoHideMenuBar: true,
+    icon: path.join(__dirname, 'build', 'icon.png')
+  }));
+  joiner.setMenu(null);
+  joiner.on('closed', () => { joiner = null; });
+  joiner.loadURL(base() + '/app/ui/join.html');
+  return joiner;
+}
+
 function openSettings() {
   if (prefs && !prefs.isDestroyed()) { prefs.focus(); return; }
   prefs = new BrowserWindow(windowOptions({
@@ -118,7 +188,9 @@ function buildMenu() {
         click: () => board && !board.isDestroyed() && board.setFullScreen(!board.isFullScreen()) },
       { label: 'Bring the board to the front', click: () => board && !board.isDestroyed() && board.focus() },
       { type: 'separator' },
-      { label: 'Show the join address', click: showJoinAddress }
+      { label: 'Show the join address', click: showJoinAddress },
+      { type: 'separator' },
+      { label: 'Join a game…', accelerator: 'CmdOrCtrl+J', click: openJoin }
     ] },
     { label: 'View', submenu: [
       { role: 'reload' }, { role: 'forceReload' }, { type: 'separator' },
@@ -206,6 +278,8 @@ function wireBridge() {
     folder: quizFolder()
   }));
   ipcMain.handle('board:open', (_e, pin) => { openBoard(String(pin || '')); return true; });
+  ipcMain.handle('join:open', () => { openJoin(); return true; });
+  ipcMain.handle('join:go', (_e, args) => joinGame((args || {}).pin, (args || {}).where));
   ipcMain.handle('quizzes:folder', () => shell.openPath(quizFolder()));
   ipcMain.handle('settings:open', () => { openSettings(); return true; });
   ipcMain.handle('quizzes:export', (_e, id) => exportQuiz(String(id || '')));

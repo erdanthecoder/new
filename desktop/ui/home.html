@@ -118,6 +118,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <button class="nav" data-go="new"><span class="ic" data-icon="spark"></span>New quiz</button>
   <button class="nav" data-go="paste"><span class="ic" data-icon="send"></span>Paste questions</button>
   <button class="nav" data-go="folder"><span class="ic" data-icon="save"></span>Quiz folder</button>
+  <button class="nav" data-go="join"><span class="ic" data-icon="play"></span>Join a game</button>
   <div class="spacer"></div>
   <button class="nav" data-go="settings"><span class="ic" data-icon="key"></span>Settings</button>
   <button class="nav" id="music"><span class="ic" data-icon="sound"></span><span id="music-label">Music on</span></button>
@@ -181,7 +182,9 @@ const STARTS = [
   { key: 'paste', icon: 'send', tint: 'linear-gradient(120deg,#12BE8E,#7BC62D)',
     title: 'Paste questions in', sub: 'From Gemini, ChatGPT or anywhere else.' },
   { key: 'file', icon: 'save', tint: 'linear-gradient(120deg,#FFC53D,#FF9A3D)',
-    title: 'Open a quiz file', sub: 'One you saved, or somebody sent you.' }
+    title: 'Open a quiz file', sub: 'One you saved, or somebody sent you.' },
+  { key: 'join', icon: 'play', tint: 'linear-gradient(120deg,#FF5D73,#FFC53D)',
+    title: 'Join a game', sub: 'Play along on this computer with a PIN.' }
 ];
 
 function paintStarts() {
@@ -262,6 +265,7 @@ async function go(where) {
     paintQuizzes();
     return;
   }
+  if (where === 'join') return window.Quoldek.openJoin ? window.Quoldek.openJoin() : null;
   if (where === 'settings') return window.Quoldek.openSettings ? window.Quoldek.openSettings() : null;
 }
 

@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('Quoldek', {
   },
   joinInfo: () => ipcRenderer.invoke('join:info'),
   openBoard: (pin) => ipcRenderer.invoke('board:open', pin),
+  openJoin: () => ipcRenderer.invoke('join:open'),
+  // pin, and optionally the address of another computer on the wifi
+  join: (pin, where) => ipcRenderer.invoke('join:go', { pin, where }),
   openQuizFolder: () => ipcRenderer.invoke('quizzes:folder'),
   openSettings: () => ipcRenderer.invoke('settings:open'),
   exportQuiz: (id) => ipcRenderer.invoke('quizzes:export', id),

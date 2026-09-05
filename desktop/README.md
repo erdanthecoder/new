@@ -20,6 +20,21 @@ and neither can stop a lesson that never leaves the building.
 - **Settings that are actually settings.** A window of switches and sliders that
   save the moment you touch them.
 
+## Joining a game from the app
+
+**Join a game** on the home screen (or Ctrl+J) takes a PIN and finds the game,
+in the order that costs least:
+
+1. **This computer** — a game you are hosting yourself. No network at all.
+2. **Another computer here** — somebody else running the app. They read out the
+   address on their home screen; type it under "on another computer here".
+3. **The internet** — a game hosted from a browser lives on the website, so
+   joining that one needs a connection.
+
+A PIN cannot say by itself which of the three it is. That is the price of a game
+that lives on your computer rather than on somebody's servers: nothing has to be
+online for a lesson to run, but nothing central knows every PIN either.
+
 ## Running it
 
 Download from the **Windows app** action on GitHub, or from a release:
