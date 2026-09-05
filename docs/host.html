@@ -421,6 +421,27 @@ window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
 const { $, api, el, esc, qs, toast, stream, store, confetti, SHAPES, copy, modal } = Nova;
 const pin = qs('pin');
+/* Being the teacher, across two addresses.
+ *
+ * The studio saves the host token in its own browser storage, and on the
+ * deployed site the board lives at a different address — so the board could not
+ * read it, decided it was a spectator, and left Start greyed out. Hosting a game
+ * was impossible on the live site while every test passed, because the tests
+ * copied the token across themselves: a hand-off the product never did.
+ *
+ * The studio now carries it in the URL fragment. A fragment is never sent to any
+ * server and never appears in a log; the board takes it, stores it under its own
+ * address so a refresh still works, and wipes it out of the address bar at once
+ * so it is not left on screen or copied by mistake.
+ */
+(function claimHost() {
+  const fragment = String(location.hash || '');
+  const found = fragment.match(/(?:^#|&)h=([A-Za-z0-9_-]{6,64})/);
+  if (!found || !pin) return;
+  store.set('host:' + pin, found[1]);
+  history.replaceState(null, '', location.pathname + location.search);
+})();
+
 const hostToken = store.get('host:' + pin);
 let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 

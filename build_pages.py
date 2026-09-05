@@ -89,9 +89,12 @@ def build():
         html = html.replace("location.href = '/quiz'", "location.href = 'index.html'")
         html = html.replace('href="/index.html"', 'href="index.html"')
         html = html.replace('href="/whatsnew"', 'href="whatsnew.html"')
+        # The board may be on its own address, which cannot read the studio's
+        # storage — so the host token rides across in the fragment, which is
+        # never sent to a server. host.html takes it and scrubs it immediately.
         html = html.replace("location.href = '/host?pin=' + game.pin",
                             "location.href = (window.QUOLDEK_LIVE\n"
-                            "  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin\n"
+                            "  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin + '#h=' + game.hostToken\n"
                             "  : 'host.html?pin=' + game.pin)")
         html = html.replace("location.href = '/play?pin=' + pin", "location.href = 'play.html?pin=' + pin")
         html = html.replace("href: '/play'", "href: 'play.html'")
