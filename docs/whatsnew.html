@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quoldek 3.0 — what's new</title>
+<link href="fonts.css?v=40a238ef" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
+<meta name="theme-color" content="#7C4DFF">
+<meta name="description" content="Quoldek 3.0: three new games, settings for every live game, music for every part of a round, Laser Tag in real 3D, and a Windows app.">
+<link rel="stylesheet" href="nova.css?v=f2c3e7dc">
+<style>
+.top{display:flex;align-items:center;gap:14px;padding:20px 0 10px}
+.top .brand-mark{width:42px;height:42px;flex:none}
+.top b{font-size:1.15rem;font-weight:900;letter-spacing:-.02em}
+.top .grow{flex:1}
+
+.head{padding:34px 0 26px;text-align:center}
+.stamp{display:inline-flex;align-items:center;gap:9px;padding:8px 17px;border-radius:999px;
+  background:var(--sun);border:var(--line-w) solid var(--line);box-shadow:var(--pop-1);
+  font-weight:900;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase}
+.head h1{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:900;letter-spacing:-.03em;margin:18px 0 12px}
+.head h1 .three{display:inline-block;background:var(--grape);color:#fff;padding:0 .16em;border-radius:16px;
+  border:var(--line-w) solid var(--line);box-shadow:var(--pop-1);transform:rotate(-2deg)}
+.head p{color:var(--muted);font-size:clamp(1rem,1.8vw,1.18rem);font-weight:600;max-width:52ch;
+  margin:0 auto 22px}
+
+/* the countdown to noon */
+.when{display:inline-flex;flex-direction:column;gap:4px;align-items:center;padding:18px 30px;
+  border-radius:var(--r-xl);background:var(--card);border:var(--line-w) solid var(--line);
+  box-shadow:var(--pop-2)}
+.when .cap{font-size:.68rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.when .clock{font-size:clamp(1.8rem,5vw,2.6rem);font-weight:900;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.when.live .clock{color:var(--mint)}
+.when .sub{font-size:.82rem;color:var(--muted);font-weight:600}
+
+.rail{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin:26px 0 8px}
+.rail a{padding:8px 15px;border-radius:999px;background:var(--card);border:2.5px solid var(--line);
+  box-shadow:0 2px 0 var(--line);font-weight:800;font-size:.83rem;color:inherit;text-decoration:none;
+  transition:.14s var(--ease)}
+.rail a:hover{transform:translateY(-2px);box-shadow:0 4px 0 var(--line)}
+
+section.bit{padding:40px 0;border-top:2px dashed var(--line-soft)}
+section.bit > h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:900;letter-spacing:-.02em;margin-bottom:6px}
+section.bit > .say{color:var(--muted);font-weight:600;max-width:62ch;margin-bottom:22px;line-height:1.6}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.bitcard{background:var(--card);border:var(--line-w) solid var(--line);border-radius:var(--r-xl);
+  box-shadow:var(--pop-2);overflow:hidden;display:flex;flex-direction:column}
+.bitcard .art{line-height:0;border-bottom:var(--line-w) solid var(--line);background:var(--paper-2)}
+.bitcard .art svg{width:100%;height:auto;display:block}
+.bitcard .body{padding:15px 17px 17px}
+.bitcard h3{font-size:1.05rem;font-weight:800;margin-bottom:5px}
+.bitcard p{font-size:.87rem;color:var(--muted);font-weight:600;line-height:1.55}
+.tagline{display:inline-block;margin-top:9px;font-size:.72rem;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--grape)}
+
+.rows{display:flex;flex-direction:column;gap:12px}
+.row2{display:flex;gap:15px;align-items:flex-start;background:var(--card);border:var(--line-w) solid var(--line);
+  border-radius:var(--r-lg);box-shadow:var(--pop-1);padding:15px 17px}
+.row2 .mark{flex:none;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
+  border:2.5px solid var(--line);background:var(--sun)}
+.row2 .mark.g{background:var(--mint)} .row2 .mark.b{background:var(--sky)}
+.row2 .mark.p{background:var(--grape);color:#fff} .row2 .mark.r{background:var(--coral)}
+.row2 h3{font-size:1rem;font-weight:800;margin-bottom:3px}
+.row2 p{font-size:.87rem;color:var(--muted);font-weight:600;line-height:1.55}
+
+.getit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;
+  background:var(--card);border:var(--line-w) solid var(--line);border-radius:var(--r-xl);
+  box-shadow:var(--pop-2);padding:24px 26px}
+@media (max-width:720px){ .getit{grid-template-columns:1fr} }
+.getit h3{font-size:1.3rem;font-weight:900;margin-bottom:6px}
+.getit p{color:var(--muted);font-weight:600;font-size:.92rem;line-height:1.6;max-width:52ch}
+
+.honest{background:var(--paper-2);border:2.5px dashed var(--line-soft);border-radius:var(--r-lg);
+  padding:18px 20px;margin-top:18px}
+.honest p{font-size:.87rem;color:var(--muted);font-weight:600;line-height:1.6}
+
+footer{padding:34px 0 44px;color:var(--faint);font-size:.82rem;font-weight:600;text-align:center}
+footer a{color:var(--grape)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand-mark" id="brand-mark"></div>
+    <b>Quoldek</b>
+    <div class="grow"></div>
+    <a class="btn sm" href="index.html">Open Quoldek</a>
+  </div>
+
+  <header class="head">
+    <span class="stamp">The biggest update yet</span>
+    <h1>Quoldek <span class="three">3.0</span></h1>
+    <p>Eleven games instead of eight, a settings screen for every live round, a
+    different piece of music for every part of a game, Laser Tag rebuilt in real
+    3D, and an app you can install on Windows.</p>
+
+    <div class="when" id="when">
+      <span class="cap" id="when-cap">Arrives today at 12:00</span>
+      <span class="clock" id="when-clock">—</span>
+      <span class="sub" id="when-sub">Everything below goes live at midday.</span>
+    </div>
+
+    <nav class="rail">
+      <a href="#games">Three new games</a>
+      <a href="#settings">Game settings</a>
+      <a href="#laser">Laser Tag in 3D</a>
+      <a href="#music">Music</a>
+      <a href="#app">The Windows app</a>
+      <a href="#quizzes">Writing quizzes</a>
+    </nav>
+  </header>
+
+  <section class="bit" id="games">
+    <h2>Three new games</h2>
+    <p class="say">Every game we had was a race in the same shape: answer, score,
+    watch your thing get bigger. These three are not that. Same quiz, same PIN —
+    pick one on the way in.</p>
+    <div class="cards" id="game-cards"></div>
+    <div class="honest">
+      <p><strong>Eleven games now.</strong> Normal, Laser Tag, Kart Race, Tower
+      Build, Treasure Run, Boss Battle, Snowball Fight, Balloon Drop, and the
+      three above. Each has three maps, and everybody picks their own monster.</p>
+    </div>
+  </section>
+
+  <section class="bit" id="settings">
+    <h2>You decide how the round plays</h2>
+    <p class="say">Hosting used to ask two questions and start. There is a proper
+    settings screen now, and none of it touches the quiz — so the same quiz can be
+    a fast five minutes for one class and a slow careful round for another.</p>
+    <div class="rows">
+      <div class="row2"><span class="mark" data-icon="clock"></span><div>
+        <h3>Seconds a question</h3>
+        <p>Leave it as the quiz says, or set 10 to 60 for this game only. Every
+        screen counts down the same number.</p></div></div>
+      <div class="row2"><span class="mark g" data-icon="medal"></span><div>
+        <h3>Points a question, and a double last question</h3>
+        <p>Change what a question is worth, and let the final one be worth double
+        so a class behind still has a way back.</p></div></div>
+      <div class="row2"><span class="mark b" data-icon="flag"></span><div>
+        <h3>How it ends</h3>
+        <p>All the questions, a race to 500 or 1,000, or a clock — 5, 10 or 15
+        minutes, and whoever is ahead wins.</p></div></div>
+      <div class="row2"><span class="mark p" data-icon="spark"></span><div>
+        <h3>Streaks, shuffling and late joiners</h3>
+        <p>Turn the streak bonus off, shuffle the questions or the answers, and
+        decide whether somebody arriving late can still join.</p></div></div>
+    </div>
+  </section>
+
+  <section class="bit" id="laser">
+    <h2>Laser Tag, rebuilt in real 3D</h2>
+    <p class="say">It was a floor plan: a flat top-down diagram where a player at
+    the far end was the same size as one at your feet. There is a camera now,
+    standing above and behind and tilted at the floor, so the arena has depth and
+    a horizon.</p>
+    <div class="rows">
+      <div class="row2"><span class="mark p" data-icon="laser"></span><div>
+        <h3>Everything stands up</h3>
+        <p>Figures have height and cast a shadow onto the floor, so they are on
+        the ground rather than in front of it. Beams travel at chest height.
+        Somebody at the far wall is genuinely smaller than somebody beside you.</p></div></div>
+      <div class="row2"><span class="mark" data-icon="target"></span><div>
+        <h3>A room, not a diagram</h3>
+        <p>The floor is a plane with a grid that converges, walls all the way
+        round lit along the top, and the arena runs to a horizon. The board holds
+        all of it; a phone rides behind its own player.</p></div></div>
+      <div class="row2"><span class="mark g" data-icon="save"></span><div>
+        <h3>No download, no plugin</h3>
+        <p>It is arithmetic on the same canvas that was already there — no 3D
+        library and nothing to fetch — so it still runs on a school laptop and
+        with the wifi unplugged.</p></div></div>
+    </div>
+  </section>
+
+  <section class="bit" id="music">
+    <h2>Music that follows the game</h2>
+    <p class="say">There was one tune, playing from the moment the board opened
+    until the game ended. A room does not experience a game that way.</p>
+    <div class="rows">
+      <div class="row2"><span class="mark" data-icon="sound"></span><div>
+        <h3>A different piece for each part of a round</h3>
+        <p>Something unhurried while everybody joins. Something with a pulse when
+        a question is open — and as the clock runs down it speeds up, leans on
+        every beat, and climbs. A breath while the answer is up. Something bright
+        to read the standings to.</p></div></div>
+      <div class="row2"><span class="mark b" data-icon="spark"></span><div>
+        <h3>Played, not downloaded</h3>
+        <p>Every note is built by the browser out of a few oscillators, so it
+        adds nothing to load and sounds the same offline. It only ever plays on
+        the big screen — thirty phones each playing their own copy would be
+        unbearable.</p></div></div>
+    </div>
+  </section>
+
+  <section class="bit" id="app">
+    <h2>Quoldek for Windows</h2>
+    <p class="say">Not a browser pointed at the website. It runs the whole thing
+    on your own computer — the pages, the quizzes and the live game — and phones
+    join over your own wifi.</p>
+    <div class="getit">
+      <div>
+        <h3>Works with no internet at all</h3>
+        <p>School wifi is unreliable and school firewalls block things, and
+        neither can stop a lesson that never leaves the building. Your quizzes are
+        files in a folder you can back up, the board goes on the projector, and
+        <strong>Join a game</strong> lets you play along on the same computer —
+        or on somebody else's, over the wifi.</p>
+      </div>
+      <a class="btn primary lg" href="https://github.com/erdanthecoder/quiznova/releases/latest"
+         target="_blank" rel="noopener">Download for Windows</a>
+    </div>
+  </section>
+
+  <section class="bit" id="quizzes">
+    <h2>Writing the quiz</h2>
+    <div class="rows">
+      <div class="row2"><span class="mark g" data-icon="spark"></span><div>
+        <h3>The co-pilot shows what it knows</h3>
+        <p>Thirty-eight subjects it can write questions about — easy maths, times
+        tables, spelling, synonyms, the human body, the water cycle, dinosaurs —
+        listed on screen with a year group beside them. Tap one and the questions
+        are written. No guessing what the tool knows.</p></div></div>
+      <div class="row2"><span class="mark" data-icon="send"></span><div>
+        <h3>Paste anything in</h3>
+        <p>Questions from Gemini or ChatGPT, a numbered list, a table, a block of
+        prose with the answers starred — it reads all of it, and tells you what it
+        found before anything is added.</p></div></div>
+      <div class="row2"><span class="mark r" data-icon="warn"></span><div>
+        <h3>Fixes people actually asked for</h3>
+        <p>Joining a game shows the room straight away instead of an empty lobby.
+        Closing a tab, locking a phone or losing the wifi for a moment no longer
+        looks like the game ending — it waits and reconnects. Both are live now.</p></div></div>
+    </div>
+  </section>
+
+  <section class="bit">
+    <h2>How much Quoldek is really played</h2>
+    <p class="say">The front page used to say "24 playing" whatever was
+    happening — a decoration pretending to be a fact. It now shows only what the
+    database can prove: games actually hosted and people who actually joined one,
+    counted by the database itself so no page can inflate it. When there is
+    nothing true to say, it says nothing.</p>
+    <div class="honest" id="really">
+      <p id="really-text">Counting started with this update.</p>
+    </div>
+  </section>
+
+  <footer>
+    <a href="index.html">Open Quoldek</a> · everyone joins at
+    <strong>playquoldek.web.app</strong>
+  </footer>
+</div>
+
+<script src="sprites.js?v=a7a8749e"></script>
+<script src="nova.js?v=30a2cc36"></script>
+<script src="quizbank.js?v=f18e8cbc"></script>
+<script src="realtime.js?v=75e1623c"></script>
+<script src="arena.js?v=fb3b6182"></script>
+<script src="paste.js?v=3032c005"></script>
+<script src="rules.js?v=2b1ca27f"></script>
+<script src="live.js?v=f6462cfd"></script>
+<script src="nova-local.js?v=340f2f93"></script>
+<script src="account.js?v=ff127e8f"></script>
+<script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
+  : 'https://playquoldek.web.app/?pin=';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
+document.getElementById('brand-mark').innerHTML = Sprite.logo(42);
+document.querySelectorAll('[data-icon]').forEach(n => {
+  n.innerHTML = Sprite.icon(n.dataset.icon, 22);
+});
+
+/* The three new games, drawn rather than described. */
+const NEW_GAMES = [
+  { id: 'tug', title: 'Tug of War',
+    line: 'Two teams, one rope, and it can come all the way back. Nothing else here can be lost from in front: a class two questions from defeat can still drag it over.',
+    tag: 'Teams' },
+  { id: 'heist', title: 'Gold Heist',
+    line: 'A right answer opens a chest — and some of those chests rob the leader, or swap your pile with somebody else’s. The only game where being in front is dangerous.',
+    tag: 'Everyone for themselves' },
+  { id: 'cards', title: 'Card Collector',
+    line: 'A race for a set of eight rather than for points. Answering fast makes a card you need more likely, duplicates become spares, and three spares trade for one you are missing.',
+    tag: 'Collect the set' }
+];
+
+const host = document.getElementById('game-cards');
+for (const g of NEW_GAMES) {
+  const card = document.createElement('div');
+  card.className = 'bitcard';
+  card.innerHTML = `<div class="art">${Sprite.scene(g.id, 520)}</div>
+    <div class="body"><h3>${g.title}</h3><p>${g.line}</p>
+    <span class="tagline">${g.tag}</span></div>`;
+  host.append(card);
+}
+
+/* The countdown.
+ *
+ * Midday, on whatever day this page is opened up to and including release day,
+ * read in the reader's own clock rather than ours — a school in one time zone
+ * should not be told the update lands in the middle of their night. Once it is
+ * past, the box stops counting and says so.
+ */
+const RELEASE = new Date(2026, 8, 5, 12, 0, 0);      // 5 September 2026, 12:00 local
+
+function tick() {
+  const box = document.getElementById('when');
+  const clock = document.getElementById('when-clock');
+  const cap = document.getElementById('when-cap');
+  const sub = document.getElementById('when-sub');
+  const left = RELEASE - new Date();
+
+  if (left <= 0) {
+    box.classList.add('live');
+    cap.textContent = 'Out now';
+    clock.textContent = 'It is here';
+    sub.textContent = 'Everything below is live. Open Quoldek and have a look.';
+    return;
+  }
+  const s = Math.floor(left / 1000);
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  clock.textContent = `${hh}:${mm}:${ss}`;
+  setTimeout(tick, 1000);
+}
+tick();
+
+/* What the counter really says, read straight from the database. */
+(async () => {
+  try {
+    const stats = window.NovaLive && NovaLive.stats ? await NovaLive.stats() : null;
+    if (!stats || !stats.games) return;
+    document.getElementById('really-text').textContent =
+      `${stats.games.toLocaleString()} game${stats.games === 1 ? '' : 's'} played and `
+      + `${stats.players.toLocaleString()} player${stats.players === 1 ? '' : 's'} `
+      + `since ${stats.since}.`
+      + (stats.liveNow ? ` ${stats.liveNow} on right now.` : '');
+  } catch { /* no connection: the line above still stands */ }
+})();
+</script>
+</body>
+</html>

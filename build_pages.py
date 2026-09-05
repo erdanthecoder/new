@@ -27,7 +27,7 @@ LIVE_OUT = os.path.join(ROOT, "docs-live")
 LIVE_HOST = "livequoldek.web.app"
 LIVE_ASSETS = PLAY_ASSETS + ["qr.js", "music.js"]
 
-PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
+PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html", "whatsnew.html"]
 ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 
@@ -86,6 +86,7 @@ def build():
         html = html.replace("location.href = '/studio?id=' + quiz.id", "location.href = 'studio.html?id=' + quiz.id")
         html = html.replace("location.href = '/quiz'", "location.href = 'index.html'")
         html = html.replace('href="/index.html"', 'href="index.html"')
+        html = html.replace('href="/whatsnew"', 'href="whatsnew.html"')
         html = html.replace("location.href = '/host?pin=' + game.pin",
                             "location.href = (window.QUOLDEK_LIVE\n"
                             "  ? 'https://' + window.QUOLDEK_LIVE + '/?pin=' + game.pin\n"

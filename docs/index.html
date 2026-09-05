@@ -10,6 +10,14 @@
 <meta name="theme-color" content="#7C4DFF">
 <link rel="stylesheet" href="nova.css?v=f2c3e7dc">
 <style>
+.newsbar{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:16px;padding:12px 18px;
+  border-radius:var(--r-lg);background:var(--card);border:var(--line-w) solid var(--line);
+  box-shadow:var(--pop-1);color:inherit;text-decoration:none;transition:.15s var(--ease)}
+.newsbar:hover{transform:translateY(-2px);box-shadow:var(--pop-2)}
+.newsbar .pill{flex:none;padding:4px 11px;border-radius:99px;background:var(--sun);
+  border:2px solid var(--line);font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.newsbar .what{font-size:.9rem;font-weight:650;color:var(--muted);flex:1;min-width:200px}
+.newsbar .go{font-size:.83rem;font-weight:800;color:var(--grape);white-space:nowrap}
 .hero{padding:56px 0 40px;position:relative;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:center}
 .hero h1{font-size:clamp(2.6rem,6vw,4.4rem);font-weight:900;margin:18px 0 16px;max-width:14ch}
 .hero h1 .pop{display:inline-block;background:var(--sun);color:var(--ink);padding:0 .18em;border-radius:14px;
@@ -105,6 +113,13 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 </header>
 
 <main class="wrap">
+  <a class="newsbar fade-up" href="whatsnew.html">
+    <span class="pill">New</span>
+    <span class="what"><strong>Quoldek 3.0</strong> — three new games, settings for every live
+    round, and Laser Tag in real 3D.</span>
+    <span class="go">See what's new &rarr;</span>
+  </a>
+
   <section class="hero fade-up">
     <div>
       <span class="eyebrow">For classrooms and kitchen tables</span>
