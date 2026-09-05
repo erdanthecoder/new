@@ -938,6 +938,75 @@ def maps_for(mode):
     return [{"id": i, "label": label} for i, label in MAPS.get(mode, MAPS["normal"])]
 
 
+# What the teacher can change before the game starts. The quiz says how long a
+# question is and what it is worth; a live game may want something else — a fast
+# five minutes before lunch, or a slow round with a class who need thinking time
+# — without editing the quiz for everyone who plays it afterwards. Mirrors
+# static/rules.js; the test suite compares the two.
+SETUP = {
+    "seconds": {"label": "Seconds a question", "values": [0, 10, 15, 20, 30, 45, 60]},
+    "points": {"label": "Points a question", "values": [0, 50, 100, 200, 500]},
+    "streaks": {"label": "Bonus for a run of right answers", "on": True},
+    "shuffle": {"label": "Questions in a new order every game", "on": False},
+    "mix": {"label": "Answers in a new order too", "on": False},
+    "lateJoin": {"label": "Let people join after it starts", "on": True},
+    "doubleLast": {"label": "Last question is worth double", "on": False},
+}
+
+
+def read_setup(raw):
+    given = raw if isinstance(raw, dict) else {}
+    setup = {}
+    for key, spec in SETUP.items():
+        if "values" in spec:
+            try:
+                value = int(given.get(key))
+            except (TypeError, ValueError):
+                value = None
+            setup[key] = value if value in spec["values"] else spec["values"][0]
+        else:
+            setup[key] = spec["on"] if given.get(key) is None else bool(given.get(key))
+    return setup
+
+
+def seconds_for(game, question):
+    """How long this question runs for, in seconds."""
+    chosen = (game.get("setup") or {}).get("seconds")
+    return chosen or (question or {}).get("time") or 20
+
+
+def points_for(game, question):
+    """What this question is worth, before speed and streaks."""
+    setup = game.get("setup") or {}
+    base = setup.get("points") or (question or {}).get("points") or 100
+    if setup.get("doubleLast") and game.get("index") == len(game.get("questions") or []) - 1:
+        base *= 2
+    return base
+
+
+def streak_bonus(game, player):
+    if (game.get("setup") or {}).get("streaks") is False:
+        return 1
+    return 1 + min(player.get("streak", 0), 5) * 0.1
+
+
+def arrange(questions, setup):
+    """Questions in a new order, and the answers within them, if asked for."""
+    out = list(questions)
+    if setup.get("shuffle"):
+        random.shuffle(out)
+    if setup.get("mix"):
+        mixed = []
+        for q in out:
+            choices = q.get("choices") or []
+            if len(choices) > 1:
+                q = dict(q)
+                q["choices"] = random.sample(choices, len(choices))
+            mixed.append(q)
+        out = mixed
+    return out
+
+
 ARENA_SECONDS = 20         # a full energy bar, in the Laser Tag arena
 TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
@@ -1016,7 +1085,9 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
             "text": q["text"],
             "image": q.get("image", ""),
             "points": q.get("points", 100),
-            "time": q.get("time", 20),
+            # the length the teacher chose for this game, not the one the quiz
+            # was written with, so every screen counts down the same number
+            "time": seconds_for(game, q),
             "choices": [{"id": c["id"], "text": c["text"],
                          **({"correct": c["correct"]} if (include_answers or game["state"] == "reveal") else {})}
                         for c in q.get("choices", [])],
@@ -1050,6 +1121,7 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "boss": game.get("boss"),
         "trackLength": TRACK_LENGTH,
         "goal": game.get("goal") or {"kind": "questions", "value": 0},
+        "setup": game.get("setup"),
         "startedAt": game.get("startedAt", 0),
         "music": game.get("music") is not False,
         "modeInfo": MODES.get(game["mode"], MODES["normal"]),
@@ -1081,9 +1153,12 @@ def create_game():
             return err
         if not quiz["questions"]:
             return jsonify({"error": "Add at least one question first."}), 400
-        questions = json.loads(json.dumps(quiz["questions"]))
-        if quiz["settings"].get("shuffleQuestions"):
-            random.shuffle(questions)
+        # the quiz's own shuffle setting is the starting point; what the teacher
+        # picked on the way into this game wins over it
+        wanted = {"shuffle": bool(quiz["settings"].get("shuffleQuestions"))}
+        wanted.update(body.get("setup") or {})
+        setup = read_setup(wanted)
+        questions = arrange(json.loads(json.dumps(quiz["questions"])), setup)
         game = {
             "pin": new_pin(),
             "hostToken": nid(16),
@@ -1096,6 +1171,7 @@ def create_game():
             "teams": {"red": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Crimson"},
                       "blue": {"hp": 0, "score": 0, "blocks": 0, "max": 0, "name": "Cobalt"}},
             "goal": read_goal(body.get("goal")),
+            "setup": setup,
             "music": body.get("music") is not False,
             "startedAt": 0,
             "counts": {},
@@ -1137,6 +1213,8 @@ def join_game(pin):
             return err
         if game["state"] not in ("lobby", "question", "reveal"):
             return jsonify({"error": "This game has finished."}), 400
+        if game["state"] != "lobby" and (game.get("setup") or {}).get("lateJoin") is False:
+            return jsonify({"error": "This game has already started."}), 400
         name = (body.get("name") or "Player").strip()[:16] or "Player"
         red = sum(1 for p in game["players"].values() if p["team"] == "red")
         blue = sum(1 for p in game["players"].values() if p["team"] == "blue")
@@ -1230,7 +1308,7 @@ def begin_question(game: dict) -> None:
     """Open the question itself and start its clock."""
     question = game["questions"][game["index"]]
     game["state"] = "question"
-    game["endsAt"] = now_ms() + int(question.get("time", 20)) * 1000 + 700
+    game["endsAt"] = now_ms() + int(seconds_for(game, question)) * 1000 + 700
 
 
 def open_question(game: dict) -> None:
@@ -1319,9 +1397,8 @@ def score_normal(game, player, question, ok, speed):
     if not ok:
         player["lastGain"] = 0
         return
-    base = int(question.get("points", 100))
-    multiplier = 1 + min(player["streak"], 5) * 0.1
-    gain = int(round((base * 0.5 + base * 0.5 * speed) * multiplier))
+    base = int(points_for(game, question))
+    gain = int(round((base * 0.5 + base * 0.5 * speed) * streak_bonus(game, player)))
     player["score"] += gain
     player["lastGain"] = gain
 
@@ -1523,7 +1600,7 @@ def answer_question(pin):
         question = game["questions"][game["index"]]
         given = body.get("answer")
         ok = grade(question, given)
-        limit = int(question.get("time", 20)) * 1000
+        limit = int(seconds_for(game, question)) * 1000
         left = max(0, (game.get("endsAt") or now_ms()) - now_ms())
         speed = max(0.0, min(1.0, left / limit)) if limit else 0.0
 

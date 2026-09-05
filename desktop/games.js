@@ -52,13 +52,9 @@ class Games {
 
   create(quiz, body) {
     this.sweep();
-    const questions = JSON.parse(JSON.stringify(quiz.questions));
-    if (quiz.settings && quiz.settings.shuffleQuestions) {
-      for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [questions[i], questions[j]] = [questions[j], questions[i]];
-      }
-    }
+    const setup = R.readSetup(Object.assign(
+      { shuffle: !!(quiz.settings && quiz.settings.shuffleQuestions) }, body.setup || {}));
+    const questions = R.arrange(JSON.parse(JSON.stringify(quiz.questions)), setup);
     const mode = R.MODES[body.mode] ? body.mode : 'normal';
     const maps = R.mapsFor(mode).map(m => m.id);
     const game = {
@@ -67,7 +63,7 @@ class Games {
       state: 'lobby', index: -1, questions, players: {},
       teams: { red: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Crimson' },
                blue: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Cobalt' } },
-      goal: R.readGoal(body.goal), music: body.music !== false, startedAt: 0,
+      goal: R.readGoal(body.goal), setup, music: body.music !== false, startedAt: 0,
       counts: {}, lastEvents: [], endsAt: null, createdAt: now()
     };
     this.games.set(game.pin, game);
@@ -85,7 +81,8 @@ class Games {
     if (q && game.index >= 0) {
       const reveal = game.state === 'reveal' || game.state === 'over';
       question = {
-        id: q.id, type: q.type, text: q.text, image: q.image, time: q.time, points: q.points,
+        id: q.id, type: q.type, text: q.text, image: q.image,
+        time: R.secondsFor(game, q), points: q.points,
         choices: (q.choices || []).map(c => (reveal ? { id: c.id, text: c.text, correct: !!c.correct }
                                                     : { id: c.id, text: c.text }))
       };
@@ -100,7 +97,8 @@ class Games {
       quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
       boss: game.boss || null, trackLength: R.TRACK_LENGTH,
       modeInfo: R.MODES[game.mode] || R.MODES.normal,
-      goal: game.goal, startedAt: game.startedAt, music: game.music !== false
+      goal: game.goal, setup: game.setup || null, startedAt: game.startedAt,
+      music: game.music !== false
     };
   }
 
@@ -108,6 +106,9 @@ class Games {
 
   join(game, body) {
     if (game.state === 'over') throw Object.assign(new Error('This game has finished.'), { status: 400 });
+    if (game.state !== 'lobby' && game.setup && game.setup.lateJoin === false) {
+      throw Object.assign(new Error('This game has already started.'), { status: 400 });
+    }
     const already = Object.values(game.players);
     const red = already.filter(p => p.team === 'red').length;
     const blue = already.filter(p => p.team === 'blue').length;
@@ -170,7 +171,7 @@ class Games {
       p.lastDamage = 0; p.target = '';
     }
     game.state = 'question';
-    game.endsAt = now() + (game.questions[game.index].time || 20) * 1000 + 700;
+    game.endsAt = now() + R.secondsFor(game, game.questions[game.index]) * 1000 + 700;
   }
 
   next(game) {

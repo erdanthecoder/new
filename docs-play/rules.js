@@ -62,6 +62,78 @@
     return false;
   }
 
+  /* ── what the teacher can change before the game starts ──
+   *
+   * The quiz says how long a question is and what it is worth; a live game may
+   * want something else entirely — a fast five minutes before lunch, or a slow
+   * round with a class who need thinking time — without editing the quiz and
+   * changing it for everyone who plays it afterwards. So these sit on the game,
+   * not on the quiz, and every one of them falls back to what the quiz already
+   * said when it is left alone.
+   */
+  const SETUP = {
+    seconds:    { label: 'Seconds a question', values: [0, 10, 15, 20, 30, 45, 60] },  // 0 = as the quiz says
+    points:     { label: 'Points a question', values: [0, 50, 100, 200, 500] },        // 0 = as the quiz says
+    streaks:    { label: 'Bonus for a run of right answers', on: true },
+    // both orders are left alone unless asked for: a teacher who put the easy
+    // ones first meant it, and a question ending "all of the above" is written
+    // in an order that means something
+    shuffle:    { label: 'Questions in a new order every game', on: false },
+    // off unless asked for: a question whose options are "1, 2, 3" or that ends
+    // with "all of the above" is written in an order that means something
+    mix:        { label: 'Answers in a new order too', on: false },
+    lateJoin:   { label: 'Let people join after it starts', on: true },
+    doubleLast: { label: 'Last question is worth double', on: false }
+  };
+
+  function readSetup(raw) {
+    const given = raw && typeof raw === 'object' ? raw : {};
+    const setup = {};
+    for (const [key, spec] of Object.entries(SETUP)) {
+      if (spec.values) {
+        const n = Number(given[key]);
+        setup[key] = spec.values.includes(n) ? n : spec.values[0];
+      } else {
+        setup[key] = given[key] === undefined ? spec.on : !!given[key];
+      }
+    }
+    return setup;
+  }
+
+  /** How long this question runs for, in seconds. */
+  function secondsFor(game, question) {
+    const chosen = game.setup && game.setup.seconds;
+    return chosen || (question && question.time) || 20;
+  }
+
+  /** What this question is worth, before speed and streaks. */
+  function pointsFor(game, question) {
+    const chosen = game.setup && game.setup.points;
+    let base = chosen || (question && question.points) || 100;
+    if (game.setup && game.setup.doubleLast && game.questions
+        && game.index === game.questions.length - 1) base *= 2;
+    return base;
+  }
+
+  /** The multiplier for answering several right in a row, unless it is switched off. */
+  function streakBonus(game, player) {
+    if (game.setup && game.setup.streaks === false) return 1;
+    return 1 + Math.min(player.streak, 5) * 0.1;
+  }
+
+  /* Questions in a new order, and the answers within them, so a class playing the
+   * same quiz twice is not simply remembering that it was the third one. */
+  function arrange(questions, setup) {
+    let out = questions;
+    if (setup.shuffle) out = out.slice().sort(() => Math.random() - 0.5);
+    if (setup.mix) {
+      out = out.map(q => (q.choices && q.choices.length > 1)
+        ? Object.assign({}, q, { choices: q.choices.slice().sort(() => Math.random() - 0.5) })
+        : q);
+    }
+    return out;
+  }
+
   const mapsFor = (mode) => (MAPS[mode] || MAPS.normal).map(([id, label]) => ({ id, label }));
   const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
 
@@ -90,8 +162,8 @@
   const SCORERS = {
     normal(game, p, q, ok, speed) {
       if (!ok) { p.lastGain = 0; return; }
-      const base = q.points || 100;
-      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (1 + Math.min(p.streak, 5) * 0.1));
+      const base = pointsFor(game, q);
+      const gain = Math.round((base * 0.5 + base * 0.5 * speed) * streakBonus(game, p));
       p.score += gain; p.lastGain = gain;
     },
     laser(game, p, q, ok, speed) {
@@ -184,7 +256,7 @@
       const power = 1 + Math.min(p.streak, 4) * 0.25;
       const hit = Math.min(fort.blocks, Math.max(1, Math.round((0.6 + speed) * power)));
       fort.blocks -= hit;
-      const gain = Math.round((q.points || 100) * (0.5 + 0.5 * speed));
+      const gain = Math.round(pointsFor(game, q) * (0.5 + 0.5 * speed));
       p.score += gain; p.lastGain = gain; p.hits += hit;
       game.teams[p.team].score += gain;
       game.lastEvents.push(`${p.name} knocked ${hit} block${hit > 1 ? 's' : ''} off the ${fort.name} fort`
@@ -205,7 +277,7 @@
           : `${p.name} is out of balloons`);
         return;
       }
-      const base = q.points || 100;
+      const base = pointsFor(game, q);
       // still floating is worth more than playing on for pride
       const gain = Math.round((base * 0.5 + base * 0.5 * speed) * (out ? 0.4 : 1));
       p.score += gain; p.lastGain = gain;
@@ -242,8 +314,9 @@
   const pickBossName = () => BOSS_NAMES[Math.floor(Math.random() * BOSS_NAMES.length)];
 
   global.NovaRules = {
-    MODES, MAPS, GOALS, SCORERS, BOSS_NAMES,
+    MODES, MAPS, GOALS, SETUP, SCORERS, BOSS_NAMES,
     mapsFor, defaultMap, readGoal, goalReached, grade, blankPlayer, pickBossName,
+    readSetup, secondsFor, pointsFor, streakBonus, arrange,
     TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS, MAX_PLAYER_HIT
   };
 })(typeof window !== 'undefined' ? window : globalThis);

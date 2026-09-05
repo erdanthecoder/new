@@ -67,7 +67,7 @@
    * thirty phones through a shared database. */
   const R = global.NovaRules || (typeof require === 'function' ? require('./rules.js') : null);
   const { MODES, MAPS, GOALS, SCORERS, mapsFor, defaultMap, readGoal, goalReached,
-          grade, blankPlayer, pickBossName,
+          grade, blankPlayer, pickBossName, readSetup, secondsFor, arrange,
           TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS } = R;
 
 
@@ -112,7 +112,9 @@
       const reveal = game.state === 'reveal';
       question = {
         id: q.id, type: q.type, text: q.text, image: q.image || '',
-        points: q.points, time: q.time,
+        // the length the teacher chose for this game, not the one the quiz was
+        // written with, so every screen counts down the same number
+        points: q.points, time: secondsFor(game, q),
         choices: (q.choices || []).map(c => reveal ? { id: c.id, text: c.text, correct: c.correct }
                                                    : { id: c.id, text: c.text })
       };
@@ -128,6 +130,7 @@
       // their phone needs the set. A child who digs into the page can read the
       // answers; the same is true of every game of this shape.
       quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
+      setup: game.setup || null,
       boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal,
       goal: game.goal || { kind: 'questions', value: 0 },
       startedAt: game.startedAt || 0, music: game.music !== false
@@ -137,7 +140,7 @@
   /** Open the question itself and start its clock. */
   function beginQuestion(game) {
     game.state = 'question';
-    game.endsAt = now() + (game.questions[game.index].time || 20) * 1000 + 700;
+    game.endsAt = now() + secondsFor(game, game.questions[game.index]) * 1000 + 700;
   }
 
   /* Laser Tag runs on a two-beat round, the way a shooting game does: a short
@@ -264,14 +267,18 @@
       if (!quiz || !quiz.questions || !quiz.questions.length) {
         throw new Error('Add at least one question first.');
       }
-      const questions = JSON.parse(JSON.stringify(quiz.questions));
-      if (quiz.settings && quiz.settings.shuffleQuestions) questions.sort(() => Math.random() - 0.5);
+      // the quiz's own shuffle setting is the starting point; what the teacher
+      // picked on the way into this game wins over it
+      const setup = readSetup(Object.assign(
+        { shuffle: !!(quiz.settings && quiz.settings.shuffleQuestions) }, body.setup || {}));
+      const questions = arrange(JSON.parse(JSON.stringify(quiz.questions)), setup);
       const newPin = String(Math.floor(100000 + Math.random() * 900000));
       const game = {
         pin: newPin, hostToken: rid(16), quizId: quiz.id, quizTitle: quiz.title,
         mode: MODES[body.mode] ? body.mode : 'normal',
         map: '',
         goal: readGoal(body.goal),
+        setup,
         music: body.music !== false,
         state: 'lobby', index: -1, questions, players: {},
         teams: { red: { hp: 0, score: 0, blocks: 0, max: 0, name: 'Crimson' },
@@ -313,6 +320,9 @@
 
     if (tail === '/join' && method === 'POST') {
       if (game.state === 'over') throw new Error('This game has finished.');
+      if (game.state !== 'lobby' && game.setup && game.setup.lateJoin === false) {
+        throw new Error('This game has already started.');
+      }
       // ask the table, not the host's copy: someone may have joined a second ago
       const already = await readPlayers(pin) || [];
       const red = already.filter(p => p.team === 'red').length;
@@ -344,7 +354,7 @@
 
     if (tail === '/answer' && method === 'POST') {
       if (game.state !== 'question') throw new Error('No question is open.');
-      const limit = (game.questions[game.index].time || 20) * 1000;
+      const limit = secondsFor(game, game.questions[game.index]) * 1000;
       const left = Math.max(0, (game.endsAt || now()) - now());
       try {
         await rest('POST', '/quiznova_live_answers', {

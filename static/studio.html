@@ -147,6 +147,17 @@ tr:hover td{background:var(--paper)}
 .endcard .body{display:flex;flex-direction:column;gap:1px;min-width:0}
 .endcard strong{font-size:1rem}
 .endcard .sub{font-size:.76rem;color:var(--faint);font-weight:600}
+.setup{display:block}
+.setup .sect{margin-bottom:16px}
+.setup .sect > h4{font-size:.68rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:9px}
+.endcard.on{border-color:#6C4CF1;box-shadow:0 0 0 3px rgba(108,76,241,.22)}
+.seg{display:flex;flex-wrap:wrap;gap:7px}
+.seg button{font:inherit;font-weight:700;font-size:.85rem;padding:9px 14px;border-radius:99px;cursor:pointer;
+  border:var(--line-w) solid var(--line);background:var(--card);color:inherit;transition:.13s}
+.seg button:hover{transform:translateY(-1px)}
+.seg button.on{background:#6C4CF1;color:#fff;border-color:#6C4CF1}
+.switches{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px}
 .musicrow{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:var(--r-lg);
   border:var(--line-w) dashed var(--line);cursor:pointer}
 .musicrow input{width:20px;height:20px;flex:none;accent-color:#6C4CF1}
@@ -857,44 +868,106 @@ const joinAddress = () => (window.QUOLDEK_JOIN
          want, but a lesson with ten minutes left wants the clock to decide, and
          a race to a score is a different game entirely. */
       function showSettings(mode, map) {
-        box.querySelector('#pick-title').textContent = 'How does it end?';
-        box.querySelector('#pick-sub').textContent = `${mode.label} · you can stop it early at any time`;
+        box.querySelector('#pick-title').textContent = 'Set the game up';
+        box.querySelector('#pick-sub').textContent =
+          `${mode.label} · everything here is for this game only, the quiz itself is not touched`;
         list.innerHTML = '';
-        list.className = 'modegrid endgrid';
+        list.className = 'setup';
 
-        const options = [
-          { kind: 'questions', value: 0, title: 'All the questions',
-            sub: 'It ends when the quiz runs out' },
+        /* What the teacher picks here rides on the game, not the quiz — so a fast
+           five minutes before lunch does not permanently rewrite a quiz that is
+           also set for homework. Everything defaults to what the quiz already says. */
+        let goal = { kind: 'questions', value: 0 };
+        const setup = { seconds: 0, points: 0, streaks: true, shuffle: false,
+                        mix: false, lateJoin: true, doubleLast: false, music: true };
+
+        const section = (title, body) => {
+          const sec = el('div', { class: 'sect' }, el('h4', {}, title));
+          sec.append(body);
+          list.append(sec);
+          return sec;
+        };
+
+        // ── how it ends
+        const ends = el('div', { class: 'modegrid endgrid' });
+        const endOptions = [
+          { kind: 'questions', value: 0, title: 'All the questions', sub: 'It ends when the quiz runs out' },
           { kind: 'points', value: 500, title: 'First to 500', sub: 'A short race' },
           { kind: 'points', value: 1000, title: 'First to 1,000', sub: 'A longer race' },
           { kind: 'time', value: 5, title: '5 minutes', sub: 'Whoever is ahead wins' },
           { kind: 'time', value: 10, title: '10 minutes', sub: 'Most of a lesson' },
           { kind: 'time', value: 15, title: '15 minutes', sub: 'A full session' }
         ];
-        options.forEach(o => {
+        endOptions.forEach(o => {
           const btn = el('button', { class: 'endcard', 'data-goal': o.kind + ':' + o.value,
-            onclick: () => launch(mode.id, map, { kind: o.kind, value: o.value }) });
+            onclick: () => {
+              goal = { kind: o.kind, value: o.value };
+              ends.querySelectorAll('.endcard').forEach(b => b.classList.remove('on'));
+              btn.classList.add('on');
+            } });
           btn.append(el('span', { class: 'endmark',
                                   html: Sprite.icon(o.kind === 'time' ? 'clock' : o.kind === 'points' ? 'medal' : 'flag', 26) }),
                      el('span', { class: 'body' }, el('strong', {}, o.title), el('span', { class: 'sub' }, o.sub)));
-          list.append(btn);
+          if (o.kind === 'questions') btn.classList.add('on');
+          ends.append(btn);
         });
+        section('How it ends', ends);
 
-        const music = el('label', { class: 'musicrow', style: 'grid-column:1/-1' });
-        const box2 = el('input', { type: 'checkbox', id: 'music-on', checked: true });
-        music.append(box2, el('span', {}, el('strong', {}, 'Music on the big screen'),
-                              el('span', { class: 'sub' }, 'A quiet tune while everyone plays. Nothing on the phones.')));
-        list.append(music);
+        /* A row of choices where one is always picked. `values` are what goes on
+           the wire; `labels` are what a person reads. */
+        const choose = (key, values, labels) => {
+          const row = el('div', { class: 'seg' });
+          values.forEach((v, i) => {
+            const btn = el('button', { type: 'button', 'data-set': key + ':' + v,
+              onclick: () => {
+                setup[key] = v;
+                row.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+                btn.classList.add('on');
+              } }, labels[i]);
+            if (setup[key] === v) btn.classList.add('on');
+            row.append(btn);
+          });
+          return row;
+        };
 
-        list.append(el('button', { class: 'btn ghost', style: 'grid-column:1/-1',
+        section('Seconds a question',
+          choose('seconds', [0, 10, 15, 20, 30, 45, 60],
+                 ['As the quiz says', '10s', '15s', '20s', '30s', '45s', '60s']));
+        section('Points a question',
+          choose('points', [0, 50, 100, 200, 500],
+                 ['As the quiz says', '50', '100', '200', '500']));
+
+        // ── the switches
+        const switches = el('div', { class: 'switches' });
+        const toggles = [
+          ['streaks', 'Streak bonus', 'Right answers in a row are worth more'],
+          ['doubleLast', 'Double the last question', 'A chance to catch up at the end'],
+          ['shuffle', 'Shuffle the questions', 'A different order every game'],
+          ['mix', 'Shuffle the answers', 'Off for questions like "all of the above"'],
+          ['lateJoin', 'Let people join late', 'Somebody arriving after the start can still play'],
+          ['music', 'Music on the big screen', 'A quiet tune. Nothing on the phones.']
+        ];
+        toggles.forEach(([key, title, sub]) => {
+          const row = el('label', { class: 'musicrow' });
+          const input = el('input', { type: 'checkbox', id: 'set-' + key });
+          input.checked = !!setup[key];
+          input.onchange = () => { setup[key] = input.checked; };
+          row.append(input, el('span', {}, el('strong', {}, title), el('span', { class: 'sub' }, sub)));
+          switches.append(row);
+        });
+        section('And these', switches);
+
+        const go = el('button', { class: 'btn primary lg block', id: 'start-game',
+          onclick: () => launch(mode.id, map, goal, setup) }, 'Start the game');
+        list.append(go);
+        list.append(el('button', { class: 'btn ghost block', style: 'margin-top:8px',
           onclick: () => { list.className = 'modegrid'; showMaps(mode); } }, 'Back to the maps'));
       }
 
-      async function launch(mode, map, goal) {
+      async function launch(mode, map, goal, setup) {
         try {
-          const music = box.querySelector('#music-on');
           const game = await api('/games', { method: 'POST',
-            body: { quizId, mode, map, goal, music: music ? music.checked : true } });
+            body: { quizId, mode, map, goal, setup, music: setup.music !== false } });
           store.set('host:' + game.pin, game.hostToken);
           location.href = '/host?pin=' + game.pin;
         } catch (err) { toast(err.message, 'bad'); }
