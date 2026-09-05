@@ -95,6 +95,21 @@ aside.ai{display:flex;flex-direction:column;height:calc(100vh - 116px);overflow:
 .prompt-chip{padding:6px 12px;border-radius:999px;background:var(--paper);border:2px solid var(--line-soft);
   font-size:.77rem;cursor:pointer;transition:.15s var(--ease);color:var(--muted);font-weight:700}
 .prompt-chip:hover{background:#EFEAFF;color:var(--grape);border-color:var(--grape);transform:translateY(-1px)}
+/* what the co-pilot already knows, offered rather than guessed at */
+.knows{margin-bottom:10px;border-top:1px solid var(--line-soft);padding-top:9px}
+.knows summary{font-size:.75rem;font-weight:800;color:var(--faint);cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:6px}
+.knows summary::-webkit-details-marker{display:none}
+.knows summary::before{content:'▸';font-size:.7rem}
+.knows[open] summary::before{content:'▾'}
+.knows .subj{font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);margin:10px 0 5px}
+.knows .row{display:flex;gap:5px;flex-wrap:wrap}
+.knows .years{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 2px;align-items:center}
+.knows .years b{font-size:.72rem;font-weight:800;color:var(--faint)}
+.knows .yr{padding:4px 10px;border-radius:99px;border:2px solid var(--line-soft);background:var(--paper);
+  font-size:.72rem;font-weight:800;cursor:pointer;color:var(--muted)}
+.knows .yr.on{background:var(--grape);border-color:var(--grape);color:#fff}
 .ai-input{display:flex;gap:8px;align-items:flex-end}
 .ai-input textarea{flex:1;resize:none;max-height:120px;min-height:46px;padding:12px 14px;border-radius:14px;
   background:var(--paper);border:2.5px solid var(--line-soft);outline:none;font-size:.9rem;font-weight:600;color:var(--text)}
@@ -260,6 +275,10 @@ tr:hover td{background:var(--paper)}
         </div>
       </div>
       <div class="prompts" id="prompts"></div>
+      <details class="knows" id="knows">
+        <summary>What it can write questions about</summary>
+        <div id="knows-body"><p class="tiny faint">Loading…</p></div>
+      </details>
       <div class="ai-input">
         <textarea id="ai-text" rows="1" placeholder="Add 5 harder questions about fractions…"></textarea>
         <button class="btn primary" id="ai-send" style="height:44px;width:46px;padding:0" data-icon="send" data-size="18"></button>
@@ -269,6 +288,7 @@ tr:hover td{background:var(--paper)}
 </main>
 
 <script src="sprites.js?v=a7a8749e"></script>
+
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
@@ -650,6 +670,67 @@ function renderPrompts() {
   const host = $('#prompts');
   host.innerHTML = '';
   QUICK.forEach(p => host.append(el('div', { class: 'prompt-chip', onclick: () => { $('#ai-text').value = p; askAI(); } }, p)));
+  renderKnows();
+}
+
+/* Everything the co-pilot can already write questions about, listed rather than
+ * guessed at.
+ *
+ * The question bank has known easy maths and spelling and the water cycle since
+ * the day it was written, but the only way to find that out was to type
+ * something and hope. A teacher should not have to guess what a tool knows: the
+ * subjects are on the screen, one tap fills in the prompt, and the year group
+ * beside them decides how hard the questions come out.
+ */
+let knowYear = 3;
+
+function renderKnows() {
+  const body = document.getElementById('knows-body');
+  if (!body) return;
+  const bank = window.QuizBank;
+  if (!bank || !bank.TOPICS) {
+    body.innerHTML = '<p class="tiny faint">Ask for any subject and it will have a go.</p>';
+    return;
+  }
+  body.innerHTML = '';
+
+  const years = el('div', { class: 'years' }, el('b', {}, 'Year'));
+  [1, 2, 3, 4, 5, 6].forEach(n => {
+    const btn = el('button', { class: 'yr' + (n === knowYear ? ' on' : ''), type: 'button',
+      onclick: () => { knowYear = n; renderKnows(); } }, String(n));
+    years.append(btn);
+  });
+  body.append(years);
+
+  const named = new Set();
+  const groups = [['Maths', 'maths'], ['English', 'english'],
+                  ['Science', 'science'], ['The world', 'humanities']];
+  for (const [title, key] of groups) {
+    const ids = bank.SUBJECTS[key] || [];
+    const topics = ids.map(id => bank.TOPICS.find(t => t.id === id)).filter(Boolean);
+    if (!topics.length) continue;
+    body.append(el('div', { class: 'subj' }, title));
+    const row = el('div', { class: 'row' });
+    topics.forEach(t => { named.add(t.id); row.append(topicChip(t)); });
+    body.append(row);
+  }
+
+  // whatever the groups above did not mention, so nothing is hidden
+  const rest = bank.TOPICS.filter(t => !named.has(t.id));
+  if (rest.length) {
+    body.append(el('div', { class: 'subj' }, 'And also'));
+    const row = el('div', { class: 'row' });
+    rest.forEach(t => row.append(topicChip(t)));
+    body.append(row);
+  }
+}
+
+function topicChip(topic) {
+  return el('div', { class: 'prompt-chip', title: `Year ${knowYear} questions about ${topic.label}`,
+    onclick: () => {
+      $('#ai-text').value = `Write 8 questions about ${topic.label} for Year ${knowYear}`;
+      askAI();
+    } }, topic.label);
 }
 
 function addBubble(kind, html) {

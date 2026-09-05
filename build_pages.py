@@ -64,6 +64,7 @@ def build():
         html = html.replace('<script src="/sprites.js"></script>', '<script src="sprites.js"></script>')
         html = html.replace('<script src="/music.js"></script>', '<script src="music.js"></script>')
         html = html.replace('<script src="/arena.js"></script>', '')   # the bundle already adds it
+        html = html.replace('<script src="/quizbank.js"></script>', '')  # ditto
         html = html.replace('<script src="/nova.js"></script>',
                             '<script src="nova.js"></script>\n'
                             '<script src="quizbank.js"></script>\n'
