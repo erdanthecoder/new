@@ -67,7 +67,7 @@
    * thirty phones through a shared database. */
   const R = global.NovaRules || (typeof require === 'function' ? require('./rules.js') : null);
   const { MODES, MAPS, GOALS, SCORERS, mapsFor, defaultMap, readGoal, goalReached,
-          grade, blankPlayer, pickBossName, readSetup, secondsFor, arrange,
+          grade, blankPlayer, pickBossName, readSetup, secondsFor, arrange, modeFinished,
           TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS } = R;
 
 
@@ -130,7 +130,7 @@
       // their phone needs the set. A child who digs into the page can read the
       // answers; the same is true of every game of this shape.
       quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
-      setup: game.setup || null,
+      setup: game.setup || null, rope: game.rope || 0,
       boss: game.boss || null, trackLength: TRACK_LENGTH, modeInfo: MODES[game.mode] || MODES.normal,
       goal: game.goal || { kind: 'questions', value: 0 },
       startedAt: game.startedAt || 0, music: game.music !== false
@@ -205,11 +205,7 @@
       game.lastEvents = game.lastEvents.slice(-6);
 
       const everyone = Object.values(game.players);
-      const fortDown = game.mode === 'snow' &&
-        ['red', 'blue'].some(side => game.teams[side].max && game.teams[side].blocks <= 0);
-      if (game.mode === 'boss' && game.boss && (game.boss.hp === 0 || game.boss.classHp === 0)) {
-        game.state = 'over'; game.endsAt = null; changed = true;
-      } else if (fortDown) {
+      if (modeFinished(game)) {
         game.state = 'over'; game.endsAt = null; changed = true;
       } else if (everyone.length && everyone.every(p => p.answered)) {
         game.state = 'reveal'; game.endsAt = null; changed = true;
@@ -393,6 +389,10 @@
       }
       if (game.mode === 'balloon') {
         for (const p of Object.values(game.players)) p.balloons = BALLOONS;
+      }
+      if (game.mode === 'tug') game.rope = 0;
+      if (game.mode === 'cards') {
+        for (const p of Object.values(game.players)) { p.cards = []; p.spares = 0; }
       }
       if (game.mode === 'boss') {
         const hp = BOSS_HP_PER_QUESTION * Math.max(1, game.questions.length);

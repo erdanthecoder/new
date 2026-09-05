@@ -268,14 +268,14 @@ tr:hover td{background:var(--paper)}
   </aside>
 </main>
 
-<script src="sprites.js?v=fb42e39c"></script>
+<script src="sprites.js?v=a7a8749e"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=3032c005"></script>
-<script src="rules.js?v=0722c966"></script>
-<script src="live.js?v=59d3ea9b"></script>
+<script src="rules.js?v=2b1ca27f"></script>
+<script src="live.js?v=450b9909"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
@@ -828,7 +828,7 @@ const joinAddress = () => (window.QUOLDEK_JOIN
 
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eight games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eleven games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.</p>
     <div class="modegrid" id="mode-list">
       <p class="tiny faint">Loading</p>
     </div>`, {
@@ -872,7 +872,7 @@ const joinAddress = () => (window.QUOLDEK_JOIN
           onclick: () => {
             box.querySelector('#pick-title').textContent = 'Pick how everyone plays';
             box.querySelector('#pick-sub').innerHTML =
-              `Same quiz, eight games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.`;
+              `Same quiz, eleven games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.`;
             showModes(modes);
           } }, 'Back to the games'));
       }

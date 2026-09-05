@@ -81,6 +81,12 @@
 .stagebox .mini-face svg{width:74px;height:74px}
 .stagebox .rowline{display:flex;align-items:center;gap:10px}
 
+/* the eight cards, on a phone */
+.minihand{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:2px 0 4px}
+.mcard{width:26px;height:36px;border-radius:5px;border:2px solid rgba(0,0,0,.35);background:#fff;
+  display:grid;place-items:center}
+.mcard.gap{background:rgba(255,255,255,.1);border-style:dashed;border-color:rgba(255,255,255,.3)}
+
 /* a little track, tower, fort or bar, depending on the game */
 .minitrack{width:100%;height:22px;border-radius:99px;background:rgba(0,0,0,.32);position:relative;
   border:1px solid var(--line-soft);overflow:hidden}
@@ -470,7 +476,9 @@ function hud() {
     }
     const unit = { kart: ['distance', (me.distance || 0) + 'm'], tower: ['blocks', String(me.blocks || 0)],
                    treasure: ['coins', String(me.coins || 0)], boss: ['damage', String(me.score)],
-                   snow: ['blocks off', String(me.hits || 0)] }[game.mode]
+                   snow: ['blocks off', String(me.hits || 0)], heist: ['gold', String(me.coins || 0)],
+                   cards: ['cards', `${(me.cards || []).length}/8`],
+                   tug: ['pulled', String(me.hits || 0)] }[game.mode]
                  || ['points', String(me.score)];
     node.append(el('div', { class: 'stat' }, el('b', {}, unit[1]), el('span', {}, unit[0])));
     // in Balloon Drop what is left is more urgent than the score
@@ -698,6 +706,34 @@ function stagePanel() {
     box.append(el('span', { class: 'cap' }, 'Your tower'),
                stack.children.length ? stack : el('span', { class: 'cap' }, 'Nothing built yet'),
                el('span', { class: 'big-num' }, String(me.blocks || 0)));
+  } else if (game.mode === 'tug') {
+    // the rope belongs to the room, so the phone shows which way it is going
+    const rope = Math.max(-100, Math.min(100, game.rope || 0));
+    const ours = me.team === 'red' ? -rope : rope;
+    box.append(el('span', { class: 'cap' },
+                 ours > 0 ? 'Your team is winning the rope'
+               : ours < 0 ? 'They are pulling it back' : 'Dead even'),
+      el('div', { class: 'minitrack' },
+        el('i', { style: `width:${Math.round(Math.max(2, Math.min(100, (ours + 100) / 2)))}%;` +
+                         `background:${me.team === 'red' ? '#F4364C' : '#4F6BFF'}` })),
+      el('span', { class: 'big-num' }, `${Math.abs(ours)}`));
+  } else if (game.mode === 'heist') {
+    box.append(el('span', { class: 'cap' }, 'Your gold'),
+      el('div', { class: 'rowline' },
+        el('span', { class: 'mini-face', html: Sprite.icon('coin', 40, '#FFC53D') }),
+        el('span', { class: 'big-num' }, String(me.coins || 0))),
+      me.chest ? el('span', { class: 'cap' }, me.chest) : el('span', {}));
+  } else if (game.mode === 'cards') {
+    const all = ['star', 'moon', 'leaf', 'flame', 'drop', 'bolt', 'gem', 'crown'];
+    const tint = { star: '#FFC53D', moon: '#8C7BB8', leaf: '#12BE8E', flame: '#FF7A45',
+                   drop: '#2BA8FF', bolt: '#F4364C', gem: '#7C4DFF', crown: '#E5A02A' };
+    const hand = el('div', { class: 'minihand' });
+    const held = me.cards || [];
+    all.forEach(c => hand.append(el('i', { class: 'mcard' + (held.includes(c) ? '' : ' gap'),
+                                           html: held.includes(c) ? Sprite.icon(c, 15, tint[c]) : '' })));
+    box.append(el('span', { class: 'cap' }, `${held.length} of 8 cards`), hand,
+               me.spares ? el('span', { class: 'cap' }, `${me.spares} spare — three trades for one you need`)
+                         : el('span', {}));
   } else if (game.mode === 'treasure') {
     box.append(el('span', { class: 'cap' }, 'Your coins'),
       el('div', { class: 'rowline' },
@@ -839,6 +875,9 @@ function revealCard() {
       : game.mode === 'kart'     ? (ok ? `+${g} metres` : 'Spun out')
       : game.mode === 'tower'    ? (ok ? `+${g} block${g > 1 ? 's' : ''}` : 'A block fell')
       : game.mode === 'treasure' ? (ok ? `+${g} coins` : 'Empty chest')
+      : game.mode === 'tug'      ? (ok ? `Pulled ${g}` : 'Lost your grip')
+      : game.mode === 'heist'    ? (ok ? (me.chest || `+${g} gold`) : 'Empty-handed')
+      : game.mode === 'cards'    ? (ok ? (me.chest || 'A card') : 'No card this time')
       : game.mode === 'boss'     ? (ok ? `${g} damage` : 'The boss hit back')
       : game.mode === 'snow'     ? (ok ? `Direct hit · +${g}` : 'Wide of the fort')
       : game.mode === 'balloon'  ? (ok ? `+${g || 0}`

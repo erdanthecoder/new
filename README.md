@@ -11,7 +11,7 @@ round the table. Or send the link to Google Classroom and let it mark itself.
 
 | Game | What happens |
 |---|---|
-| Classic | The fastest right answer scores the most |
+| Normal | The fastest right answer scores the most |
 | Laser Tag | One arena. Move, shoot, and answer when your energy runs out |
 | Kart Race | Every right answer drives your kart further |
 | Tower Build | Stack a block for each right answer |
@@ -19,6 +19,9 @@ round the table. Or send the link to Google Classroom and let it mark itself.
 | Boss Battle | Everyone fights one boss together |
 | Snowball Fight | Two teams. Every right answer knocks a block off their fort |
 | Balloon Drop | Three balloons each. Get one wrong and one pops |
+| Tug of War | Two teams, one rope. Every right answer pulls it your way |
+| Gold Heist | Every right answer opens a chest — and some of them rob somebody |
+| Card Collector | Win a card for every right answer. First to all eight |
 
 Each game has three maps to pick from, and everyone chooses their own character.
 

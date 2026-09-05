@@ -883,6 +883,12 @@ MODES = {
                  "blurb": "Two teams. Every right answer knocks a block off their fort"},
     "balloon":  {"label": "Balloon Drop", "icon": "balloon", "teams": False,
                  "blurb": "Three balloons each. Get one wrong and one pops"},
+    "tug":      {"label": "Tug of War",  "icon": "rope", "teams": True,
+                 "blurb": "Two teams, one rope. Every right answer pulls it your way"},
+    "heist":    {"label": "Gold Heist",  "icon": "coin", "teams": False,
+                 "blurb": "Every right answer opens a chest — and some of them rob somebody"},
+    "cards":    {"label": "Card Collector", "icon": "cards", "teams": False,
+                 "blurb": "Win a card for every right answer. First to all eight"},
 }
 
 # Each game is played on a map the teacher picks. A map is scenery and a palette:
@@ -896,6 +902,9 @@ MAPS = {
     "boss":     [("lair", "Dragon Lair"), ("volcano", "Volcano"), ("ruins", "Old Ruins")],
     "snow":     [("playground", "Playground"), ("forest", "Winter Forest"), ("peak", "Mountain Peak")],
     "balloon":  [("fair", "Summer Fair"), ("clouds", "Above the Clouds"), ("night", "Night Sky")],
+    "tug":      [("field", "Sports Field"), ("deck", "Ship Deck"), ("lowg", "Low Gravity")],
+    "heist":    [("mine", "Old Mine"), ("bank", "The Bank"), ("island", "Treasure Island")],
+    "cards":    [("attic", "The Attic"), ("market", "Card Market"), ("museum", "The Museum")],
 }
 
 
@@ -931,6 +940,24 @@ def goal_reached(game):
     if goal["kind"] == "time":
         started = game.get("startedAt")
         return bool(started) and now_ms() >= started + goal["value"] * 60_000
+    return False
+
+
+def mode_finished(game):
+    """Some games end themselves before the questions run out: a fort falls, a
+    boss dies, a rope crosses the line, somebody completes the set. Mirrors
+    mode_finished in static/rules.js."""
+    mode = game.get("mode")
+    if mode == "snow":
+        return any(game["teams"][side].get("max") and game["teams"][side]["blocks"] <= 0
+                   for side in ("red", "blue"))
+    if mode == "boss":
+        boss = game.get("boss")
+        return bool(boss) and (boss["hp"] == 0 or boss["classHp"] == 0)
+    if mode == "tug":
+        return abs(game.get("rope", 0)) >= ROPE_LENGTH
+    if mode == "cards":
+        return any(len(p.get("cards") or []) >= len(CARD_SET) for p in game["players"].values())
     return False
 
 
@@ -1012,6 +1039,11 @@ TRACK_LENGTH = 1000          # kart race distance to the flag
 BOSS_HP_PER_QUESTION = 55    # scales the boss to the length of the quiz
 FORT_BLOCKS = 12             # tallest a snowball fort can start
 BALLOONS = 3                 # how many wrong answers a child can afford
+ROPE_LENGTH = 100            # how far a team must drag the rope to win
+# eight cards to collect. Shapes rather than pictures of things, so they draw at
+# any size and mean the same in any language.
+CARD_SET = ["star", "moon", "leaf", "flame", "drop", "bolt", "gem", "crown"]
+SPARES_PER_SWAP = 3          # duplicates a child can trade for a card they need
 
 # Characters are numbers drawn by sprites.js in the browser: 12 colours x 12
 # silhouettes. One is handed out per game so no two children in the same room
@@ -1122,6 +1154,7 @@ def public_game(game: dict, include_answers: bool = False) -> dict:
         "trackLength": TRACK_LENGTH,
         "goal": game.get("goal") or {"kind": "questions", "value": 0},
         "setup": game.get("setup"),
+        "rope": game.get("rope", 0),
         "startedAt": game.get("startedAt", 0),
         "music": game.get("music") is not False,
         "modeInfo": MODES.get(game["mode"], MODES["normal"]),
@@ -1238,6 +1271,8 @@ def join_game(pin):
             "chest": "",
             "balloons": BALLOONS,   # balloon drop
             "hits": 0,              # snowball fight: blocks knocked off
+            "cards": [],            # card collector: the set so far
+            "spares": 0,            # and duplicates waiting to be traded
             "lastGain": 0,
             "answers": {},
         }
@@ -1354,6 +1389,12 @@ def start_game(pin):
         if game["mode"] == "balloon":
             for p in game["players"].values():
                 p["balloons"] = BALLOONS
+        if game["mode"] == "tug":
+            game["rope"] = 0
+        if game["mode"] == "cards":
+            for p in game["players"].values():
+                p["cards"] = []
+                p["spares"] = 0
         if game["mode"] == "boss":
             total = max(1, len(game["questions"]))
             game["boss"] = {"hp": BOSS_HP_PER_QUESTION * total, "max": BOSS_HP_PER_QUESTION * total,
@@ -1575,10 +1616,99 @@ def score_boss(game, player, question, ok, speed):
         game["lastEvents"].append(f"{boss['name']} struck back at the class")
 
 
+def score_tug(game, player, question, ok, speed):
+    """One rope, both teams, and it can come all the way back: a class two
+    questions from losing can still win it."""
+    if not ok:
+        player["lastGain"] = 0
+        return
+    pull = int(round(4 + 7 * speed)) * (2 if player["streak"] >= 3 else 1)
+    way = -1 if player["team"] == "red" else 1
+    game["rope"] = max(-ROPE_LENGTH, min(ROPE_LENGTH, game.get("rope", 0) + way * pull))
+    player["score"] += pull
+    player["lastGain"] = pull
+    player["hits"] += pull
+    game["teams"][player["team"]]["score"] += pull
+    game["lastEvents"].append(f"{player['name']} pulled {pull}"
+                              + (" — heaving" if player["streak"] >= 3 else ""))
+
+
+def score_heist(game, player, question, ok, speed):
+    """The one game where the person in front should be worried."""
+    if not ok:
+        player["lastGain"] = 0
+        player["chest"] = "Empty-handed"
+        return
+    found = int(round(60 + 70 * speed))
+    others = [p for p in game["players"].values() if p["id"] != player["id"]]
+    roll = random.random()
+
+    if roll < 0.12 and others:
+        leader = max(others, key=lambda p: p["coins"])
+        taken = int(round(leader["coins"] * 0.4))
+        leader["coins"] -= taken
+        leader["score"] = leader["coins"]
+        player["coins"] += found + taken
+        player["chest"] = f"Robbed {leader['name']} of {taken}"
+        game["lastEvents"].append(f"{player['name']} robbed {leader['name']} of {taken} gold")
+    elif roll < 0.20 and others:
+        other = random.choice(others)
+        mine = player["coins"] + found
+        player["coins"] = other["coins"]
+        other["coins"] = mine
+        other["score"] = other["coins"]
+        player["chest"] = f"Swapped piles with {other['name']}"
+        game["lastEvents"].append(f"{player['name']} swapped piles with {other['name']}")
+    elif roll < 0.32:
+        player["coins"] += found * 3
+        player["chest"] = "A jackpot chest"
+        game["lastEvents"].append(f"{player['name']} opened a jackpot")
+    else:
+        player["coins"] += found
+        player["chest"] = f"+{found} gold"
+
+    player["coins"] = max(0, player["coins"])
+    player["score"] = player["coins"]
+    player["lastGain"] = found
+
+
+def score_cards(game, player, question, ok, speed):
+    """A race for a set rather than for points: somebody unlucky early is never
+    out of it, and the last card is the hardest one to get."""
+    player.setdefault("cards", [])
+    if not ok:
+        player["lastGain"] = 0
+        player["chest"] = ""
+        return
+    missing = [c for c in CARD_SET if c not in player["cards"]]
+    want_new = missing and random.random() < (0.45 + 0.45 * speed)
+    card = random.choice(missing) if want_new else random.choice(CARD_SET)
+
+    if card in player["cards"]:
+        player["spares"] = player.get("spares", 0) + 1
+        spares = player["spares"]
+        player["chest"] = f"Another {card} — {spares} spare{'' if spares == 1 else 's'}"
+        if spares >= SPARES_PER_SWAP and missing:
+            player["spares"] -= SPARES_PER_SWAP
+            swap = random.choice(missing)
+            player["cards"].append(swap)
+            player["chest"] = f"Traded three spares for the {swap}"
+            game["lastEvents"].append(f"{player['name']} traded three spares for the {swap}")
+    else:
+        player["cards"].append(card)
+        player["chest"] = f"Won the {card}"
+        game["lastEvents"].append(f"{player['name']} won the {card} card"
+                                  + (" — a full set!" if len(player["cards"]) == len(CARD_SET) else ""))
+
+    player["lastGain"] = 1
+    player["score"] = len(player["cards"]) * 100 + player.get("spares", 0) * 10
+
+
 SCORERS = {
     "normal": score_normal, "laser": score_laser, "kart": score_kart,
     "tower": score_tower, "treasure": score_treasure, "boss": score_boss,
     "snow": score_snow, "balloon": score_balloon,
+    "tug": score_tug, "heist": score_heist, "cards": score_cards,
 }
 
 
@@ -1620,18 +1750,11 @@ def answer_question(pin):
 
         game["lastEvents"] = game["lastEvents"][-6:]
         everyone_in = all(p["answered"] for p in game["players"].values()) and game["players"]
-        boss = game.get("boss")
-        fort_down = game["mode"] == "snow" and any(
-            game["teams"][side].get("max") and game["teams"][side]["blocks"] <= 0
-            for side in ("red", "blue"))
         if goal_reached(game):
             game["state"] = "over"                      # the teacher's own ending
             game["endsAt"] = None
-        elif game["mode"] == "boss" and boss and (boss["hp"] == 0 or boss["classHp"] == 0):
-            game["state"] = "over"                      # the fight is decided either way
-            game["endsAt"] = None
-        elif fort_down:
-            game["state"] = "over"                      # the last block is the whistle
+        elif mode_finished(game):
+            game["state"] = "over"                      # the game won itself
             game["endsAt"] = None
         elif everyone_in:
             game["state"] = "reveal"

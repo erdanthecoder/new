@@ -19,7 +19,10 @@
     treasure: { label: 'Treasure Run', icon: 'gem', blurb: 'Collect coins and open lucky chests' },
     boss:     { label: 'Boss Battle',  icon: 'dragon', blurb: 'The whole class fights one boss together' },
     snow:     { label: 'Snowball Fight', icon: 'snow', blurb: 'Two teams. Every right answer knocks a block off their fort' },
-    balloon:  { label: 'Balloon Drop', icon: 'balloon', blurb: 'Three balloons each. Get one wrong and one pops' }
+    balloon:  { label: 'Balloon Drop', icon: 'balloon', blurb: 'Three balloons each. Get one wrong and one pops' },
+    tug:      { label: 'Tug of War',   icon: 'rope', blurb: 'Two teams, one rope. Every right answer pulls it your way' },
+    heist:    { label: 'Gold Heist',   icon: 'coin', blurb: 'Every right answer opens a chest — and some of them rob somebody' },
+    cards:    { label: 'Card Collector', icon: 'cards', blurb: 'Win a card for every right answer. First to all eight' }
   };
   /* Each game is played on a map the teacher picks. A map is scenery and a palette:
    * it changes what the board looks like, not how the scoring works. */
@@ -31,7 +34,10 @@
     treasure: [['cave', 'Cave of Coins'], ['beach', 'Pirate Beach'], ['vault', 'The Vault']],
     boss:     [['lair', 'Dragon Lair'], ['volcano', 'Volcano'], ['ruins', 'Old Ruins']],
     snow:     [['playground', 'Playground'], ['forest', 'Winter Forest'], ['peak', 'Mountain Peak']],
-    balloon:  [['fair', 'Summer Fair'], ['clouds', 'Above the Clouds'], ['night', 'Night Sky']]
+    balloon:  [['fair', 'Summer Fair'], ['clouds', 'Above the Clouds'], ['night', 'Night Sky']],
+    tug:      [['field', 'Sports Field'], ['deck', 'Ship Deck'], ['lowg', 'Low Gravity']],
+    heist:    [['mine', 'Old Mine'], ['bank', 'The Bank'], ['island', 'Treasure Island']],
+    cards:    [['attic', 'The Attic'], ['market', 'Card Market'], ['museum', 'The Museum']]
   };
   /* How a game finishes. Playing every question is the default, but a class with
    * ten minutes left before lunch wants the clock to decide, and a race to a
@@ -138,6 +144,11 @@
   const defaultMap = (mode) => (MAPS[mode] || MAPS.normal)[0][0];
 
   const TRACK_LENGTH = 1000, BOSS_HP_PER_QUESTION = 55;
+  const ROPE_LENGTH = 100;         // how far a team must drag the rope to win
+  // eight cards to collect. They are shapes rather than pictures of things, so
+  // they draw at any size and mean the same in any language.
+  const CARD_SET = ['star', 'moon', 'leaf', 'flame', 'drop', 'bolt', 'gem', 'crown'];
+  const SPARES_PER_SWAP = 3;       // duplicates a child can trade for a card they need
   const FORT_BLOCKS = 12;          // how tall each team's fort starts
   const BALLOONS = 3;              // how many wrong answers a child can afford
   const MAX_PLAYER_HIT = 40;
@@ -221,6 +232,81 @@
       }
       p.score = p.blocks;
     },
+    /* One rope, both teams, and it can come all the way back. Nothing else here
+     * has that: a class two questions from losing can still win it. */
+    tug(game, p, q, ok, speed) {
+      if (!ok) { p.lastGain = 0; return; }
+      const pull = Math.round(4 + 7 * speed) * (p.streak >= 3 ? 2 : 1);
+      const way = p.team === 'red' ? -1 : 1;
+      game.rope = Math.max(-ROPE_LENGTH, Math.min(ROPE_LENGTH, (game.rope || 0) + way * pull));
+      p.score += pull; p.lastGain = pull; p.hits += pull;
+      game.teams[p.team].score += pull;
+      game.lastEvents.push(`${p.name} pulled ${pull}` + (p.streak >= 3 ? ' — heaving' : ''));
+    },
+
+    /* The one game where the person in front should be worried. A right answer
+     * opens a chest, and some of those chests take somebody else's gold. */
+    heist(game, p, q, ok, speed) {
+      if (!ok) { p.lastGain = 0; p.chest = 'Empty-handed'; return; }
+      const found = Math.round(60 + 70 * speed);
+      const others = Object.values(game.players).filter(x => x.id !== p.id);
+      const roll = Math.random();
+
+      if (roll < 0.12 && others.length) {
+        const leader = others.reduce((a, b) => (a.coins >= b.coins ? a : b));
+        const taken = Math.round(leader.coins * 0.4);
+        leader.coins -= taken; leader.score = leader.coins;
+        p.coins += found + taken;
+        p.chest = `Robbed ${leader.name} of ${taken}`;
+        game.lastEvents.push(`${p.name} robbed ${leader.name} of ${taken} gold`);
+      } else if (roll < 0.20 && others.length) {
+        const other = others[Math.floor(Math.random() * others.length)];
+        const mine = p.coins + found;
+        p.coins = other.coins; other.coins = mine; other.score = other.coins;
+        p.chest = `Swapped piles with ${other.name}`;
+        game.lastEvents.push(`${p.name} swapped piles with ${other.name}`);
+      } else if (roll < 0.32) {
+        p.coins += found * 3;
+        p.chest = 'A jackpot chest';
+        game.lastEvents.push(`${p.name} opened a jackpot`);
+      } else {
+        p.coins += found;
+        p.chest = `+${found} gold`;
+      }
+      p.coins = Math.max(0, p.coins);
+      p.score = p.coins; p.lastGain = found;
+    },
+
+    /* Not a race for points but for a set, so somebody unlucky early is never out
+     * of it, and the last card is the hardest one to get. */
+    cards(game, p, q, ok, speed) {
+      if (!p.cards) p.cards = [];
+      if (!ok) { p.lastGain = 0; p.chest = ''; return; }
+      const missing = CARD_SET.filter(c => !p.cards.includes(c));
+      // answering quickly makes a card you actually need much more likely
+      const wantNew = missing.length && Math.random() < (0.45 + 0.45 * speed);
+      const card = wantNew ? missing[Math.floor(Math.random() * missing.length)]
+                           : CARD_SET[Math.floor(Math.random() * CARD_SET.length)];
+      if (p.cards.includes(card)) {
+        p.spares = (p.spares || 0) + 1;
+        p.chest = `Another ${card} — ${p.spares} spare${p.spares === 1 ? '' : 's'}`;
+        if (p.spares >= SPARES_PER_SWAP && missing.length) {
+          p.spares -= SPARES_PER_SWAP;
+          const swap = missing[Math.floor(Math.random() * missing.length)];
+          p.cards.push(swap);
+          p.chest = `Traded three spares for the ${swap}`;
+          game.lastEvents.push(`${p.name} traded three spares for the ${swap}`);
+        }
+      } else {
+        p.cards.push(card);
+        p.chest = `Won the ${card}`;
+        game.lastEvents.push(`${p.name} won the ${card} card`
+                             + (p.cards.length === CARD_SET.length ? ' — a full set!' : ''));
+      }
+      p.lastGain = 1;
+      p.score = p.cards.length * 100 + (p.spares || 0) * 10;
+    },
+
     treasure(game, p, q, ok, speed) {
       if (!ok) { p.chest = ''; game.lastEvents.push(`${p.name} found an empty chest`); return; }
       let coins = Math.round(60 + 60 * speed);
@@ -308,16 +394,32 @@
     id: row.id, name: row.name, avatar: Number(row.avatar) || 0, team: row.team || 'red',
     score: 0, hp: 100, streak: 0, best: 0, answered: false, correct: null, down: false,
     lastDamage: 0, distance: 0, blocks: 0, coins: 0, chest: '', lastGain: 0, target: '',
-    balloons: BALLOONS, hits: 0
+    balloons: BALLOONS, hits: 0, cards: [], spares: 0
   });
+
+  /* Some games end themselves before the questions run out: a fort falls, a boss
+   * dies, a rope crosses the line, somebody completes the set. Asked in one place
+   * so the website, the app and the Flask edition cannot drift apart on it. */
+  function modeFinished(game) {
+    if (game.mode === 'snow') {
+      return ['red', 'blue'].some(side => game.teams[side].max && game.teams[side].blocks <= 0);
+    }
+    if (game.mode === 'boss') return !!game.boss && (game.boss.hp === 0 || game.boss.classHp === 0);
+    if (game.mode === 'tug') return Math.abs(game.rope || 0) >= ROPE_LENGTH;
+    if (game.mode === 'cards') {
+      return Object.values(game.players).some(p => (p.cards || []).length >= CARD_SET.length);
+    }
+    return false;
+  }
 
   const pickBossName = () => BOSS_NAMES[Math.floor(Math.random() * BOSS_NAMES.length)];
 
   global.NovaRules = {
     MODES, MAPS, GOALS, SETUP, SCORERS, BOSS_NAMES,
     mapsFor, defaultMap, readGoal, goalReached, grade, blankPlayer, pickBossName,
-    readSetup, secondsFor, pointsFor, streakBonus, arrange,
-    TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS, MAX_PLAYER_HIT
+    readSetup, secondsFor, pointsFor, streakBonus, arrange, modeFinished,
+    TRACK_LENGTH, BOSS_HP_PER_QUESTION, FORT_BLOCKS, BALLOONS, MAX_PLAYER_HIT,
+    ROPE_LENGTH, CARD_SET, SPARES_PER_SWAP
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 

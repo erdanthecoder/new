@@ -97,7 +97,8 @@ class Games {
       quiz: game.mode === 'laser' && game.state === 'arena' ? questions : null,
       boss: game.boss || null, trackLength: R.TRACK_LENGTH,
       modeInfo: R.MODES[game.mode] || R.MODES.normal,
-      goal: game.goal, setup: game.setup || null, startedAt: game.startedAt,
+      goal: game.goal, setup: game.setup || null, rope: game.rope || 0,
+      startedAt: game.startedAt,
       music: game.music !== false
     };
   }
@@ -151,6 +152,10 @@ class Games {
         game.teams[side].max = blocks;
       }
     }
+    if (game.mode === 'tug') game.rope = 0;
+    if (game.mode === 'cards') {
+      for (const p of Object.values(game.players)) { p.cards = []; p.spares = 0; }
+    }
     if (game.mode === 'balloon') {
       for (const p of Object.values(game.players)) p.balloons = R.BALLOONS;
     }
@@ -201,18 +206,13 @@ class Games {
     return player;
   }
 
-  /* Has anything ended the game — the teacher's own ending, a boss beaten, a
-   * fort knocked down, or simply everybody having answered? */
+  /* Has anything ended the game — the teacher's own ending, a game that has won
+   * itself, or simply everybody having answered? */
   settle(game) {
     const everyone = Object.values(game.players);
-    const fortDown = game.mode === 'snow' &&
-      ['red', 'blue'].some(side => game.teams[side].max && game.teams[side].blocks <= 0);
-    const boss = game.boss;
     if (game.state !== 'lobby' && game.state !== 'over' && R.goalReached(game)) {
       game.state = 'over'; game.endsAt = null;
-    } else if (game.mode === 'boss' && boss && (boss.hp === 0 || boss.classHp === 0)) {
-      game.state = 'over'; game.endsAt = null;
-    } else if (fortDown) {
+    } else if (game.state !== 'lobby' && game.state !== 'over' && R.modeFinished(game)) {
       game.state = 'over'; game.endsAt = null;
     } else if (game.state === 'question' && everyone.length && everyone.every(p => p.answered)) {
       game.state = 'reveal'; game.endsAt = null;
