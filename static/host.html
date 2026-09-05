@@ -392,9 +392,24 @@ function paintMusic() {
   musicBtn.classList.toggle('quiet', !musicWanted);
 }
 
+/* Each part of a game has its own piece of music. The board says which part it
+ * is in; the tune follows, easing from one to the next. */
+function trackFor(state) {
+  if (!state) return 'lobby';
+  if (state.state === 'question') return 'question';
+  if (state.state === 'reveal') return 'reveal';
+  if (state.state === 'over') return 'podium';
+  return 'lobby';
+}
+
+function musicNow() {
+  if (!(musicWanted && musicUnlocked)) return;
+  NovaMusic.play(trackFor(game));
+}
+
 function musicShould(play) {
   musicWanted = play;
-  if (play && musicUnlocked) NovaMusic.start(); else NovaMusic.stop();
+  if (play && musicUnlocked) musicNow(); else NovaMusic.stop();
   try { localStorage.setItem('nova:music', play ? '1' : ''); } catch { /* private mode */ }
   paintMusic();
 }
@@ -411,7 +426,7 @@ if (musicBtn) {
   document.addEventListener('click', () => {
     if (musicUnlocked) return;
     musicUnlocked = true;
-    if (musicWanted) NovaMusic.start();
+    if (musicWanted) musicNow();
     paintMusic();
   }, { once: true });
   paintMusic();
@@ -442,11 +457,17 @@ function apply(state) {
   if (musicBtn && !musicSettled && state.music === false) { musicSettled = true; musicShould(false); }
   else if (musicBtn && !musicSettled) { musicSettled = true; paintMusic(); }
 
-  // a flourish on the two moments the room reacts to anyway
+  // a flourish on the two moments the room reacts to anyway, and the music
+  // moves to the piece that belongs to what is happening now
   if (wasState && wasState !== state.state) {
     if (state.state === 'question') sting('go');
-    else if (state.state === 'over') { sting('win'); NovaMusic.stop(); }
-  }
+    else if (state.state === 'over') sting('win');
+    musicNow();
+  } else if (!wasState) musicNow();
+
+  // somebody new in the lobby is worth two notes
+  if (state.state === 'lobby' && lastCount !== null && state.players.length > lastCount) sting('join');
+  lastCount = state.players.length;
 
   paintGoal();
 
@@ -454,7 +475,7 @@ function apply(state) {
   render(key !== lastState);
   lastState = key;
 }
-let musicSettled = false;
+let musicSettled = false, lastCount = null;
 
 /* What the game is being played for, where the room can see it. A time limit
  * counts itself down; a score shows how close the leader is. */
@@ -755,6 +776,7 @@ function runTimer() {
   const dial = document.getElementById('timer');
   if (!num) return;
   if (game.state !== 'question' || !game.endsAt) {
+    NovaMusic.tension(0);
     num.innerHTML = Sprite.icon('tick', 34, '#161036'); dial?.classList.remove('low');
     if (ring) ring.style.strokeDashoffset = 276.5;
     return;
@@ -764,6 +786,7 @@ function runTimer() {
   const frame = () => {
     const left = Math.max(0, game.endsAt - (Date.now() + drift));
     num.textContent = Math.ceil(left / 1000);
+    NovaMusic.tension(1 - left / limit);
     dial?.classList.toggle('low', left < 5200);
     if (ring) ring.style.strokeDashoffset = 276.5 * (1 - left / limit);
     if (left <= 0) {

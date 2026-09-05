@@ -279,7 +279,7 @@ document.addEventListener('click', (e) => {
 /* Music under the menu, played by the app itself — no file, no download, and
    nothing to fetch, so it sounds the same with the wifi unplugged. It is the
    board's tune held back: quieter, and a little slower than a game. */
-const MENU_TUNE = { level: 0.24, slow: 1.45 };
+const MENU_TUNE = 'menu';
 let musicOn = true;
 
 function paintMusic() {
@@ -291,7 +291,7 @@ function paintMusic() {
 
 function musicShould(on, remember) {
   musicOn = on;
-  if (on) NovaMusic.start(MENU_TUNE); else NovaMusic.stop();
+  if (on) NovaMusic.play(MENU_TUNE); else NovaMusic.stop();
   paintMusic();
   if (remember) window.Quoldek.settings.write({ music: on });
 }
