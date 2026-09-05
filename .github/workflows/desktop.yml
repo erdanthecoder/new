@@ -7,9 +7,11 @@
 name: Windows app
 
 on:
+  # No paths filter: it would apply to tag pushes too, and a tag must always
+  # build, whatever that commit happened to touch.
   push:
     branches: [main]
-    paths: ['desktop/**', 'static/**', '.github/workflows/desktop.yml']
+    tags: ['v*']
   workflow_dispatch:
   release:
     types: [published]
@@ -17,6 +19,9 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # only the release step needs this; everything else just reads
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -45,11 +50,28 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      # a tagged release gets the files attached to it, so there is a link to send people
-      - name: Attach to the release
-        if: github.event_name == 'release'
+      # A tag makes a release with the files on it, so there is one plain link to
+      # send people rather than a build to dig through.
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
+          name: Quoldek ${{ github.ref_name }} for Windows
+          tag_name: ${{ github.ref_name }}
+          fail_on_unmatched_files: true
+          body: |
+            **Quoldek for Windows.** It runs the whole thing on your own computer —
+            the pages, the quizzes and the live game — and phones join over your
+            wifi. It works with no internet at all.
+
+            - **Quoldek-Setup-x.y.z.exe** — the installer. Most people want this one.
+            - **Quoldek-x.y.z-windows-x64.zip** — the same app, nothing to install.
+              Unzip it anywhere and run `Quoldek.exe`. Use this on a computer you
+              are not allowed to install software on.
+
+            Windows will say the publisher is unknown, because the app is not
+            signed — that needs a certificate costing money every year. Choose
+            **More info → Run anyway**.
           files: |
             desktop/dist/*.exe
             desktop/dist/*.zip

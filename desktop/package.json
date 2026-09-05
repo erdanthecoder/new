@@ -68,7 +68,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Quoldek",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "Quoldek-Setup-${version}.exe"
     }
   }
 }
