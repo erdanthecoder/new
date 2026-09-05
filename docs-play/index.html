@@ -81,6 +81,39 @@
 .stagebox .mini-face svg{width:74px;height:74px}
 .stagebox .rowline{display:flex;align-items:center;gap:10px}
 
+/* levels, coins, and parts that have to be earned */
+.wallet{display:flex;align-items:center;gap:10px;margin:2px 0 14px;padding:11px 13px;border-radius:16px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+.wallet .lvl{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:var(--sun);color:#3a2a00;font-weight:900;font-size:1rem;border:2px solid rgba(0,0,0,.35)}
+.wallet .mid{flex:1;min-width:0}
+.wallet .cap{font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.65}
+.wallet .bar{height:7px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;margin-top:5px}
+.wallet .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#FFC53D,#FF9A3D);
+  transition:width .6s cubic-bezier(.22,1,.36,1)}
+.wallet .coins{flex:none;display:flex;align-items:center;gap:5px;font-weight:900;font-size:1rem}
+.wallet .coins .c{line-height:0}
+
+.choice.locked,.swatch.locked{position:relative;opacity:.5}
+.choice.locked::after,.swatch.locked::after{content:'';position:absolute;inset:0;border-radius:inherit;
+  background:rgba(6,3,16,.42)}
+.price{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);z-index:2;font-size:.6rem;
+  font-weight:900;padding:1px 6px;border-radius:99px;background:#161036;color:#FFC53D;white-space:nowrap}
+.price.no{color:#FF8A9B}
+.choice,.swatch{position:relative}
+
+/* what a game paid, on the results screen */
+.payout{margin-top:16px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);text-align:left}
+.payout h4{font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.65;
+  margin-bottom:9px}
+.payout .line{display:flex;justify-content:space-between;font-size:.86rem;font-weight:650;padding:3px 0}
+.payout .line b{font-weight:900}
+.payout .sum{border-top:1px solid rgba(255,255,255,.16);margin-top:7px;padding-top:8px;font-size:1rem}
+.levelup{margin-top:12px;padding:13px 15px;border-radius:16px;text-align:center;
+  background:linear-gradient(120deg,#FFC53D,#FF9A3D);color:#3a2a00;font-weight:900;
+  border:2px solid rgba(0,0,0,.35)}
+
 /* the eight cards, on a phone */
 .minihand{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:2px 0 4px}
 .mcard{width:26px;height:36px;border-radius:5px;border:2px solid rgba(0,0,0,.35);background:#fff;
@@ -241,6 +274,7 @@
 <main class="shell" id="app"></main>
 
 <script src="sprites.js?v=a7a8749e"></script>
+<script src="progress.js?v=a983181e"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
@@ -264,6 +298,10 @@ const paintMark = () => { const m = document.getElementById('brand-mark');
                           if (m) m.innerHTML = Sprite.logo(76); };
 let pin = qs('pin'), me = null, game = null, drift = 0, ticker = null, picked = null, lastKey = '';
 let answeredIndex = -1;   // the question this device has already sent — sticky until the next one
+/* What this phone has done this game, counted here rather than asked for: the
+   coins it earns are worked out on the device that earned them. */
+let tally = { answered: 0, right: 0, bestRun: 0, counted: -1 };
+let paidOut = null;              // the payout, worked out once when the game ends
 
 if (pin) { const saved = store.get('player:' + pin); if (saved) me = saved; }
 
@@ -318,8 +356,26 @@ function askName() {
    * whole game still passes a character around as a single value.
    */
   const saved = Number(store.get('avatar'));
-  let part = Sprite.partsOf(Number.isFinite(saved) && saved > 0 ? saved
-                            : Math.floor(Math.random() * Sprite.ALL));
+  const COUNTS = { colour: Sprite.COLOURS, shape: Sprite.SHAPES, eyes: Sprite.EYES,
+                   mouth: Sprite.MOUTHS, pattern: Sprite.PATTERNS };
+
+  /* A monster made only of parts this phone actually owns. Used for the one a
+     child is shown before they touch anything and for "surprise me", so neither
+     can hand over something that has not been earned. */
+  const ownedPart = (key, n) => {
+    const open = [];
+    for (let i = 0; i < n; i++) {
+      if (!window.NovaProgress || NovaProgress.partState(key, i, COUNTS).owned) open.push(i);
+    }
+    return open.length ? open[Math.floor(Math.random() * open.length)] : 0;
+  };
+  const randomOwned = () => ({
+    colour: ownedPart('colour', Sprite.COLOURS), shape: ownedPart('shape', Sprite.SHAPES),
+    eyes: ownedPart('eyes', Sprite.EYES), mouth: ownedPart('mouth', Sprite.MOUTHS),
+    pattern: ownedPart('pattern', Sprite.PATTERNS)
+  });
+
+  let part = Number.isFinite(saved) && saved > 0 ? Sprite.partsOf(saved) : randomOwned();
   const chosen = () => Sprite.pack(part);
 
   const TABS = [
@@ -339,6 +395,8 @@ function askName() {
       <div class="field" style="margin-top:16px">
         <input class="input" id="nm" maxlength="16" placeholder="e.g. Sam" value="${esc(store.get('studentName') || '')}"></div>
 
+      <div class="wallet" id="wallet" hidden></div>
+
       <div class="picker">
         <div class="preview" id="pv"></div>
         <div class="row" style="justify-content:center;gap:8px;margin:2px 0 12px">
@@ -355,6 +413,27 @@ function askName() {
   const pv = $('#pv'), tabsBox = $('#tabs'), choices = $('#choices');
   const all = (sel) => Array.from(document.querySelectorAll(sel));
 
+  /* The level and the purse, drawn from this phone's own progress. Nothing about
+     it leaves the device — it is what this browser has earned, and the screen
+     says so rather than implying it follows the child around. */
+  function paintWallet() {
+    const box = $('#wallet');
+    if (!box || !window.NovaProgress) return;
+    const state = NovaProgress.read();
+    const lv = NovaProgress.levelFor(state.lifetime);
+    box.hidden = false;
+    box.innerHTML = '';
+    box.append(
+      el('div', { class: 'lvl' }, String(lv.level)),
+      el('div', { class: 'mid' },
+        el('div', { class: 'cap' }, lv.top ? 'Top level' : `${lv.toNext} coins to level ${lv.level + 1}`),
+        el('div', { class: 'bar' }, el('i', { style: `width:${lv.need ? Math.round(lv.into / lv.need * 100) : 100}%` }))),
+      el('div', { class: 'coins' },
+        el('span', { class: 'c', html: Sprite.icon('coin', 20, '#FFC53D') }),
+        String(state.coins)));
+    box.title = 'Kept on this phone. Play to earn coins and unlock more monsters.';
+  }
+
   /* Each swatch shows the monster you would get by changing only that one thing,
    * so a child can see the choice rather than guess at it. */
   const paint = () => {
@@ -365,13 +444,37 @@ function askName() {
     const { key, n } = TABS[tab];
     choices.innerHTML = '';
     choices.className = 'choices' + (key === 'colour' ? ' swatches' : '');
+    const prog = window.NovaProgress;
     for (let i = 0; i < n; i++) {
-      const b = el('button', { class: (key === 'colour' ? 'swatch' : 'choice') + (part[key] === i ? ' on' : ''),
-                               type: 'button', title: TABS[tab].label + ' ' + (i + 1) });
+      const info = prog ? prog.partState(key, i, COUNTS) : { owned: true };
+      const b = el('button', { class: (key === 'colour' ? 'swatch' : 'choice')
+                                      + (part[key] === i ? ' on' : '')
+                                      + (info.owned ? '' : ' locked'),
+                               type: 'button',
+                               title: info.owned ? TABS[tab].label + ' ' + (i + 1)
+                                    : `${info.tierName} · ${info.cost} coins`
+                                      + (info.levelReached ? '' : ` · level ${info.needsLevel}`) });
       if (key === 'colour') b.style.background = Sprite.palette[i];
       else if (key === 'shape') b.innerHTML = Sprite.crest(i, 46, Sprite.palette[part.colour]);
       else b.innerHTML = Sprite.face(Sprite.pack(Object.assign({}, part, { [key]: i })), 52);
-      b.onclick = () => { part[key] = i; paint(); };
+
+      if (!info.owned) {
+        // a locked part shows what it costs, or what level opens it — never just
+        // a padlock, because "no" without a reason is the most annoying thing a
+        // game can say
+        b.append(el('span', { class: 'price' + (info.canBuy ? '' : ' no') },
+          info.levelReached ? String(info.cost) : 'Lv ' + info.needsLevel));
+      }
+
+      b.onclick = () => {
+        if (info.owned) { part[key] = i; paint(); return; }
+        const bought = prog.buy(key, i, COUNTS);
+        if (!bought.ok) return toast(bought.why, 'bad');
+        toast(`Unlocked for ${info.cost} coins`, 'good');
+        part[key] = i;
+        paintWallet();
+        paint();
+      };
       choices.append(b);
     }
   };
@@ -380,10 +483,8 @@ function askName() {
     const b = el('button', { class: 'tab', type: 'button', onclick: () => { tab = i; paint(); } }, t.label);
     tabsBox.append(b);
   });
-  $('#surprise').onclick = () => {
-    part = Sprite.partsOf(Math.floor(Math.random() * Sprite.ALL));
-    paint();
-  };
+  $('#surprise').onclick = () => { part = randomOwned(); paint(); };
+  paintWallet();
   paint();
 
   const join = async () => {
@@ -391,6 +492,7 @@ function askName() {
     if (!name) return toast('Type your name first', 'bad');
     store.set('studentName', name);
     store.set('avatar', String(chosen()));
+    if (window.NovaProgress) NovaProgress.remember(chosen());
     try {
       const res = await api(`/games/${pin}/join`, { method: 'POST', body: { name, avatar: chosen() } });
       me = res.player;
@@ -425,12 +527,21 @@ function waiting() {
 
 let reconnects = 0;
 function refresh() {
-  return api(`/games/${pin}`).then(state => { reconnects = 0; apply(state); }).catch(err => {
-    if (err && err.status === 404) return gone();       // the game really has ended
-    reconnects += 1;
-    waiting();
-    setTimeout(refresh, Math.min(8000, 600 * reconnects));
-  });
+  /* Asking and drawing are kept apart on purpose. A failed request is a network
+     problem and is worth retrying quietly; a failure while drawing is a bug in
+     this page, and swallowing it as "bad wifi" means the screen sits there
+     frozen with nothing in the console — which is exactly how a missing variable
+     once hid for an afternoon. Drawing throws out loud. */
+  return api(`/games/${pin}`).then(
+    state => { reconnects = 0; return state; },
+    err => {
+      if (err && err.status === 404) { gone(); return null; }   // it really has ended
+      reconnects += 1;
+      waiting();
+      setTimeout(refresh, Math.min(8000, 600 * reconnects));
+      return null;
+    }
+  ).then(state => { if (state) apply(state); });
 }
 
 function connect() {
@@ -450,6 +561,16 @@ function apply(state) {
   // our own answer reaches the host a moment before the host scores it: until then
   // the state still says answered:false, and believing it would flash the question back
   if (state.state === 'question' && answeredIndex === state.index && me) me.answered = true;
+
+  // one question is counted once, when its answer comes up
+  if (state.state === 'reveal' && mine && tally.counted !== state.index) {
+    tally.counted = state.index;
+    if (mine.correct !== null && mine.correct !== undefined) {
+      tally.answered += 1;
+      if (mine.correct) tally.right += 1;
+    }
+    tally.bestRun = Math.max(tally.bestRun, mine.streak || 0, mine.best || 0);
+  }
   document.body.classList.toggle('laser', state.mode === 'laser');
   const key = state.state + ':' + state.index + ':' + (me?.answered ? 'a' : 'w');
   const fresh = key !== lastKey;
@@ -948,6 +1069,16 @@ function revealCard() {
 function overCard() {
   clearInterval(ticker);
   const rank = game.players.findIndex(p => p.id === me.id) + 1;
+
+  /* Pay for the game, once. The result screen can be drawn again — a reconnect,
+     a rotation — and a child should not earn the same game twice, so the payout
+     is worked out on the first draw and remembered. */
+  if (!paidOut && window.NovaProgress) {
+    paidOut = NovaProgress.award({
+      answered: tally.answered, right: tally.right,
+      bestRun: tally.bestRun, score: me.score || 0, place: rank
+    });
+  }
   const card = el('div', { class: 'card pad fade-up', style: 'text-align:center;padding:36px 22px' });
 
   if (game.mode === 'laser') {
@@ -971,7 +1102,9 @@ function overCard() {
   } else {
     const medal = rank <= 3 ? Sprite.icon('medal', 46,
         rank === 1 ? '#E8A400' : rank === 2 ? '#93A0BC' : '#B4713A') : Sprite.icon('flag', 46);
-    card.append(el('div', { style: 'font-size:3.4rem' }, medal),
+    // el() puts a plain string in as text; a drawn medal has to go in as markup,
+    // or the child gets the source code of an SVG at 3.4rem
+    card.append(el('div', { class: 'mini-face', style: 'line-height:0', html: medal }),
       el('h1', { style: 'font-size:1.7rem;margin:8px 0 4px' }, rank === 1 ? 'You won!' : `You finished #${rank}`),
       el('p', { class: 'muted' }, game.mode === 'kart' ? `${me.distance || 0}m driven`
         : game.mode === 'tower' ? `${me.blocks || 0} blocks high`
@@ -993,8 +1126,47 @@ function overCard() {
       : game.mode === 'snow' ? `${p.hits || 0} blocks`
       : String(p.score)))));
   card.append(lb);
+  if (paidOut) card.append(payoutCard(paidOut));
   card.append(el('a', { class: 'btn block', style: 'margin-top:18px;justify-content:center', href: './' }, 'Play another game'));
   return card;
+}
+
+/* What the game paid, itemised. A number that just appears is a number nobody
+   trusts; showing which part of playing earned what is also the clearest way to
+   say "answering is what pays", which is the behaviour we want. */
+function payoutCard(paid) {
+  const box = el('div', { class: 'payout' }, el('h4', {}, 'Coins earned'));
+  const rows = [
+    ['Questions answered', paid.parts.answering],
+    ['Right answers', paid.parts.correct],
+    ['Best run', paid.parts.streak],
+    ['Points scored', paid.parts.score],
+    ['Finishing', paid.parts.place]
+  ];
+  rows.forEach(([label, value]) => {
+    if (!value) return;
+    box.append(el('div', { class: 'line' }, el('span', {}, label), el('b', {}, '+' + value)));
+  });
+  box.append(el('div', { class: 'line sum' },
+    el('span', {}, 'Total'),
+    el('b', {}, '+' + paid.parts.total)));
+
+  const lv = NovaProgress.levelFor(NovaProgress.read().lifetime);
+  box.append(el('div', { class: 'line' },
+    el('span', {}, `Level ${lv.level}`),
+    el('b', {}, lv.top ? 'Top level' : `${lv.toNext} to level ${lv.level + 1}`)));
+  box.append(el('p', { class: 'tiny faint', style: 'margin-top:8px' },
+    `${NovaProgress.read().coins} coins to spend on your monster. Kept on this phone.`));
+
+  const wrap = el('div', {});
+  if (paid.levelUp) {
+    NovaProgress.markSeen(paid.levelUp);
+    wrap.append(el('div', { class: 'levelup' },
+      `Level ${paid.levelUp}! New monster parts unlocked.`));
+    confetti(90);
+  }
+  wrap.append(box);
+  return wrap;
 }
 
 function runTimer() {
