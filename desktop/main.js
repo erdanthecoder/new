@@ -218,12 +218,12 @@ async function boot() {
   if (nativeTheme) nativeTheme.themeSource = settings.values.theme;
 
   server = new Server({ root: ROOT, dataDir: dataDir(), port: settings.values.port,
-                        appRoot: __dirname });
+                        appRoot: __dirname, settings });
   try {
     await server.listen();
   } catch (err) {
     // something else already has the port; let the computer choose one instead
-    server = new Server({ root: ROOT, dataDir: dataDir(), port: 0, appRoot: __dirname });
+    server = new Server({ root: ROOT, dataDir: dataDir(), port: 0, appRoot: __dirname, settings });
     await server.listen();
   }
 

@@ -26,6 +26,13 @@ Hit **Host live**, put the PIN on the big screen, and everyone joins at **playqu
 The game runs through your Supabase project, so phones stay in sync with no server
 to keep awake.
 
+## Quoldek for Windows
+
+**[Download the app](https://github.com/erdanthecoder/quiznova/releases/latest)** —
+the installer, or a zip that needs no installing. It runs the pages, the quizzes
+and the live game on your own computer, and phones join over your wifi, so it
+works with no internet at all. Quizzes are files in a folder you can back up.
+
 ## Also in this repo
 
 `server.py` runs the same thing as a normal Flask app (`pip install -r

@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Quoldek</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link href="/fonts.css" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="apple-touch-icon" href="/logo.svg">
 <meta name="theme-color" content="#7C4DFF">
@@ -389,13 +388,38 @@ function askName() {
 }
 
 /* ── realtime ──────────────────────────────────── */
-function connect() {
-  api(`/games/${pin}`).then(apply).catch(() => {
-    store.del('player:' + pin);
-    $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">${Sprite.icon('ghost', 44)}</span>
-      That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="/play">Try another PIN</a></div>`;
+/* Phones drop the network all the time: the screen locks, the tab goes to the
+ * back, the wifi hands over to 4G. A failed request means "ask again", never
+ * "the game is over" — only the server saying 404 means that. Getting this
+ * wrong is what made closing the tab look like it finished the game. */
+function gone() {
+  store.del('player:' + pin);
+  $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">${Sprite.icon('ghost', 44)}</span>
+    That game is not running any more.<br><a class="btn sm" style="margin-top:14px" href="/play">Try another PIN</a></div>`;
+}
+
+function waiting() {
+  if (game) return;                       // already playing — say nothing, just retry
+  $('#app').innerHTML = `<div class="card pad empty" style="margin-top:14vh"><span class="em">${Sprite.icon('ghost', 44)}</span>
+    Getting you back into the game…</div>`;
+}
+
+let reconnects = 0;
+function refresh() {
+  return api(`/games/${pin}`).then(state => { reconnects = 0; apply(state); }).catch(err => {
+    if (err && err.status === 404) return gone();       // the game really has ended
+    reconnects += 1;
+    waiting();
+    setTimeout(refresh, Math.min(8000, 600 * reconnects));
   });
+}
+
+function connect() {
+  refresh();
   stream(`/games/${pin}/events`, (msg) => { if (msg.data && msg.data.pin) apply(msg.data); }, `/games/${pin}`);
+  // coming back from another app: don't wait for the next poll, catch up now
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  window.addEventListener('online', refresh);
 }
 
 function apply(state) {

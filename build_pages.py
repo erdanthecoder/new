@@ -18,7 +18,7 @@ OUT = os.path.join(ROOT, "docs")
 # so a class types playquoldek.web.app rather than a path with a filename on it.
 PLAY_OUT = os.path.join(ROOT, "docs-play")
 PLAY_HOST = "playquoldek.web.app"
-PLAY_ASSETS = ["nova.css", "logo.svg", "sprites.js", "nova.js", "quizbank.js", "realtime.js",
+PLAY_ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "nova.js", "quizbank.js", "realtime.js",
                "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 # And the board gets its own address, so the screen at the front of the room is a
@@ -28,7 +28,15 @@ LIVE_HOST = "livequoldek.web.app"
 LIVE_ASSETS = PLAY_ASSETS + ["qr.js", "music.js"]
 
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html"]
-ASSETS = ["nova.css", "logo.svg", "sprites.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
+ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
+
+
+def copy_fonts(where):
+    """The typefaces travel with the site, so a page never waits on Google and
+    a hall with no internet still looks right."""
+    src = os.path.join(SRC, "fonts")
+    if os.path.isdir(src):
+        shutil.copytree(src, os.path.join(where, "fonts"), dirs_exist_ok=True)
 
 
 def build():
@@ -41,6 +49,7 @@ def build():
     # a content hash on each asset URL, so a returning browser can never serve a
     # stale copy of the app from its cache after a deploy
     stamps = {}
+    copy_fonts(OUT)
     for asset in ASSETS:
         src = os.path.join(SRC, asset)
         if os.path.exists(src):
@@ -67,6 +76,7 @@ def build():
                             '<script src="account.js"></script>')
         html = html.replace('<script src="/qr.js"></script>', '<script src="qr.js"></script>')
         html = html.replace('href="/nova.css"', 'href="nova.css"')
+        html = html.replace('href="/fonts.css"', 'href="fonts.css"')
         html = html.replace('href="/logo.svg"', 'href="logo.svg"')
 
         # relative links: Pages serves from a subfolder, not the domain root
@@ -132,6 +142,7 @@ def build_play(stamps):
         path = os.path.join(PLAY_OUT, name)
         shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
 
+    copy_fonts(PLAY_OUT)
     for asset in PLAY_ASSETS:
         src = os.path.join(SRC, asset)
         if os.path.exists(src):
@@ -161,6 +172,7 @@ def build_live(stamps):
         path = os.path.join(LIVE_OUT, name)
         shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
 
+    copy_fonts(LIVE_OUT)
     for asset in LIVE_ASSETS:
         src = os.path.join(SRC, asset)
         if os.path.exists(src):

@@ -73,6 +73,25 @@
 
   /* ── state helpers ────────────────────────────────────── */
 
+  /* Who is in the room, for a device that is not the host.
+   *
+   * Only the host writes the game, so the stored copy does not know about a
+   * player until the host next looks. That is fine for scores, which the host
+   * works out — but not for the lobby, where a child who has just joined would
+   * see an empty room, including themselves missing. So the players table is
+   * read directly and merged in for display. Nothing is written: the host is
+   * still the only writer.
+   */
+  function withPlayers(game, rows) {
+    if (!rows || !rows.length) return game;
+    const merged = Object.assign({}, game.players);
+    for (const row of rows) {
+      if (!merged[row.id]) merged[row.id] = blankPlayer(row);
+    }
+    // a player the host has already dropped is gone; anything else is shown
+    return Object.assign({}, game, { players: merged });
+  }
+
   async function readGame(pin) {
     const rows = await rest('GET', `/quiznova_live_games?pin=eq.${encodeURIComponent(pin)}&select=data`);
     if (!rows || !rows.length) throw Object.assign(new Error('That game code is not live.'), { status: 404 });
@@ -265,15 +284,20 @@
       return { pin: newPin, hostToken: game.hostToken, mode: game.mode, quizTitle: quiz.title, total: questions.length };
     }
 
-    let prefetched = null, game;
-    if (!tail && method === 'GET' && hostTokenFor(pin) != null) {
+    let prefetched = null, game, roster = null;
+    if (!tail && method === 'GET') {
+      const host = hostTokenFor(pin) != null;
       const guess = openIndex[pin] ?? -1;
+      // everyone reads the players; the host also needs this question's answers
       const [row, playerRows, answerRows] = await Promise.all([
-        readGame(pin), readPlayers(pin), readAnswers(pin, guess)
+        readGame(pin), readPlayers(pin), host ? readAnswers(pin, guess) : null
       ]);
       game = row;
-      if (game.index === guess) prefetched = [playerRows, answerRows];
-      else prefetched = [playerRows, await readAnswers(pin, game.index)];
+      roster = playerRows;
+      if (host) {
+        prefetched = game.index === guess ? [playerRows, answerRows]
+                                          : [playerRows, await readAnswers(pin, game.index)];
+      }
     } else {
       game = await readGame(pin);
     }
@@ -283,7 +307,8 @@
     if (!tail && method === 'GET') {
       // only the host reconciles, so there is exactly one writer
       if (isHost) await reconcile(pin, game, prefetched);
-      return publicView(game);
+      // a phone still shows the room it can see, rather than the host's last look
+      return publicView(isHost ? game : withPlayers(game, roster));
     }
 
     if (tail === '/join' && method === 'POST') {
@@ -298,7 +323,9 @@
         team: red <= blue ? 'red' : 'blue'
       };
       await rest('POST', '/quiznova_live_players', row, { prefer: 'return=minimal' });
-      return { player: blankPlayer(row), game: publicView(game) };
+      // the reply is the first thing the new player sees, so it counts them in
+      return { player: blankPlayer(row),
+               game: publicView(withPlayers(game, already.concat([row]))) };
     }
 
     if (tail === '/score' && method === 'POST') {

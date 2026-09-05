@@ -120,6 +120,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <button class="nav" data-go="folder"><span class="ic" data-icon="save"></span>Quiz folder</button>
   <div class="spacer"></div>
   <button class="nav" data-go="settings"><span class="ic" data-icon="key"></span>Settings</button>
+  <button class="nav" id="music"><span class="ic" data-icon="sound"></span><span id="music-label">Music on</span></button>
   <div class="join">
     <div class="cap">Everyone joins at</div>
     <code id="join">…</code>
@@ -146,6 +147,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <div class="toast" id="toast"></div>
 
 <script src="/sprites.js"></script>
+<script src="/music.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const api = async (p, opts) => {
@@ -274,6 +276,28 @@ document.addEventListener('click', (e) => {
   }
   go(nav.dataset.go);
 });
+/* Music under the menu, played by the app itself — no file, no download, and
+   nothing to fetch, so it sounds the same with the wifi unplugged. It is the
+   board's tune held back: quieter, and a little slower than a game. */
+const MENU_TUNE = { level: 0.24, slow: 1.45 };
+let musicOn = true;
+
+function paintMusic() {
+  const btn = $('#music');
+  btn.querySelector('.ic').innerHTML = Sprite.icon(musicOn ? 'sound' : 'quiet', 18, 'currentColor');
+  $('#music-label').textContent = musicOn ? 'Music on' : 'Music off';
+  btn.style.color = musicOn ? '' : 'var(--faint)';
+}
+
+function musicShould(on, remember) {
+  musicOn = on;
+  if (on) NovaMusic.start(MENU_TUNE); else NovaMusic.stop();
+  paintMusic();
+  if (remember) window.Quoldek.settings.write({ music: on });
+}
+
+$('#music').onclick = () => musicShould(!musicOn, true);
+
 $('#new-quiz').onclick = () => go('new');
 $('#open-file').onclick = () => go('file');
 
@@ -290,6 +314,16 @@ $('#open-file').onclick = () => go('file');
     try { await navigator.clipboard.writeText(info.url); toast('Copied', 'good'); } catch { /* no clipboard */ }
   };
   paintQuizzes();
+
+  const prefs = await window.Quoldek.settings.read();
+  musicOn = prefs.music !== false;
+  paintMusic();
+  // a browser will not make a sound before somebody has touched the page, so the
+  // tune waits for the first click rather than being lost
+  if (musicOn) document.addEventListener('click', () => musicShould(true, false), { once: true });
+  if (window.Quoldek.onSettingsChanged) window.Quoldek.onSettingsChanged((values) => {
+    if ((values.music !== false) !== musicOn) musicShould(values.music !== false, false);
+  });
 })();
 </script>
 </body>

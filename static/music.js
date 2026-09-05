@@ -76,6 +76,9 @@
   }
 
   const BEAT = 0.34;                                  // a little under 180 notes a minute
+  // the same tune serves two rooms: full for a board at the front of a hall,
+  // and hushed and slower under a menu somebody is reading
+  let level = 0.5, tempo = BEAT;
   const PATTERN = [0, 2, 4, 2, 3, 1, 4, 2];           // steps within the scale
   const BASS    = [-5, null, -3, null, -4, null, -3, null];
 
@@ -90,7 +93,7 @@
     if (i === 0) { bar++; if (bar % 4 === 0) pluck(note(PATTERN[0] + 10), at, 0.08, 2.4); }
 
     step++;
-    timer = setTimeout(schedule, BEAT * 1000);
+    timer = setTimeout(schedule, tempo * 1000);
   }
 
   function fade(to, seconds) {
@@ -101,13 +104,15 @@
     out.gain.linearRampToValueAtTime(to, now + seconds);
   }
 
-  function start() {
+  function start(opts) {
     wanted = true;
+    level = (opts && typeof opts.level === 'number') ? opts.level : 0.5;
+    tempo = BEAT * ((opts && opts.slow) || 1);
     if (!build() || playing) return;
     // a browser will not make a sound until somebody has interacted with the page
     if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
     playing = true;
-    fade(0.5, 2.5);
+    fade(level, 2.5);
     schedule();
   }
 
@@ -128,7 +133,7 @@
     out.gain.setValueAtTime(Math.max(was, 0.5), at);
     const runs = { right: [4, 6, 8], wrong: [3, 1], win: [4, 6, 8, 11], go: [0, 4, 7] };
     (runs[kind] || runs.right).forEach((n, i) => pluck(note(n + 5), at + i * 0.09, 0.2, 1.1));
-    if (playing) fade(0.5, 1.2);
+    if (playing) fade(level, 1.2);
   }
 
   global.NovaMusic = {

@@ -41,9 +41,10 @@ function lanAddress() {
 }
 
 class Server {
-  constructor({ root, dataDir, port = 0, appRoot = null }) {
+  constructor({ root, dataDir, port = 0, appRoot = null, settings = null }) {
     this.root = root;                       // where static/ lives
     this.appRoot = appRoot;                 // the app's own pages, when running as one
+    this.settings = settings;               // what the teacher chose, read at request time
     this.store = new Store(path.join(dataDir, 'quizzes'));
     this.games = new Games();
     this.wantedPort = port;
@@ -145,6 +146,9 @@ class Server {
           + `window.QUOLDEK_JOIN = ${JSON.stringify('http://' + where + '/play?pin=')};\n`
           + 'window.QUOLDEK_LIVE = \'\';\n'
           + 'window.QUOLDEK_LOCAL = true;\n'
+          // read now, not at start-up, so turning music off in Settings takes
+          // effect on the next board without restarting the app
+          + `window.QUOLDEK_MUSIC = ${this.settings ? !!this.settings.values.music : true};\n`
           + '</script>';
         return this.send(res, 200, String(data).replace('</head>', inject + '</head>'), type);
       }

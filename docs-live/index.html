@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quoldek live</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+<link href="fonts.css?v=40a238ef" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
 <link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
 <meta name="theme-color" content="#7C4DFF">
@@ -349,7 +348,7 @@
 <main class="stage" id="stage"></main>
 
 <script src="sprites.js?v=fb42e39c"></script>
-<script src="music.js?v=a2d2d080"></script>
+<script src="music.js?v=7ab3dacd"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
@@ -357,7 +356,7 @@
 <script src="arena.js?v=134a5fcf"></script>
 <script src="paste.js?v=3032c005"></script>
 <script src="rules.js?v=28018583"></script>
-<script src="live.js?v=5c9e1752"></script>
+<script src="live.js?v=e694660d"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script src="qr.js?v=b8307384"></script>
@@ -414,7 +413,11 @@ function musicShould(play) {
 }
 
 if (musicBtn) {
-  try { const saved = localStorage.getItem('nova:music'); if (saved !== null) musicWanted = !!saved; }
+  // In the app, Settings decides how each board starts — the button beside the
+  // PIN still turns it off for this game. On the web there is no settings
+  // window, so the board remembers what was picked here last time.
+  if (typeof window.QUOLDEK_MUSIC === 'boolean') musicWanted = window.QUOLDEK_MUSIC;
+  else try { const saved = localStorage.getItem('nova:music'); if (saved !== null) musicWanted = !!saved; }
   catch { /* private mode */ }
   musicBtn.onclick = (e) => { e.stopPropagation(); musicUnlocked = true; musicShould(!musicWanted); };
   // the first click anywhere is the permission a browser is waiting for
@@ -1201,8 +1204,22 @@ $('#end').onclick = () => {
   });
 };
 
-api(`/games/${pin}`).then(apply).catch(fail);
+/* The board must survive a dropped wifi packet: only a 404 means the game has
+ * really gone, anything else is worth asking again for. */
+let retries = 0;
+function refresh() {
+  return api(`/games/${pin}`).then(state => { retries = 0; apply(state); }).catch(err => {
+    if (err && err.status === 404) return fail();
+    retries += 1;
+    if (!game) $('#stage').innerHTML = `<div class="card pad empty"><span class="em">${Sprite.icon('ghost', 48)}</span>
+      Reconnecting…</div>`;
+    setTimeout(refresh, Math.min(8000, 600 * retries));
+  });
+}
+refresh();
 connect();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+window.addEventListener('online', refresh);
 </script>
 </body>
 </html>
