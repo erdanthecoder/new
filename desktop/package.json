@@ -2,7 +2,7 @@
   "name": "quoldek",
   "productName": "Quoldek",
   "version": "3.1.0",
-  "description": "Quizzes everyone begs to play \u2014 hosts the game on your own computer, so it works with no internet.",
+  "description": "Classroom quiz software for teachers: write or paste a quiz, put it on the board, and the class answers on their own devices. Runs entirely on this computer, so a lesson works with no internet.",
   "main": "main.js",
   "author": "Quoldek",
   "license": "MIT",
@@ -69,7 +69,24 @@
       "shortcutName": "Quoldek",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "artifactName": "Quoldek-Setup-${version}.exe"
+      "artifactName": "Quoldek-Setup-${version}.exe",
+      "menuCategory": "Education"
+    },
+    "linux": {
+      "category": "Education",
+      "synopsis": "Classroom quiz software for teachers"
+    },
+    "mac": {
+      "category": "public.app-category.education"
     }
-  }
+  },
+  "keywords": [
+    "education",
+    "classroom",
+    "teaching",
+    "quiz",
+    "assessment",
+    "school",
+    "learning"
+  ]
 }

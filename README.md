@@ -1,5 +1,10 @@
 # Quoldek
 
+**Classroom quiz software for teachers.** Education, not entertainment: write or
+paste a quiz, put it on the board, and the class answers on their own devices.
+Made for lessons, revision and formative assessment, from Year 1 to Year 11 —
+and for a family round the table at the weekend.
+
 Your quiz site: **https://quoldek.web.app** — everyone joins at **https://playquoldek.web.app**
 (also at https://erdanthecoder.github.io/quiznova/)
 
