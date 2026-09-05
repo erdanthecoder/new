@@ -1,7 +1,7 @@
 {
   "name": "quoldek",
   "productName": "Quoldek",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Quizzes everyone begs to play \u2014 hosts the game on your own computer, so it works with no internet.",
   "main": "main.js",
   "author": "Quoldek",
