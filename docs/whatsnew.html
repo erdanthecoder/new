@@ -21,7 +21,7 @@
 <meta property="og:title" content="Quoldek — classroom quizzes">
 <meta property="og:description" content="A teaching tool for classrooms: write or paste a quiz, put it on the board, and the class answers on their own devices.">
 <meta name="description" content="Quoldek 3.0: three new games, settings for every live game, music for every part of a round, Laser Tag in real 3D, and a Windows app.">
-<link rel="stylesheet" href="nova.css?v=f2c3e7dc">
+<link rel="stylesheet" href="nova.css?v=4c8347b4">
 <style>
 .top{display:flex;align-items:center;gap:14px;padding:20px 0 10px}
 .top .brand-mark{width:42px;height:42px;flex:none}
@@ -117,6 +117,8 @@ footer a{color:var(--grape)}
       <span class="clock" id="when-clock">—</span>
       <span class="sub" id="when-sub">Everything below goes live at midday.</span>
     </div>
+
+    <p style="margin-top:12px"><button class="btn sm" type="button" id="replay">Watch the launch</button></p>
 
     <nav class="rail">
       <a href="#levels">Levels and coins</a>
@@ -311,6 +313,7 @@ footer a{color:var(--grape)}
 </div>
 
 <script src="sprites.js?v=a7a8749e"></script>
+<script src="launch.js?v=bc286be6"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
@@ -375,6 +378,11 @@ function tick() {
     cap.textContent = 'Out now';
     clock.textContent = 'It is here';
     sub.textContent = 'Everything below is live. Open Quoldek and have a look.';
+    // whoever is watching the clock when it strikes gets the launch
+    if (window.NovaLaunch && !NovaLaunch.seen()) {
+      NovaLaunch.markSeen();
+      NovaLaunch.rocket({});
+    }
     return;
   }
   const s = Math.floor(left / 1000);
@@ -385,6 +393,8 @@ function tick() {
   setTimeout(tick, 1000);
 }
 tick();
+
+document.getElementById('replay').onclick = () => window.NovaLaunch && NovaLaunch.rocket({});
 
 /* What the counter really says, read straight from the database. */
 (async () => {

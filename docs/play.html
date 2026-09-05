@@ -21,7 +21,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Quoldek — classroom quizzes">
 <meta property="og:description" content="A teaching tool for classrooms: write or paste a quiz, put it on the board, and the class answers on their own devices.">
-<link rel="stylesheet" href="nova.css?v=f2c3e7dc">
+<link rel="stylesheet" href="nova.css?v=4c8347b4">
 <style>
 .shell{max-width:640px;margin:0 auto;padding:20px 16px 40px;min-height:100vh;display:flex;flex-direction:column}
 .hud{display:flex;gap:9px;align-items:center;padding:8px 12px;border-radius:99px;background:rgba(255,255,255,.06);
@@ -287,6 +287,7 @@
 <main class="shell" id="app"></main>
 
 <script src="sprites.js?v=a7a8749e"></script>
+<script src="launch.js?v=bc286be6"></script>
 <script src="progress.js?v=a983181e"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
@@ -378,7 +379,8 @@ function askName() {
   const ownedPart = (key, n) => {
     const open = [];
     for (let i = 0; i < n; i++) {
-      if (!window.NovaProgress || NovaProgress.partState(key, i, COUNTS).owned) open.push(i);
+      const held = window.NovaLaunch && !NovaLaunch.out();
+      if (held || !window.NovaProgress || NovaProgress.partState(key, i, COUNTS).owned) open.push(i);
     }
     return open.length ? open[Math.floor(Math.random() * open.length)] : 0;
   };
@@ -432,6 +434,7 @@ function askName() {
   function paintWallet() {
     const box = $('#wallet');
     if (!box || !window.NovaProgress) return;
+    if (window.NovaLaunch && !NovaLaunch.out()) return;   // the update is not open yet
     const state = NovaProgress.read();
     const lv = NovaProgress.levelFor(state.lifetime);
     box.hidden = false;
@@ -457,7 +460,9 @@ function askName() {
     const { key, n } = TABS[tab];
     choices.innerHTML = '';
     choices.className = 'choices' + (key === 'colour' ? ' swatches' : '');
-    const prog = window.NovaProgress;
+    // before the update opens, every monster is simply available, exactly as it
+    // was yesterday — nothing is teased and nothing is taken away
+    const prog = (window.NovaLaunch && !NovaLaunch.out()) ? null : window.NovaProgress;
     for (let i = 0; i < n; i++) {
       const info = prog ? prog.partState(key, i, COUNTS) : { owned: true };
       const b = el('button', { class: (key === 'colour' ? 'swatch' : 'choice')
@@ -1086,7 +1091,7 @@ function overCard() {
   /* Pay for the game, once. The result screen can be drawn again — a reconnect,
      a rotation — and a child should not earn the same game twice, so the payout
      is worked out on the first draw and remembered. */
-  if (!paidOut && window.NovaProgress) {
+  if (!paidOut && window.NovaProgress && !(window.NovaLaunch && !NovaLaunch.out())) {
     paidOut = NovaProgress.award({
       answered: tally.answered, right: tally.right,
       bestRun: tally.bestRun, score: me.score || 0, place: rank

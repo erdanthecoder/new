@@ -21,7 +21,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Quoldek — classroom quizzes">
 <meta property="og:description" content="A teaching tool for classrooms: write or paste a quiz, put it on the board, and the class answers on their own devices.">
-<link rel="stylesheet" href="nova.css?v=f2c3e7dc">
+<link rel="stylesheet" href="nova.css?v=4c8347b4">
 <style>
 .studio{display:grid;grid-template-columns:250px minmax(0,1fr) 380px;gap:22px;max-width:1560px;margin:0 auto;padding:22px;align-items:start}
 .col{position:sticky;top:94px;max-height:calc(100vh - 116px);overflow:auto}
@@ -301,6 +301,7 @@ tr:hover td{background:var(--paper)}
 </main>
 
 <script src="sprites.js?v=a7a8749e"></script>
+<script src="launch.js?v=bc286be6"></script>
 
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
@@ -916,13 +917,17 @@ $('#present').onclick = () => {
 /* Where a class actually types the address in. The deployed board sends them to
  * the short site; a board being run from a laptop keeps its own address, so a
  * game still works with no internet at all. */
+/* Written out rather than hard-coded, because how many games there are depends
+   on whether the 3.0 update has opened yet. */
+const gameCount = () => ((window.NovaLaunch && !NovaLaunch.out()) ? 'eight' : 'eleven');
+
 const joinAddress = () => (window.QUOLDEK_JOIN
   ? window.QUOLDEK_JOIN.replace(/^https?:\/\//, '').replace(/\/?\?pin=.*$/, '')
   : location.host + '/play');
 
   modal(`
     <h2 style="margin-bottom:6px" id="pick-title">Pick how the class plays</h2>
-    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, eleven games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.</p>
+    <p class="muted tiny" style="margin-bottom:18px" id="pick-sub">Same quiz, ${gameCount()} games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.</p>
     <div class="modegrid" id="mode-list">
       <p class="tiny faint">Loading</p>
     </div>`, {
@@ -931,6 +936,8 @@ const joinAddress = () => (window.QUOLDEK_JOIN
       const list = box.querySelector('#mode-list');
       let modes = [];
       try { modes = (await api('/modes')).modes; } catch { /* offline */ }
+      // the 3.0 games are held back until the update opens at midday
+      if (window.NovaLaunch) modes = NovaLaunch.openModes(modes);
       if (!modes.length) modes = [{ id: 'normal', icon: 'target', label: 'Normal',
                                     blurb: 'Fastest right answer scores the most', maps: [] }];
       showModes(modes);
@@ -966,7 +973,7 @@ const joinAddress = () => (window.QUOLDEK_JOIN
           onclick: () => {
             box.querySelector('#pick-title').textContent = 'Pick how everyone plays';
             box.querySelector('#pick-sub').innerHTML =
-              `Same quiz, eleven games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.`;
+              `Same quiz, ${gameCount()} games. Everyone joins at <strong>${esc(joinAddress())}</strong> with the PIN.`;
             showModes(modes);
           } }, 'Back to the games'));
       }

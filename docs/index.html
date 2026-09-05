@@ -45,7 +45,7 @@
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
 }
 </script>
-<link rel="stylesheet" href="nova.css?v=f2c3e7dc">
+<link rel="stylesheet" href="nova.css?v=4c8347b4">
 <style>
 .newsbar{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:16px;padding:12px 18px;
   border-radius:var(--r-lg);background:var(--card);border:var(--line-w) solid var(--line);
@@ -234,6 +234,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 </main>
 
 <script src="sprites.js?v=a7a8749e"></script>
+<script src="launch.js?v=bc286be6"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
@@ -261,7 +262,29 @@ function paintIcons(root = document) {
   const mark = root.querySelector ? root.querySelector('#brand-mark') : null;
   if (mark && !mark.firstElementChild) mark.innerHTML = Sprite.logo(42);
 }
-document.addEventListener('DOMContentLoaded', () => { paintIcons(); showcase(); });
+document.addEventListener('DOMContentLoaded', () => { paintIcons(); showcase(); watchLaunch(); });
+
+/* Midday on release day.
+ *
+ * If the update is already open and this browser has not seen it land, the
+ * rocket goes now — a teacher who opens the site at ten past twelve should still
+ * get the moment. If midday has not arrived, the page waits for it with a single
+ * timer rather than asking the clock over and over, and lets it go the second it
+ * does, even on a tab that has been sitting open all morning.
+ */
+function watchLaunch() {
+  if (!window.NovaLaunch) return;
+  const go = () => {
+    if (NovaLaunch.seen()) return;
+    NovaLaunch.markSeen();
+    NovaLaunch.rocket({ onDone: () => location.reload() });
+  };
+  if (NovaLaunch.out()) return go();
+  const wait = NovaLaunch.until();
+  // setTimeout is not to be trusted over many hours, so long waits are checked
+  // again rather than fired blind
+  setTimeout(() => (NovaLaunch.out() ? go() : watchLaunch()), Math.min(wait + 250, 60000));
+}
 
 /* What the card on the landing page says.
  *

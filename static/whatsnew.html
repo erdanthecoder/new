@@ -118,6 +118,8 @@ footer a{color:var(--grape)}
       <span class="sub" id="when-sub">Everything below goes live at midday.</span>
     </div>
 
+    <p style="margin-top:12px"><button class="btn sm" type="button" id="replay">Watch the launch</button></p>
+
     <nav class="rail">
       <a href="#levels">Levels and coins</a>
       <a href="#games">Three new games</a>
@@ -311,6 +313,7 @@ footer a{color:var(--grape)}
 </div>
 
 <script src="/sprites.js"></script>
+<script src="/launch.js"></script>
 <script src="/nova.js"></script>
 <script>
 document.getElementById('brand-mark').innerHTML = Sprite.logo(42);
@@ -362,6 +365,11 @@ function tick() {
     cap.textContent = 'Out now';
     clock.textContent = 'It is here';
     sub.textContent = 'Everything below is live. Open Quoldek and have a look.';
+    // whoever is watching the clock when it strikes gets the launch
+    if (window.NovaLaunch && !NovaLaunch.seen()) {
+      NovaLaunch.markSeen();
+      NovaLaunch.rocket({});
+    }
     return;
   }
   const s = Math.floor(left / 1000);
@@ -372,6 +380,8 @@ function tick() {
   setTimeout(tick, 1000);
 }
 tick();
+
+document.getElementById('replay').onclick = () => window.NovaLaunch && NovaLaunch.rocket({});
 
 /* What the counter really says, read straight from the database. */
 (async () => {

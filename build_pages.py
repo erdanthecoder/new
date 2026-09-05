@@ -18,7 +18,7 @@ OUT = os.path.join(ROOT, "docs")
 # so a class types playquoldek.web.app rather than a path with a filename on it.
 PLAY_OUT = os.path.join(ROOT, "docs-play")
 PLAY_HOST = "playquoldek.web.app"
-PLAY_ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "progress.js", "nova.js", "quizbank.js", "realtime.js",
+PLAY_ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "progress.js", "launch.js", "nova.js", "quizbank.js", "realtime.js",
                "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 # And the board gets its own address, so the screen at the front of the room is a
@@ -28,7 +28,7 @@ LIVE_HOST = "livequoldek.web.app"
 LIVE_ASSETS = PLAY_ASSETS + ["qr.js", "music.js"]
 
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html", "whatsnew.html"]
-ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "progress.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
+ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "progress.js", "launch.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
 
 def copy_fonts(where):
@@ -63,6 +63,7 @@ def build():
         # the in-browser API must load right after the shared runtime
         html = html.replace('<script src="/sprites.js"></script>', '<script src="sprites.js"></script>')
         html = html.replace('<script src="/progress.js"></script>', '<script src="progress.js"></script>')
+        html = html.replace('<script src="/launch.js"></script>', '<script src="launch.js"></script>')
         html = html.replace('<script src="/music.js"></script>', '<script src="music.js"></script>')
         html = html.replace('<script src="/arena.js"></script>', '')   # the bundle already adds it
         html = html.replace('<script src="/quizbank.js"></script>', '')  # ditto
