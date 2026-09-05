@@ -51,11 +51,19 @@
   }
 
   const SEEN = 'quoldek:launched';
+  /* A browser with storage switched off — private mode, a locked-down school
+   * machine — cannot remember that it has seen this. So there is a flag in memory
+   * as well, and nothing anywhere depends on the stored one having worked: the
+   * worst case is a teacher who sees the rocket again tomorrow, not a page that
+   * shows it for ever. */
+  let flown = false;
   function seen() {
+    if (flown) return true;
     try { return global.localStorage.getItem(SEEN) === '3.0'; } catch { return false; }
   }
   function markSeen() {
-    try { global.localStorage.setItem(SEEN, '3.0'); } catch { /* private mode */ }
+    flown = true;
+    try { global.localStorage.setItem(SEEN, '3.0'); } catch { /* storage is off */ }
   }
 
   /* ── the launch ───────────────────────────────────────────
@@ -67,6 +75,8 @@
     const options = opts || {};
     const done = options.onDone || function () {};
     if (!global.document) return done();
+    // never two at once, whatever calls this
+    if (document.querySelector('.launch')) return done();
 
     const shell = document.createElement('div');
     shell.className = 'launch';

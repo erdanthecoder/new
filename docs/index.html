@@ -234,7 +234,7 @@ footer{margin:80px 0 40px;padding-top:24px;border-top:2px solid var(--line-soft)
 </main>
 
 <script src="sprites.js?v=a7a8749e"></script>
-<script src="launch.js?v=bc286be6"></script>
+<script src="launch.js?v=b9d6e0d6"></script>
 <script src="nova.js?v=30a2cc36"></script>
 <script src="quizbank.js?v=f18e8cbc"></script>
 <script src="realtime.js?v=75e1623c"></script>
@@ -277,7 +277,11 @@ function watchLaunch() {
   const go = () => {
     if (NovaLaunch.seen()) return;
     NovaLaunch.markSeen();
-    NovaLaunch.rocket({ onDone: () => location.reload() });
+    // No reload afterwards. The picker asks for the list of games when it opens
+    // and the phone reads the clock as it draws, so nothing needs refreshing —
+    // and a reload on a browser that cannot remember it has seen this would put
+    // the page in a loop of rocket, reload, rocket, with no way to play at all.
+    NovaLaunch.rocket({});
   };
   if (NovaLaunch.out()) return go();
   const wait = NovaLaunch.until();
