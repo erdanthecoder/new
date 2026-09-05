@@ -1083,7 +1083,11 @@ const joinAddress = () => (window.QUOLDEK_JOIN
           const game = await api('/games', { method: 'POST',
             body: { quizId, mode, map, goal, setup, music: setup.music !== false } });
           store.set('host:' + game.pin, game.hostToken);
-          location.href = 'host.html?pin=' + game.pin;
+          // The token also travels in the URL, not only in browser storage: a
+          // browser with site data switched off saves nothing, and then the board
+          // cannot tell it is the teacher and Start stays grey. A fragment is
+          // never sent to a server.
+          location.href = 'host.html?pin=' + game.pin + '#h=' + game.hostToken;
         } catch (err) { toast(err.message, 'bad'); }
       }
     }

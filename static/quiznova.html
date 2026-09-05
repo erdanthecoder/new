@@ -413,7 +413,7 @@ async function hostGame(q) {
         try {
           const game = await api('/games', { method: 'POST', body: { quizId: q.id, mode: btn.dataset.mode } });
           Nova.store.set('host:' + game.pin, game.hostToken);
-          location.href = '/host?pin=' + game.pin;
+          location.href = '/host?pin=' + game.pin + '#h=' + game.hostToken;
         } catch (err) { toast(err.message, 'bad'); }
       });
     }

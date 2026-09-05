@@ -100,8 +100,8 @@ def build():
         #
         # livequoldek.web.app still serves the board for anyone who types it, and
         # still accepts a token in the fragment if one is ever passed.
-        html = html.replace("location.href = '/host?pin=' + game.pin",
-                            "location.href = 'host.html?pin=' + game.pin")
+        html = html.replace("location.href = '/host?pin=' + game.pin + '#h=' + game.hostToken",
+                            "location.href = 'host.html?pin=' + game.pin + '#h=' + game.hostToken")
         html = html.replace("location.href = '/play?pin=' + pin", "location.href = 'play.html?pin=' + pin")
         html = html.replace("href: '/play'", "href: 'play.html'")
         html = html.replace('href="/play"', 'href="play.html"')

@@ -434,15 +434,18 @@ const pin = qs('pin');
  * address so a refresh still works, and wipes it out of the address bar at once
  * so it is not left on screen or copied by mistake.
  */
-(function claimHost() {
+function claimHost() {
   const fragment = String(location.hash || '');
-  const found = fragment.match(/(?:^#|&)h=([A-Za-z0-9_-]{6,64})/);
-  if (!found || !pin) return;
+  const found = fragment.match(/(?:^#|&)h=([A-Za-z0-9_-]{4,64})/);
+  if (!found || !pin) return null;
+  // remember it if this browser will remember anything, and carry on either way
   store.set('host:' + pin, found[1]);
   history.replaceState(null, '', location.pathname + location.search);
-})();
+  return found[1];
+}
 
-const hostToken = store.get('host:' + pin);
+// the URL first, because it is the one place that cannot silently fail
+const hostToken = claimHost() || store.get('host:' + pin);
 let game = null, drift = 0, ticker = null, lastState = '', lastHp = {};
 
 /* Where students join. Kept as two small functions because the GitHub Pages build
@@ -721,7 +724,7 @@ function lobbyView() {
   root.append(crowd);
 
   root.append(el('div', { class: 'lobbybar' },
-    el('button', { class: 'btn primary lg', id: 'start', disabled: hostToken ? null : true },
+    el('button', { class: 'btn primary lg', id: 'start' },
        el('span', { class: 'mini-face', html: Sprite.icon('play', 18) }), 'Start game'),
     el('button', { class: 'btn', id: 'cp' },
        el('span', { class: 'mini-face', html: Sprite.icon('copy', 16) }), 'Copy join link'),
@@ -744,6 +747,12 @@ function bindLobby() {
   const startBtn = $('#start');
   if (startBtn) startBtn.onclick = async () => {
     if (!game.players.length) return toast('Wait for at least one player', 'bad');
+    // Never a dead button. If this device is not the one that made the game it
+    // says so in a sentence somebody can act on, rather than refusing to be
+    // pressed and leaving a teacher guessing at a grey rectangle.
+    if (!hostToken) {
+      return toast('Start this game from the device that made it, or make a new one', 'bad');
+    }
     try { await api(`/games/${pin}/start`, { method: 'POST', body: { hostToken } }); }
     catch (err) { toast(err.message, 'bad'); }
   };
