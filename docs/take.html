@@ -78,7 +78,7 @@
 <script src="arena.js?v=fb3b6182"></script>
 <script src="paste.js?v=3032c005"></script>
 <script src="rules.js?v=2b1ca27f"></script>
-<script src="live.js?v=67e72952"></script>
+<script src="live.js?v=1cdb2620"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script>
@@ -87,6 +87,9 @@ window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
   ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
   : 'https://playquoldek.web.app/?pin=';
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
+window.QUOLDEK_HOMEWORK = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'take.html?c='
+  : 'https://hwquoldek.web.app/';
 const { $, api, el, esc, qs, toast, confetti, modal } = Nova;
 
 /* Interface icons are drawn, not typed: emoji change shape on every device. */
@@ -104,12 +107,26 @@ paintIcons();
 // inside the link itself (static edition) — accept both.
 const quizId = qs('id');
 const hasPayload = location.hash.includes('d=');
+/* Homework arrives three ways now: ?id= on a server, a #d= payload packed into
+   the link, or — on homework.quoldek.web.app — a six-character code in the path
+   or the query, which is the short one a teacher can actually send to a class. */
+const shortCode = (function () {
+  const fromQuery = (qs('c') || '').trim();
+  const fromPath = (location.pathname.replace(/^\/+|\/+$/g, '') || '');
+  const code = fromQuery || fromPath;
+  return /^[a-hjkmnp-z2-9]{6}$/i.test(code) ? code.toLowerCase() : '';
+})();
 let quiz = null, order = [], answers = {}, step = -1, startedAt = 0, name = Nova.store.get('studentName') || '';
 
 async function boot() {
-  if (!quizId && !hasPayload) return fail('This link is missing its quiz.');
-  try { quiz = await api('/quizzes/' + quizId); }
-  catch { return fail('This quiz link is not valid any more.'); }
+  if (!quizId && !hasPayload && !shortCode) return fail('This link is missing its quiz.');
+  try {
+    quiz = shortCode ? await NovaLive.sharedQuiz(shortCode) : await api('/quizzes/' + quizId);
+  } catch (err) {
+    return fail(shortCode ? 'That homework link is not valid any more.'
+                          : 'This quiz link is not valid any more.');
+  }
+  quiz.settings = quiz.settings || {};
   if (!quiz.questions.length) return fail('Your teacher has not added any questions yet.');
 
   order = quiz.questions.map((q, i) => i);

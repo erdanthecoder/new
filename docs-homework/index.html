@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quoldek quiz</title>
-<link href="/fonts.css" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="/logo.svg">
-<link rel="apple-touch-icon" href="/logo.svg">
+<title>Quoldek homework</title>
+<link href="fonts.css?v=40a238ef" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="logo.svg?v=662a6df7">
+<link rel="apple-touch-icon" href="logo.svg?v=662a6df7">
 <meta name="theme-color" content="#7C4DFF">
 <meta name="description" content="Quoldek is a teaching tool for classrooms and families: write or paste a quiz, put it on the board, and everyone answers on their own device. Made for lessons, revision and formative assessment.">
 <meta name="application-name" content="Quoldek">
@@ -21,7 +21,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Quoldek — classroom quizzes">
 <meta property="og:description" content="A teaching tool for classrooms: write or paste a quiz, put it on the board, and the class answers on their own devices.">
-<link rel="stylesheet" href="/nova.css">
+<link rel="stylesheet" href="nova.css?v=4c8347b4">
 <style>
 .shell{max-width:740px;margin:0 auto;padding:28px 20px 90px}
 .progress{position:fixed;top:0;left:0;right:0;height:8px;background:var(--paper);z-index:80;border-bottom:2px solid var(--line)}
@@ -71,9 +71,25 @@
   <div class="card pad center" style="min-height:50vh"><div class="skeleton" style="width:220px;height:24px"></div></div>
 </main>
 
-<script src="/sprites.js"></script>
-<script src="/nova.js"></script>
+<script src="sprites.js?v=a7a8749e"></script>
+<script src="nova.js?v=30a2cc36"></script>
+<script src="quizbank.js?v=f18e8cbc"></script>
+<script src="realtime.js?v=75e1623c"></script>
+<script src="arena.js?v=fb3b6182"></script>
+<script src="paste.js?v=3032c005"></script>
+<script src="rules.js?v=2b1ca27f"></script>
+<script src="live.js?v=1cdb2620"></script>
+<script src="nova-local.js?v=340f2f93"></script>
+<script src="account.js?v=ff127e8f"></script>
 <script>
+window.QUOLDEK_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1)/.test(location.hostname);
+window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
+  : 'https://playquoldek.web.app/?pin=';
+window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
+window.QUOLDEK_HOMEWORK = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'take.html?c='
+  : 'https://hwquoldek.web.app/';
 const { $, api, el, esc, qs, toast, confetti, modal } = Nova;
 
 /* Interface icons are drawn, not typed: emoji change shape on every device. */

@@ -34,6 +34,13 @@ Hit **Host live**, put the PIN on the big screen, and everyone joins at **playqu
 The game runs through your Supabase project, so phones stay in sync with no server
 to keep awake.
 
+## Homework
+
+**Share** on any quiz gives a link like **hwquoldek.web.app/ab2c9k** — short
+enough to read off a board, paste into Google Classroom, or turn into a QR code.
+The quiz itself is kept for the link rather than packed inside it, which is why
+the address used to run to several hundred characters.
+
 ## Quoldek for Windows
 
 **[Download the app](https://github.com/erdanthecoder/quiznova/releases/latest)** —

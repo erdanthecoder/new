@@ -27,6 +27,15 @@ LIVE_OUT = os.path.join(ROOT, "docs-live")
 LIVE_HOST = "livequoldek.web.app"
 LIVE_ASSETS = PLAY_ASSETS + ["qr.js", "music.js"]
 
+# And homework gets the shortest address of the three, because it is the one a
+# teacher pastes into Google Classroom and a class types off a board.
+HOMEWORK_OUT = os.path.join(ROOT, "docs-homework")
+# Firebase gives out name.web.app, not subdomains of another site, so
+# homework.quoldek.web.app is not a thing that can exist. This follows the
+# pattern the other two already use — playquoldek, livequoldek — and keeps
+# the whole link short enough to read off a board: hwquoldek.web.app/ab2c9k
+HOMEWORK_HOST = "hwquoldek.web.app"
+
 PAGES = ["quiznova.html", "studio.html", "take.html", "host.html", "play.html", "whatsnew.html"]
 ASSETS = ["nova.css", "fonts.css", "logo.svg", "sprites.js", "progress.js", "launch.js", "music.js", "nova.js", "qr.js", "quizbank.js", "realtime.js", "arena.js", "paste.js", "rules.js", "live.js", "nova-local.js", "account.js"]
 
@@ -131,7 +140,10 @@ def build():
             "window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL\n"
             "  ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='\n"
             "  : 'https://" + PLAY_HOST + "/?pin=';\n"
-            "window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : '" + LIVE_HOST + "';", 1)
+            "window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : '" + LIVE_HOST + "';\n"
+            "window.QUOLDEK_HOMEWORK = window.QUOLDEK_LOCAL\n"
+            "  ? location.href.replace(/[^/]*$/, '') + 'take.html?c='\n"
+            "  : 'https://" + HOMEWORK_HOST + "/';", 1)
 
         for asset, stamped in stamps.items():
             html = html.replace(f'"{asset}"', f'"{stamped}"')
@@ -142,6 +154,7 @@ def build():
     print("built docs/:", ", ".join(sorted(os.listdir(OUT))))
     build_play(stamps)
     build_live(stamps)
+    build_homework(stamps)
 
 
 def build_play(stamps):
@@ -204,6 +217,31 @@ def build_live(stamps):
     open(os.path.join(LIVE_OUT, "index.html"), "w", encoding="utf-8").write(html)
     open(os.path.join(LIVE_OUT, ".nojekyll"), "w").close()
     print("built docs-live/:", ", ".join(sorted(os.listdir(LIVE_OUT))))
+
+
+
+def build_homework(stamps):
+    """The homework site: one page, at the root, that takes a six-character code.
+
+    It is the same take.html, built again rather than copied, so there is one
+    source for it and no chance of the two drifting apart.
+    """
+    os.makedirs(HOMEWORK_OUT, exist_ok=True)
+    for name in os.listdir(HOMEWORK_OUT):
+        path = os.path.join(HOMEWORK_OUT, name)
+        shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
+
+    copy_fonts(HOMEWORK_OUT)
+    for asset in PLAY_ASSETS:
+        src = os.path.join(SRC, asset)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(HOMEWORK_OUT, asset))
+
+    html = open(os.path.join(OUT, "take.html"), encoding="utf-8").read()
+    html = html.replace("<title>Quoldek quiz</title>", "<title>Quoldek homework</title>")
+    open(os.path.join(HOMEWORK_OUT, "index.html"), "w", encoding="utf-8").write(html)
+    open(os.path.join(HOMEWORK_OUT, ".nojekyll"), "w").close()
+    print("built docs-homework/:", ", ".join(sorted(os.listdir(HOMEWORK_OUT))))
 
 
 if __name__ == "__main__":

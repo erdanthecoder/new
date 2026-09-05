@@ -421,20 +421,25 @@ async function hostGame(q) {
 }
 
 function share(q) {
-  const link = location.origin + '/take?id=' + q.id;
   modal(`
     <h2 style="margin-bottom:6px">Share “${esc(q.title)}”</h2>
     <p class="muted tiny" style="margin-bottom:18px">Students open this link, type their name and take the quiz. Results land in your Responses tab.</p>
     <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
-    <div class="field"><label class="label">Student link</label>
-      <input class="input mono" id="lnk" value="${esc(link)}" readonly></div>
+    <div class="field"><label class="label">Homework link</label>
+      <input class="input mono" id="lnk" value="Making a short link…" readonly></div>
     <div class="row" style="margin-top:18px;gap:10px">
       <button class="btn grow" id="cp">Copy link</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, q.title, 'Complete this quiz on Quoldek.'))}">Send to Google Classroom</a>
+         id="classroom" href="#">Send to Google Classroom</a>
     </div>`, {
-    onMount(box) {
+    async onMount(box) {
+      // the short link has to be made before it can be shown, so the dialog opens
+      // with what it is doing rather than with a link that is about to change
+      const link = await homeworkLink(q);
+      box.querySelector('#lnk').value = link;
       box.querySelector('#cp').onclick = () => copy(link);
+      box.querySelector('#classroom').href =
+        classroomUrl(link, q.title, 'Complete this quiz on Quoldek.');
       const code = window.QR && QR.svg(link, { size: 150 });
       box.querySelector('#qrbox').innerHTML = code
         ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
@@ -501,6 +506,27 @@ api('/status').then(s => {
 }).catch(() => {});
 
 load();
+
+/* The homework link.
+ *
+ * It used to be the whole quiz packed into the address — hundreds of characters,
+ * which nobody can read out and Google Classroom shows as a wall of nonsense.
+ * The quiz now goes into the database and the link is the short address plus six
+ * characters, so it fits on a board and survives being retyped.
+ *
+ * If there is no connection the long self-contained link is still handed over,
+ * because a link that works offline beats a short one that does not exist.
+ */
+async function homeworkLink(quiz) {
+  const fallback = (window.Nova && Nova.shareLink) ? Nova.shareLink(quiz.id)
+                                                   : location.origin + '/take?id=' + quiz.id;
+  if (!(window.NovaLive && NovaLive.configured && NovaLive.shareQuiz)) return fallback;
+  try {
+    const code = await NovaLive.shareQuiz(quiz);
+    const host = window.QUOLDEK_HOMEWORK || (location.origin + '/take?c=');
+    return host + code;
+  } catch { return fallback; }
+}
 </script>
 </body>
 </html>

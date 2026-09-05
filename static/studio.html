@@ -879,18 +879,22 @@ $('#add-bottom').onclick = () => addQuestion('mc');
 $$('[data-add]').forEach(b => b.onclick = () => addQuestion(b.dataset.add));
 
 $('#share').onclick = () => {
-  const link = location.origin + '/take?id=' + quizId;
   modal(`
     <h2 style="margin-bottom:6px">Share it</h2>
     <p class="muted tiny" style="margin-bottom:18px">Good for homework. Answers appear in your Responses tab as they come in.</p>
     <div id="qrbox" style="display:flex;justify-content:center;margin-bottom:18px"></div>
-    <div class="field"><label class="label">Student link</label><input class="input mono" value="${esc(link)}" readonly></div>
+    <div class="field"><label class="label">Homework link</label>
+      <input class="input mono" id="lnk" value="Making a short link…" readonly></div>
     <div class="row" style="margin-top:18px;gap:10px">
       <button class="btn grow" id="cp">Copy</button>
       <a class="btn primary grow" style="justify-content:center" target="_blank" rel="noopener"
-         href="${esc(classroomUrl(link, quiz.title, 'Complete this quiz on Quoldek.'))}">Google Classroom</a>
-    </div>`, { onMount(box) {
+         id="classroom" href="#">Google Classroom</a>
+    </div>`, { async onMount(box) {
+      const link = await homeworkLink(quiz);
+      box.querySelector('#lnk').value = link;
       box.querySelector('#cp').onclick = () => copy(link);
+      box.querySelector('#classroom').href =
+        classroomUrl(link, quiz.title, 'Complete this quiz on Quoldek.');
       const code = window.QR && QR.svg(link, { size: 150 });
       box.querySelector('#qrbox').innerHTML = code
         ? `<div style="background:#fff;padding:10px;border-radius:14px;line-height:0">${code}</div>`
@@ -1086,6 +1090,27 @@ document.addEventListener('keydown', (e) => {
 });
 
 boot().catch(err => { document.body.innerHTML = `<div class="empty" style="padding-top:120px"><span class="em">${Sprite.icon('warn', 40)}</span>${esc(err.message)}<br><a class="btn sm" style="margin-top:16px" href="/quiz">Back to quizzes</a></div>`; });
+
+/* The homework link.
+ *
+ * It used to be the whole quiz packed into the address — hundreds of characters,
+ * which nobody can read out and Google Classroom shows as a wall of nonsense.
+ * The quiz now goes into the database and the link is the short address plus six
+ * characters, so it fits on a board and survives being retyped.
+ *
+ * If there is no connection the long self-contained link is still handed over,
+ * because a link that works offline beats a short one that does not exist.
+ */
+async function homeworkLink(quiz) {
+  const fallback = (window.Nova && Nova.shareLink) ? Nova.shareLink(quiz.id)
+                                                   : location.origin + '/take?id=' + quiz.id;
+  if (!(window.NovaLive && NovaLive.configured && NovaLive.shareQuiz)) return fallback;
+  try {
+    const code = await NovaLive.shareQuiz(quiz);
+    const host = window.QUOLDEK_HOMEWORK || (location.origin + '/take?c=');
+    return host + code;
+  } catch { return fallback; }
+}
 </script>
 </body>
 </html>

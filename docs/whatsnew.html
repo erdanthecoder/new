@@ -320,7 +320,7 @@ footer a{color:var(--grape)}
 <script src="arena.js?v=fb3b6182"></script>
 <script src="paste.js?v=3032c005"></script>
 <script src="rules.js?v=2b1ca27f"></script>
-<script src="live.js?v=67e72952"></script>
+<script src="live.js?v=1cdb2620"></script>
 <script src="nova-local.js?v=340f2f93"></script>
 <script src="account.js?v=ff127e8f"></script>
 <script>
@@ -329,6 +329,9 @@ window.QUOLDEK_JOIN = window.QUOLDEK_LOCAL
   ? location.href.replace(/[^/]*$/, '') + 'play.html?pin='
   : 'https://playquoldek.web.app/?pin=';
 window.QUOLDEK_LIVE = window.QUOLDEK_LOCAL ? '' : 'livequoldek.web.app';
+window.QUOLDEK_HOMEWORK = window.QUOLDEK_LOCAL
+  ? location.href.replace(/[^/]*$/, '') + 'take.html?c='
+  : 'https://hwquoldek.web.app/';
 document.getElementById('brand-mark').innerHTML = Sprite.logo(42);
 document.querySelectorAll('[data-icon]').forEach(n => {
   n.innerHTML = Sprite.icon(n.dataset.icon, 22);

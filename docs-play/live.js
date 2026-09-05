@@ -468,7 +468,53 @@
     };
   }
 
-  global.NovaLive = { handle, stats, MODES, GOALS, configured: Boolean(URL_BASE && PUBLISHABLE) };
+  /* ── homework by short code ───────────────────────────────
+   *
+   * A quiz used to travel inside its own link, which made a homework link
+   * hundreds of characters long: unreadable in Google Classroom, impossible to
+   * read out, and it broke the moment anything reformatted it. The quiz is put
+   * in the database instead and the link carries six characters.
+   *
+   * The alphabet leaves out the letters and digits people confuse when copying
+   * by hand — no l, i, o, 0 or 1 — so a code read off a board is the code that
+   * gets typed.
+   */
+  const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const newCode = () => Array.from({ length: 6 },
+    () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join('');
+
+  /** Put a quiz where a short link can find it. Returns the code. */
+  async function shareQuiz(quiz) {
+    if (!URL_BASE || !PUBLISHABLE) throw new Error('Sharing needs a connection.');
+    const slim = {
+      id: quiz.id, title: quiz.title, subject: quiz.subject || '',
+      settings: quiz.settings || {}, questions: quiz.questions || []
+    };
+    // a code is six characters, so a clash is possible rather than impossible
+    for (let go = 0; go < 5; go++) {
+      const code = newCode();
+      try {
+        await rest('POST', '/quoldek_homework', { code, quiz: slim }, { prefer: 'return=minimal' });
+        return code;
+      } catch (err) {
+        if (!/duplicate|conflict/i.test(err.message)) throw err;
+      }
+    }
+    throw new Error('Could not make a link just now. Try again.');
+  }
+
+  /** The quiz behind a short code. */
+  async function sharedQuiz(code) {
+    const rows = await rest('GET',
+      `/quoldek_homework?code=eq.${encodeURIComponent(String(code).toLowerCase())}&select=quiz`);
+    if (!rows || !rows.length) {
+      throw Object.assign(new Error('That homework link is not valid.'), { status: 404 });
+    }
+    return rows[0].quiz;
+  }
+
+  global.NovaLive = { handle, stats, shareQuiz, sharedQuiz, MODES, GOALS,
+                      configured: Boolean(URL_BASE && PUBLISHABLE) };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NovaLive;
