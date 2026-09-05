@@ -238,8 +238,30 @@
 
   /* ── the API the pages call ───────────────────────────── */
   // Nova.store writes JSON, so read it the same way rather than comparing quotes
+  /* Who is the teacher.
+   *
+   * This used to be answered by browser storage alone, and storage fails
+   * silently: a browser set to keep no site data saves nothing, and then the
+   * board could not prove it was the teacher — Start did nothing and the game
+   * never advanced, because only the host's own polling drives it. The token
+   * the page was already sending with every command was ignored.
+   *
+   * So it is now answered from three places, cheapest first: what this page has
+   * already proved in this session, what the browser managed to save, and what
+   * the caller sent. A token only counts as proof when it matches the one the
+   * game itself holds, which is checked below before anything is remembered.
+   */
+  const claimed = new Map();                 // pin → token, for this page's lifetime
+
   const hostTokenFor = (pin) => {
+    if (claimed.has(pin)) return claimed.get(pin);
     try { return JSON.parse(localStorage.getItem('nova:host:' + pin)); } catch { return null; }
+  };
+
+  /** Remember a token that has just been shown to be the game's own. */
+  const rememberHost = (pin, token) => {
+    claimed.set(pin, token);
+    try { localStorage.setItem('nova:host:' + pin, JSON.stringify(token)); } catch { /* no storage */ }
   };
 
   /* The host's poll needs the game, the players and this question's answers. Waiting
@@ -305,6 +327,12 @@
       game = await readGame(pin);
     }
     openIndex[pin] = game.index;
+    /* A command that carries the right token is the teacher, whatever this
+       browser did or did not manage to save. It is only believed because it is
+       compared against the token the game itself holds. */
+    if (body && body.hostToken && body.hostToken === game.hostToken) {
+      rememberHost(pin, body.hostToken);
+    }
     const isHost = hostTokenFor(pin) === game.hostToken;
 
     if (!tail && method === 'GET') {
